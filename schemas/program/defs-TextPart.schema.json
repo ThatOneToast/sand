@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "One styled piece of a message.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "A stored list of string characters, joined without separators. Read at\nmessage execution time through the field's canonical State ownership.",
+      "properties": {
+        "kind": {
+          "const": "stored",
+          "type": "string"
+        },
+        "style": {
+          "$ref": "defs-TextStyle.schema.json",
+          "default": {}
+        },
+        "value": {
+          "$ref": "defs-FieldReference.schema.json"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Literal text.",
+      "properties": {
+        "kind": {
+          "const": "text",
+          "type": "string"
+        },
+        "style": {
+          "$ref": "defs-TextStyle.schema.json",
+          "default": {}
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "text"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "A client language-file key and one text component for each placeholder.",
+      "properties": {
+        "arguments": {
+          "items": {
+            "items": {
+              "$ref": "defs-TextPart.schema.json"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "key": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "translation",
+          "type": "string"
+        },
+        "style": {
+          "$ref": "defs-TextStyle.schema.json",
+          "default": {}
+        }
+      },
+      "required": [
+        "kind",
+        "key"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Text with an optional hover tooltip and click action.",
+      "properties": {
+        "click": {
+          "anyOf": [
+            {
+              "$ref": "defs-ClickEvent.schema.json"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "content": {
+          "items": {
+            "$ref": "defs-TextPart.schema.json"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "interactive",
+          "type": "string"
+        },
+        "tooltip": {
+          "items": {
+            "$ref": "defs-TextPart.schema.json"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "content"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The live value of a State field.",
+      "properties": {
+        "kind": {
+          "const": "score",
+          "type": "string"
+        },
+        "score": {
+          "$ref": "defs-FieldReference.schema.json"
+        },
+        "style": {
+          "$ref": "defs-TextStyle.schema.json",
+          "default": {}
+        }
+      },
+      "required": [
+        "kind",
+        "score"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The executing player's name; needs a player executor.",
+      "properties": {
+        "kind": {
+          "const": "player_name",
+          "type": "string"
+        },
+        "style": {
+          "$ref": "defs-TextStyle.schema.json",
+          "default": {}
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    }
+  ]
+}

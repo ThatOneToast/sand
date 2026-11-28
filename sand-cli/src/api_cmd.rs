@@ -4562,7 +4562,36 @@ mod tests {
                     || entry.canonical_path.starts_with("sand::advanced::")
             })
             .collect::<Vec<_>>();
-        assert_eq!(entries.len(), 346);
+        assert_eq!(entries.len(), 1294);
+        for member in [
+            "CaptureEntity",
+            "CaptureEntity::relation",
+            "WithEntity",
+            "Damage::by",
+            "Ride",
+            "Suspend",
+            "Suspend::group",
+            "Suspend::server",
+            "CancelWaits",
+            "CancelWaits::group",
+            "CancelWaits::server",
+        ] {
+            assert!(
+                show(
+                    catalog,
+                    &format!("sand::advanced::compiler::Action::{member}")
+                )
+                .is_ok()
+            );
+        }
+        assert!(show(catalog, "sand::advanced::compiler::State::migrations").is_ok());
+        assert!(
+            show(
+                catalog,
+                "sand::advanced::compiler::Compiler::compile_with_command_sources"
+            )
+            .is_ok()
+        );
         assert!(
             show(catalog, "sand::advanced::compiler::ScoreField::bounds")
                 .unwrap()

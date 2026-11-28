@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The sky-light range in which monsters may spawn.\n\n# Context\nThe sky-light range in which monsters may spawn. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::MonsterSpawnLightLevel;\n```\nThe sky-light range in which monsters may spawn.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "A single light level.\nA single light level.",
+      "properties": {
+        "constant": {
+          "description": "A single light level.\nA single light level.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "constant"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "A uniformly sampled inclusive light-level range.\nA uniformly sampled inclusive light-level range.",
+      "properties": {
+        "uniform": {
+          "additionalProperties": false,
+          "properties": {
+            "max_inclusive": {
+              "description": "`max_inclusive` provides the max inclusive when a uniformly sampled inclusive light-level range.\n`max_inclusive` provides the max inclusive when a uniformly sampled inclusive light-level range.",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "min_inclusive": {
+              "description": "`min_inclusive` provides the min inclusive when a uniformly sampled inclusive light-level range.\n`min_inclusive` provides the min inclusive when a uniformly sampled inclusive light-level range.",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "min_inclusive",
+            "max_inclusive"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "uniform"
+      ],
+      "type": "object"
+    }
+  ]
+}

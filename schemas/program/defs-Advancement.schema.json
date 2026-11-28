@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A named native advancement with typed criteria and optional presentation.",
+  "properties": {
+    "criteria": {
+      "additionalProperties": {
+        "$ref": "defs-AdvancementCriterion.schema.json"
+      },
+      "description": "Nonempty map of stable names to native criteria.",
+      "type": "object"
+    },
+    "display": {
+      "anyOf": [
+        {
+          "$ref": "defs-AdvancementDisplay.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional presentation for a visible milestone."
+    },
+    "experience": {
+      "default": 0,
+      "description": "Experience points awarded at completion, or zero for no reward.",
+      "format": "int32",
+      "type": "integer"
+    },
+    "id": {
+      "description": "Advancement identity.",
+      "type": "string"
+    },
+    "require_any": {
+      "description": "Whether one criterion is sufficient for completion.",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "id",
+    "criteria"
+  ],
+  "type": "object"
+}

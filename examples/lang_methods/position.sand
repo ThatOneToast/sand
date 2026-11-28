@@ -1,0 +1,22 @@
+/// A copyable position value, with private fields and public value methods.
+pub struct Position {
+    x: float,
+    y: float,
+    z: float
+}
+impl Position {
+    pub fn capture() -> Self {
+        return Self {
+            x: Player.x,
+            y: Player.y,
+            z: Player.z
+        };
+    }
+    pub fn east(mut self, distance: float) -> Self {
+        self.x += distance;
+        return self;
+    }
+    pub fn apply(self) {
+        teleport(self.x, self.y, self.z);
+    }
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "How matching entities are ordered before a limit applies.",
+  "oneOf": [
+    {
+      "const": "nearest",
+      "description": "Nearest to the executor first.",
+      "type": "string"
+    },
+    {
+      "const": "furthest",
+      "description": "Furthest from the executor first.",
+      "type": "string"
+    },
+    {
+      "const": "random",
+      "description": "Random order.",
+      "type": "string"
+    },
+    {
+      "const": "arbitrary",
+      "description": "Minecraft's internal order; fastest.",
+      "type": "string"
+    }
+  ]
+}

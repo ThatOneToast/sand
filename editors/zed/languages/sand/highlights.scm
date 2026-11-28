@@ -1,0 +1,129 @@
+; Comments
+(doc_comment) @comment.doc
+(line_comment) @comment
+(block_comment) @comment
+
+; Literals
+(string) @string
+(escape_sequence) @string.escape
+(brace_escape) @string.escape
+(interpolation
+  "{" @punctuation.special
+  "}" @punctuation.special) @embedded
+(interpolation_content) @variable.special
+(integer) @number
+(float) @number
+(boolean) @boolean
+
+; Attributes: #[tick], #[on(death)], #![pack(...)]
+(attribute "#" @attribute "[" @attribute "]" @attribute)
+(inner_attribute "#" @attribute "!" @attribute "[" @attribute "]" @attribute)
+(attribute_name) @attribute
+(argument_name) @property
+
+; Struct values and inherent methods
+(trait_item name: (identifier) @type)
+(trait_method name: (identifier) @function.method)
+(function_type_parameter name: (identifier) @type bound: (path) @type)
+(impl_item trait: (path) @type)
+(struct_item name: (identifier) @type)
+(impl_item type: (path) @type)
+(record_expression type: (path) @type)
+(record_field name: (identifier) @property)
+(record_pattern type: (path) @type)
+(pattern_field name: (identifier) @property)
+(binding_pattern name: (identifier) @variable)
+(method_expression method: (identifier) @function.method)
+(field_expression field: (identifier) @property)
+(receiver) @variable.builtin
+(generic_parameters (identifier) @type)
+
+; Declarations
+(function_item name: (identifier) @function)
+(extern_function name: (identifier) @function)
+(event_item name: (identifier) @type)
+(state_item name: (identifier) @type)
+(enum_item name: (identifier) @type)
+(flow_item name: (identifier) @type)
+(mod_item name: (identifier) @namespace)
+(const_item name: (identifier) @constant)
+(variant name: (identifier) @variant)
+(field_declaration name: (field_identifier) @property)
+(data_item name: (identifier) @type)
+(data_kind) @keyword
+(data_field key: (field_identifier) @property)
+(parameter name: (identifier) @variable.parameter)
+(let_statement name: (identifier) @variable)
+(mutable_specifier) @keyword.modifier
+(type) @type
+(scope) @keyword.modifier
+(hook_phase) @keyword
+
+; Uses
+(place field: (field_identifier) @property)
+(macro_invocation macro: (macro_name) @function.macro "!" @function.macro)
+(call_expression function: (path (identifier) @function .))
+(transition from: (path (identifier) @variant))
+(transition to: (path (identifier) @variant))
+(hook state: (path (identifier) @variant))
+(hook function: (path (identifier) @function .))
+
+; Paths: `Type::Variant`, `module::item`, upper-case names as types
+((identifier) @type
+  (#match? @type "^[A-Z][A-Za-z0-9_]*$"))
+((identifier) @constant
+  (#match? @constant "^[A-Z][A-Z0-9_]+$"))
+(crate) @keyword
+(self) @keyword
+(super) @keyword
+
+; Keywords
+[
+  "fn"
+  "struct"
+  "move"
+  "trait"
+  "impl"
+  "mod"
+  "use"
+  "const"
+  "enum"
+  "state"
+  "flow"
+  "event"
+  "extern"
+  "as"
+  "on"
+  "let"
+] @keyword
+
+[
+  "if"
+  "else"
+  "for"
+  "in"
+  "every"
+  "priority"
+  "match"
+  "while"
+  "loop"
+  "return"
+  "continue"
+  "break"
+  "emit"
+] @keyword.control
+
+(visibility) @keyword
+
+; Operators and punctuation
+[
+  "=" "+=" "-=" "*=" "/=" "%="
+  "==" "!=" "<" "<=" ">" ">="
+  "&&" "||" "!" "|"
+  "+" "-" "*" "/" "%"
+  ".." "..="
+  "->" "=>"
+] @operator
+
+["(" ")" "{" "}" "[" "]"] @punctuation.bracket
+["," ";" ":" "::" "."] @punctuation.delimiter

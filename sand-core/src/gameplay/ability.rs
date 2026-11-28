@@ -1,12 +1,18 @@
 use super::Lifetime;
 use crate::{
     IntoCommands,
-    condition::Condition,
+    condition::{Condition, ScoreRange},
     entity::{EntityCooldown, EntityKind, EntityScore, EntityStateField, PlayerKind},
     ir::Actions,
     registration::{DatapackRegistration, IntoDatapack},
-    state::Ticks,
+    state::{Ticks, owned::PlayerScore},
 };
+
+#[derive(Clone)]
+enum AdmissionField<T> {
+    Declared(T),
+    Player(PlayerScore),
+}
 
 /// An activation policy around an owned lifetime. Costs and cooldowns use the
 /// owner's canonical State fields, so UI and gameplay read the same values.
@@ -27,8 +33,8 @@ example = "use sand::systems::Ability;",
 pub struct Ability<K: EntityKind = PlayerKind> {
     lifetime: Lifetime<K>,
     projectile: Option<super::Projectile<K>>,
-    cost: Option<(EntityScore<i32>, u32)>,
-    cooldown: Option<(EntityCooldown, Ticks)>,
+    cost: Option<(AdmissionField<EntityScore<i32>>, u32)>,
+    cooldown: Option<(AdmissionField<EntityCooldown>, Ticks)>,
     conditions: Vec<Condition>,
 }
 impl<K: EntityKind> Ability<K> {
@@ -86,7 +92,7 @@ impl<K: EntityKind> Ability<K> {
     example = "use sand::prelude::*;\nuse sand::systems::{Ability, Lifetime};\n\nfn demonstrate(value: Ability, mana: sand::entity::EntityScore<i32>) {\n    let _result = value.cost(mana, 20);\n}",
     )]
     pub fn cost(mut self, field: EntityScore<i32>, amount: u32) -> Self {
-        self.cost = Some((field, amount));
+        self.cost = Some((AdmissionField::Declared(field), amount));
         self
     }
     /// Require a ready canonical cooldown and start it on successful admission.
@@ -105,9 +111,19 @@ impl<K: EntityKind> Ability<K> {
     example = "use sand::prelude::*;\nuse sand::systems::{Ability, Lifetime};\n\nfn demonstrate(value: Ability, cooldown: sand::entity::EntityCooldown) {\n    let _result = value.cooldown(cooldown, Ticks::seconds(3));\n}",
     )]
     pub fn cooldown(mut self, field: EntityCooldown, duration: Ticks) -> Self {
-        self.cooldown = Some((field, duration));
+        self.cooldown = Some((AdmissionField::Declared(field), duration));
         self
     }
+    pub(crate) fn owned_cost(mut self, field: PlayerScore, amount: u32) -> Self {
+        self.cost = Some((AdmissionField::Player(field), amount));
+        self
+    }
+
+    pub(crate) fn owned_cooldown(mut self, field: PlayerScore, duration: Ticks) -> Self {
+        self.cooldown = Some((AdmissionField::Player(field), duration));
+        self
+    }
+
     /// Add an owner-context activation condition. Every condition must pass.
     #[sand_macros::api(
     registry = sand_api_contract,
@@ -190,22 +206,41 @@ impl<K: EntityKind> IntoDatapack for Ability<K> {
             );
         if let Some((field, amount)) = self.cost {
             if let Ok(amount) = i32::try_from(amount) {
-                let minimum = field.descriptor().bounds.map_or(0, |(min, _)| min.max(0));
+                let bounds = match &field {
+                    AdmissionField::Declared(field) => field.descriptor().bounds,
+                    AdmissionField::Player(field) => field.bounds,
+                };
+                let minimum = bounds.map_or(0, |(min, _)| min.max(0));
                 let Some(threshold) = amount.checked_add(minimum) else {
                     self.lifetime.invalid =
                         Some(("cost", "cost cannot fit above the resource field minimum"));
                     return self.lifetime.into_datapack();
                 };
-                let condition = field
-                    .matches(threshold..)
-                    .expect("nonnegative bounded range")
-                    .condition();
+                let (condition, commit) = match field {
+                    AdmissionField::Declared(field) => (
+                        field
+                            .matches(threshold..)
+                            .expect("nonnegative bounded range")
+                            .condition(),
+                        field.bind().add(-amount),
+                    ),
+                    AdmissionField::Player(field) => {
+                        if field.timer {
+                            self.lifetime.invalid =
+                                Some(("cost", "cost requires a non-ticking player score"));
+                        }
+                        (
+                            field.matches(ScoreRange::Gte(threshold)),
+                            field.remove(amount),
+                        )
+                    }
+                };
                 self.lifetime.diagnostics.push((
                     condition.clone(),
                     format!("Insufficient resource: requires {amount}"),
                 ));
                 self.conditions.push(condition);
-                self.lifetime.commit.extend([field.bind().add(-amount)]);
+                self.lifetime.commit.extend([commit]);
             } else {
                 // Retain invalid values until normal export validation.
                 self.lifetime.invalid = Some(("cost", "cost must not exceed 2147483647"));
@@ -215,13 +250,27 @@ impl<K: EntityKind> IntoDatapack for Ability<K> {
             if duration.get() == 0 || duration.get() > i32::MAX as u32 {
                 self.lifetime.invalid = Some(("cooldown", "duration must be in 1..=2147483647"));
             }
+            let (ready, commit) = match field {
+                AdmissionField::Declared(field) => (
+                    field.bind().ready(),
+                    field.bind().start(duration).into_commands(),
+                ),
+                AdmissionField::Player(field) => {
+                    if !field.timer {
+                        self.lifetime.invalid =
+                            Some(("cooldown", "cooldown requires a player timer"));
+                    }
+                    (
+                        field.matches(ScoreRange::Eq(0)),
+                        field.set(duration.get() as i32).into_commands(),
+                    )
+                }
+            };
             self.lifetime
                 .diagnostics
-                .push((field.bind().ready(), "Cooldown is not ready".into()));
-            self.conditions.push(field.bind().ready());
-            self.lifetime
-                .commit
-                .extend([field.bind().start(duration).into_commands()]);
+                .push((ready.clone(), "Cooldown is not ready".into()));
+            self.conditions.push(ready);
+            self.lifetime.commit.extend([commit]);
         }
         self.lifetime.guard = Some(Condition::all(self.conditions));
         if let Some(mut projectile) = self.projectile {

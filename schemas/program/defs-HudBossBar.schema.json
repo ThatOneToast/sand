@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The title, current value, and maximum of a player's private HUD boss bar.",
+  "properties": {
+    "max": {
+      "description": "Positive bar maximum.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "title": {
+      "description": "Text shown over the bar.",
+      "items": {
+        "$ref": "defs-TextPart.schema.json"
+      },
+      "type": "array"
+    },
+    "value": {
+      "$ref": "defs-ScoreOperand.schema.json",
+      "description": "Current value read on each refresh."
+    }
+  },
+  "required": [
+    "title",
+    "value",
+    "max"
+  ],
+  "type": "object"
+}

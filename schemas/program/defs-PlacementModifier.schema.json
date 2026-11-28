@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "An ordered, typed worldgen placement operation.\n\n# Context\nCompose common vanilla feature placement without anonymous JSON, reusing HeightProvider and Heightmap.\n\n# Minecraft behavior\nSerializes an ordered placement entry; PlacedFeature validates numeric bounds and nested providers before export.\n\n# Use when\n- Placing configured features with common vanilla modifiers\n\n# Avoid when\n- Describing a configured feature's block-generation algorithm\n\n# Example\n```rust,ignore\nuse sand::component::PlacementModifier; let scatter = PlacementModifier::InSquare;\n```\nOne ordered placement operation for a configured feature.\n\nModifiers form a pipeline: count repeats each input position, in-square\nscatters it horizontally, and height modifiers choose its elevation. Order\nis significant and is preserved on export. Numeric bounds are validated by\n`PlacedFeature` before export. Unsupported providers/modifiers remain explicit\nthrough `Raw`; raw payloads receive structural, not full codec validation.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "Repeat each input position `0..=4096` times (a constant count provider).\nRepeat each position zero through 4096 times.",
+      "properties": {
+        "count": {
+          "description": "Number of repetitions, in 0..=4096.",
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "count"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Keep each position with probability `1 / chance`; chance must be positive.\nRetain each position with probability one in the positive chance.",
+      "properties": {
+        "rarity_filter": {
+          "description": "Positive reciprocal probability.",
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "rarity_filter"
+      ],
+      "type": "object"
+    },
+    {
+      "const": "in_square",
+      "description": "Randomize horizontal coordinates within the chunk.\nScatter positions within the chunk horizontally.",
+      "type": "string"
+    },
+    {
+      "const": "biome",
+      "description": "Keep only positions whose biome includes this placed feature.\nKeep positions where the biome allows this placed feature.",
+      "type": "string"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Sample elevation using the shared worldgen height-provider model.\nChoose elevation with the shared height provider.",
+      "properties": {
+        "height_range": {
+          "$ref": "defs-HeightProvider.schema.json",
+          "description": "The canonical height provider."
+        }
+      },
+      "required": [
+        "height_range"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Place at the selected chunk heightmap elevation.\nChoose elevation from a chunk heightmap.",
+      "properties": {
+        "heightmap": {
+          "$ref": "defs-Heightmap.schema.json",
+          "description": "The canonical heightmap selector."
+        }
+      },
+      "required": [
+        "heightmap"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Filter by maximum surface water depth, in blocks.\nKeep positions whose surface water depth does not exceed the maximum.",
+      "properties": {
+        "surface_water_depth": {
+          "description": "Maximum water depth in blocks.",
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "surface_water_depth"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Explicit unsupported or custom modifier JSON.\nExplicit unsupported placement JSON, structurally validated.",
+      "properties": {
+        "raw": {
+          "$ref": "defs-RawJson.schema.json",
+          "description": "An object with a valid resource-location type field."
+        }
+      },
+      "required": [
+        "raw"
+      ],
+      "type": "object"
+    }
+  ]
+}

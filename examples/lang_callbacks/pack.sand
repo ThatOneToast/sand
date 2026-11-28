@@ -1,0 +1,26 @@
+//! A player's selected message formatter keeps a snapshot of their preference.
+#![pack(namespace = "reward_notes", minecraft = "26.2")]
+
+player state Notes {
+    format: player fn() -> string,
+    points: number
+}
+
+fn style(prefix: string) -> player fn() -> string {
+    return move || -> string {
+        return prefix + Notes.points.to_string();
+    };
+}
+
+#[on(join)]
+fn setup() {
+    let name = "Mining points: ";
+    Notes.format = style(name);
+}
+
+#[on(mine_block = Block::Stone)]
+fn mine() {
+    Notes.points += 1;
+    let render = Notes.format;
+    chat!(render());
+}

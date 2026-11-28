@@ -204,20 +204,23 @@ impl<K: EntityKind> Session<K> {
         Ok(actions)
     }
 }
-impl<K: EntityKind> IntoDatapack for Session<K> {
-    fn into_datapack(self) -> DatapackRegistration {
+impl<K: EntityKind> Session<K> {
+    /// Portable packs register each track once and can reference it separately.
+    pub(crate) fn registration(self, include_progression: bool) -> DatapackRegistration {
         let mut lifetime = self.lifetime.clone();
         lifetime.step = Some("session_step");
+        lifetime.step_on_interval = true;
         lifetime.stop = Some(Arc::new(|ctx| {
             identity::call(&ctx.scope, "session_stopped")
         }));
-        let mut registration = lifetime
-            .into_datapack()
-            .merge(self.progression.clone())
-            .lifecycle(LifecycleContribution::load(format!(
-                "function {}",
-                identity::resource(&self.lifetime.id, "session_load")
-            )));
+        let mut registration = lifetime.into_datapack();
+        if include_progression {
+            registration = registration.merge(self.progression.clone());
+        }
+        registration = registration.lifecycle(LifecycleContribution::load(format!(
+            "function {}",
+            identity::resource(&self.lifetime.id, "session_load")
+        )));
         for part in [
             "load",
             "start",
@@ -238,5 +241,11 @@ impl<K: EntityKind> IntoDatapack for Session<K> {
             ));
         }
         registration
+    }
+}
+
+impl<K: EntityKind> IntoDatapack for Session<K> {
+    fn into_datapack(self) -> DatapackRegistration {
+        self.registration(true)
     }
 }

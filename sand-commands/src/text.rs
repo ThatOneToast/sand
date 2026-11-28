@@ -125,7 +125,13 @@ impl fmt::Display for ChatColor {
     variant_fields(ChangePage = ["Emit `change_page` with a numeric page value (written books only)."], CopyToClipboard = ["Copy text to the clipboard."], OpenUrl = ["Open a URL in the player's browser."], RunCommand = ["Execute a command when clicked."], SuggestCommand = ["Fill the chat bar with a command suggestion."]),
 )]
 /// A click event attached to a [`TextComponent`].
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(
+    tag = "kind",
+    content = "value",
+    rename_all = "snake_case",
+    deny_unknown_fields
+)]
 pub enum ClickEvent {
     /// Execute a command when clicked.
     RunCommand(#[doc = "Execute a command when clicked."] String),
@@ -140,6 +146,24 @@ pub enum ClickEvent {
     /// Book pages are one-indexed; validation rejects zero and values above
     /// the positive 32-bit integer range accepted by Minecraft.
     ChangePage(#[doc = "Emit `change_page` with a numeric page value (written books only)."] u32),
+}
+
+impl ClickEvent {
+    /// Check the payload using the same vanilla rules as a text component.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::text::ClickEvent::validate",
+        module = "sand::text", kind = "method",
+        summary = "Checks the payload of a Minecraft text click event.",
+        context = "Use before attaching a portable or authored click action to a text component. It uses the same payload checks as component serialization.",
+        minecraft = "Validates command text characters, HTTP(S) URLs, and one-indexed book pages.",
+        use_when = ["Validating an independently authored click event"],
+        avoid_when = ["Checking whether a UI surface supports clicking"],
+        returns = "Unit for a valid payload, or a command error with the click payload path.",
+        example = "sand::text::ClickEvent::SuggestCommand(\"/trigger next\".into()).validate()?;",
+    )]
+    pub fn validate(&self) -> CommandResult<()> {
+        validate_click(self, "text")
+    }
 }
 
 #[sand_macros::api(
@@ -283,6 +307,11 @@ enum TextContent {
         with: Vec<TextComponent>,
     },
     Keybind(String),
+    Nbt {
+        target: crate::DataTarget,
+        path: crate::NbtPath,
+        separator: Box<TextComponent>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -591,6 +620,33 @@ impl TextComponent {
     )]
     pub fn keybind(key: impl Into<String>) -> Self {
         Self::new(TextContent::Keybind(key.into()))
+    }
+
+    /// Render readable NBT as plain text, joining multiple selected values with
+    /// `separator`. Stored text is never interpreted as JSON or command source.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::text::TextComponent::nbt",
+        aliases = ["sand::cmd::TextComponent::nbt", "sand::command::TextComponent::nbt", "sand::prelude::TextComponent::nbt", "sand::prelude::cmd::TextComponent::nbt"],
+        module = "sand::text", kind = "method",
+        summary = "Render readable NBT as plain text with an explicit separator.",
+        context = "The typed NBT reference selects storage, entity or block data; read-only views are accepted.",
+        minecraft = "Builds a validated NBT text component with interpret=false, preserving arbitrary stored text as text.",
+        use_when = ["Displaying runtime strings or values from command storage"],
+        avoid_when = ["Displaying a known literal or a scoreboard value"],
+        params(reference = "Readable typed NBT selection.", separator = "Component displayed between selected values."),
+        returns = "A plain-text NBT component that supports ordinary styling.",
+        example = "use sand::prelude::*; let text = TextComponent::nbt(sand::data::Nbt::storage(ResourceLocation::new(\"demo\", \"state\").unwrap()).path(\"name\"), TextComponent::literal(\"\"));",
+    )]
+    pub fn nbt<T>(
+        reference: impl Into<crate::ReadOnlyNbtRef<T>>,
+        separator: TextComponent,
+    ) -> Self {
+        let (target, path) = reference.into().into_parts();
+        Self::new(TextContent::Nbt {
+            target,
+            path,
+            separator: Box::new(separator),
+        })
     }
 
     fn new(content: TextContent) -> Self {
@@ -1096,6 +1152,24 @@ impl TextComponent {
 
     // ── Click events ──────────────────────────────────────────────────────────
 
+    /// Attach a typed click event to this component.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::text::TextComponent::with_click_event",
+        module = "sand::text", kind = "method",
+        summary = "Attaches a typed click event to a text component.",
+        context = "Use when an existing authoring model supplies a ClickEvent. The new event replaces any click event on the same component.",
+        minecraft = "Serializes a native click event and validates its payload with the text component.",
+        use_when = ["Attaching a click event constructed before the text component"],
+        avoid_when = ["Adding hover text"],
+        params(event = "The click event associated with the component."),
+        returns = "The component with the supplied native click event.",
+        example = "let action = sand::text::ClickEvent::CopyToClipboard(\"checkpoint\".into()); let text = sand::text::TextComponent::literal(\"Copy\").with_click_event(action);",
+    )]
+    pub fn with_click_event(mut self, event: ClickEvent) -> Self {
+        self.click_event = Some(event);
+        self
+    }
+
     /// Run a command when this text is clicked.
     #[sand_macros::api(
         registry = sand_api_contract,
@@ -1112,9 +1186,8 @@ impl TextComponent {
         returns = "The `TextComponent` value with the documented change applied to run a command when this text is clicked.",
         example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, cmd: impl Into < String >)  {\n    let updated_text_component = text_component_value.click_run_command(cmd);\n}",
     )]
-    pub fn click_run_command(mut self, cmd: impl Into<String>) -> Self {
-        self.click_event = Some(ClickEvent::RunCommand(cmd.into()));
-        self
+    pub fn click_run_command(self, cmd: impl Into<String>) -> Self {
+        self.with_click_event(ClickEvent::RunCommand(cmd.into()))
     }
 
     /// Fill the chat bar with a suggestion when clicked.
@@ -1133,9 +1206,8 @@ impl TextComponent {
         returns = "The `TextComponent` value with the documented change applied to fill the chat bar with a suggestion when clicked.",
         example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, cmd: impl Into < String >)  {\n    let updated_text_component = text_component_value.click_suggest_command(cmd);\n}",
     )]
-    pub fn click_suggest_command(mut self, cmd: impl Into<String>) -> Self {
-        self.click_event = Some(ClickEvent::SuggestCommand(cmd.into()));
-        self
+    pub fn click_suggest_command(self, cmd: impl Into<String>) -> Self {
+        self.with_click_event(ClickEvent::SuggestCommand(cmd.into()))
     }
 
     /// Open a URL when clicked.
@@ -1154,9 +1226,8 @@ impl TextComponent {
         returns = "The `TextComponent` value with the documented change applied to open a URL when clicked.",
         example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, url: impl Into < String >)  {\n    let updated_text_component = text_component_value.click_open_url(url);\n}",
     )]
-    pub fn click_open_url(mut self, url: impl Into<String>) -> Self {
-        self.click_event = Some(ClickEvent::OpenUrl(url.into()));
-        self
+    pub fn click_open_url(self, url: impl Into<String>) -> Self {
+        self.with_click_event(ClickEvent::OpenUrl(url.into()))
     }
 
     /// Copy text to the clipboard when clicked.
@@ -1178,9 +1249,8 @@ impl TextComponent {
         returns = "The `TextComponent` value with the documented change applied to copy text to the clipboard when clicked. `text` is the literal clipboard payload; it is not rendered as the player-visible label of this component.",
         example = "use sand::prelude::*;\n\nfn demonstrate(text_component_value: sand::text::TextComponent, text: impl Into < String >)  {\n    let updated_text_component = text_component_value.click_copy(text);\n}",
     )]
-    pub fn click_copy(mut self, text: impl Into<String>) -> Self {
-        self.click_event = Some(ClickEvent::CopyToClipboard(text.into()));
-        self
+    pub fn click_copy(self, text: impl Into<String>) -> Self {
+        self.with_click_event(ClickEvent::CopyToClipboard(text.into()))
     }
 
     /// Emit a `change_page` click event for a page inside a written book.
@@ -1427,6 +1497,22 @@ impl TextComponent {
                 }
             }
             TextContent::Keybind(key) => serde_json::json!({ "keybind": key }),
+            TextContent::Nbt {
+                target,
+                path,
+                separator,
+            } => {
+                let mut value = serde_json::json!({ "nbt": path.as_str(), "interpret": false, "separator": separator.to_json_value() });
+                let (kind, source) = match target {
+                    crate::DataTarget::Storage(id) | crate::DataTarget::StorageRaw(id) => {
+                        ("storage", id.clone())
+                    }
+                    crate::DataTarget::Entity(selector) => ("entity", selector.to_string()),
+                    crate::DataTarget::Block(position) => ("block", position.to_string()),
+                };
+                value[kind] = serde_json::Value::String(source);
+                value
+            }
         };
         if let Some(c) = &self.color {
             obj["color"] = serde_json::json!(c);
@@ -1584,6 +1670,14 @@ impl TextComponent {
 
         match &self.content {
             TextContent::Literal(_) => {}
+            TextContent::Nbt {
+                target,
+                path: selection,
+                separator,
+            } => {
+                crate::nbt::validate_ref_parts(target, selection, false, profile)?;
+                separator.validate_inner(profile, &format!("{path}.separator"), depth + 1)?;
+            }
             TextContent::Score { name, objective } => {
                 validate_score_holder(name).map_err(|error| {
                     text_error(

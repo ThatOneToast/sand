@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A concrete block state: a block identifier plus optional property values.\n\n# Context\nA concrete block state: a block identifier plus optional property values. This is the datapack JSON form used by structure processors and feature configs (`{\"Name\": \u2026, \"Properties\": {\u2026}}`). It is deliberately distinct from the command-side `sand::command::BlockState`, which renders `minecraft:stone[facing=north]`.\n\n# Minecraft behavior\nThis is the datapack JSON form used by structure processors and feature configs (`{\"Name\": \u2026, \"Properties\": {\u2026}}`). It is deliberately distinct from the command-side `sand::command::BlockState`, which renders `minecraft:stone[facing=north]`.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::BlockState;\n```\nA concrete block state: a block identifier plus optional property values.\n\nThis is the datapack JSON form used by structure processors and feature\nconfigs (`{\"Name\": \u2026, \"Properties\": {\u2026}}`). It is deliberately distinct\nfrom the command-side `sand_commands::BlockState`, which renders\n`minecraft:stone[facing=north]`.\n\n```\nuse sand_components::worldgen::providers::BlockState;\nuse sand_components::BlockId;\n\nlet state = BlockState::new(BlockId::minecraft(\"oak_log\").unwrap()).property(\"axis\", \"y\");\nassert_eq!(state.block().to_string(), \"minecraft:oak_log\");\n```",
+  "properties": {
+    "block": {
+      "type": "string"
+    },
+    "properties": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "block"
+  ],
+  "type": "object"
+}

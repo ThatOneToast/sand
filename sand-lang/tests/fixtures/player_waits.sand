@@ -1,0 +1,248 @@
+//! Imported by the two-client runtime probe.
+struct Plan { label: string, boost: number, delay: number, steps: Vec<number> }
+player state Ledger {
+    stage_one: number,
+    stage_two: number,
+    cancelled: number,
+    retained: number,
+    immediate: number,
+    branch_sum: number,
+    branch_shadow: number,
+    branch_count: number,
+    match_sum: number,
+    match_count: number,
+    loop_sum: number,
+    loop_count: number,
+}
+
+fn run(plan: Plan) {
+    let mut amount = plan.boost;
+    wait(plan.delay);
+    amount += plan.steps[0];
+    Ledger.stage_one += amount;
+
+    wait(4);
+    if plan.label == "A" || plan.label == "A2" || plan.label == "B🌍" {
+        Ledger.stage_two += amount + plan.steps[1];
+        raw!("execute if dimension minecraft:overworld run scoreboard players add @s wait_origin 1");
+        if plan.label == "A" { raw!("execute store result score #A wait_clock run time query gametime"); raw!("say __SAND_WAIT_A_DONE__"); }
+        if plan.label == "A2" { raw!("execute store result score #A2 wait_clock run time query gametime"); raw!("say __SAND_WAIT_A2_DONE__"); }
+        if plan.label == "B🌍" { raw!("execute store result score #B wait_clock run time query gametime"); raw!("say __SAND_WAIT_B_DONE__"); }
+    }
+}
+
+pub fn queue_a() {
+    run(Plan { label: "A", boost: 2, delay: 8, steps: [1, 7] });
+    run(Plan { label: "A2", boost: 4, delay: 14, steps: [3, 8] });
+}
+
+pub fn queue_b() {
+    run(Plan { label: "B🌍", boost: 4, delay: 19, steps: [1, 6] });
+}
+
+pub fn cancel() { cancel_waits(group = "orders"); }
+
+pub fn queue_cancellable() {
+    wait(12, group = "orders");
+    Ledger.cancelled += 1;
+    raw!("say __SAND_WAIT_CANCELLABLE_DONE__");
+}
+
+fn journal_wait() {
+    wait(5, group = "journal");
+    Ledger.retained += 1;
+}
+
+fn ungrouped_wait() {
+    wait(4);
+    Ledger.retained += 1;
+}
+
+pub fn queue_retained() {
+    journal_wait();
+    ungrouped_wait();
+}
+
+pub fn check_a() {
+    if Ledger.stage_one == 10 && Ledger.stage_two == 25 && Ledger.cancelled == 0 && Ledger.retained == 2 {
+        raw!("scoreboard players set #wait_a numeric_probe 1");
+    }
+}
+
+pub fn check_b() {
+    if Ledger.stage_one == 5 && Ledger.stage_two == 11 && Ledger.cancelled == 1 {
+        raw!("scoreboard players set #wait_b numeric_probe 1");
+    }
+}
+
+fn invalid_ticks(ticks: number) {
+    wait(ticks);
+    Ledger.immediate += 1;
+}
+
+fn invalid_seconds(seconds: number) {
+    wait(seconds = seconds);
+    Ledger.immediate += 1;
+}
+
+pub fn check_invalid() {
+    Ledger.immediate = 0;
+    invalid_ticks(-1);
+    invalid_seconds(2147483647);
+    if Ledger.immediate == 2 { raw!("scoreboard players set #wait_invalid numeric_probe 1"); }
+}
+
+fn runtime_seconds(seconds: number) {
+    wait(seconds = seconds);
+    raw!("execute store result score #seconds wait_clock run time query gametime");
+    raw!("say __SAND_WAIT_SECONDS_DONE__");
+}
+
+pub fn queue_seconds() { runtime_seconds(1); }
+
+fn branch_wait(mode: number, value: number) {
+    let mut total = value;
+    if mode == 1 || mode == 2 {
+        let add = 7;
+        if mode == 1 {
+            let total = total + 100;
+            wait(4);
+            Ledger.branch_shadow += total;
+        } else {
+            wait(2);
+            return;
+        }
+        total += add;
+    } else if mode == 3 {
+        wait(3);
+        total *= 2;
+    } else {
+        total += 1;
+    }
+    Ledger.branch_sum += total;
+    Ledger.branch_count += 1;
+    if mode != 0 { raw!("say __SAND_BRANCH_WAIT_DONE__"); }
+}
+
+pub fn queue_branches_a() {
+    branch_wait(1, 10);
+    branch_wait(1, 30);
+    branch_wait(2, 99);
+    branch_wait(0, 3);
+    if Ledger.branch_sum == 4 && Ledger.branch_count == 1 {
+        raw!("scoreboard players set #branch_eager_a numeric_probe 1");
+    }
+}
+
+pub fn queue_branches_b() {
+    branch_wait(3, 8);
+    branch_wait(0, 5);
+    if Ledger.branch_sum == 6 && Ledger.branch_count == 1 {
+        raw!("scoreboard players set #branch_eager_b numeric_probe 1");
+    }
+}
+
+pub fn check_branches_a() {
+    if Ledger.branch_sum == 58 && Ledger.branch_shadow == 240 && Ledger.branch_count == 3 {
+        raw!("scoreboard players set #branch_after_a numeric_probe 1");
+    }
+}
+
+pub fn check_branches_b() {
+    if Ledger.branch_sum == 22 && Ledger.branch_shadow == 0 && Ledger.branch_count == 2 {
+        raw!("scoreboard players set #branch_after_b numeric_probe 1");
+    }
+}
+
+fn match_wait(mode: number, value: number) {
+    let mut total = value;
+    match mode {
+        1 | 3 => {
+            wait(5);
+            total += 10;
+        },
+        let candidate if candidate == 2 || candidate == 99 => {
+            wait(7);
+            total += candidate;
+        },
+        _ => { total += 100; },
+    }
+    Ledger.match_sum += total;
+    Ledger.match_count += 1;
+    if mode != 0 && mode != 4 { raw!("say __SAND_MATCH_WAIT_DONE__"); }
+}
+
+pub fn queue_matches_a() {
+    match_wait(1, 10);
+    match_wait(2, 5);
+    match_wait(0, 1);
+    if Ledger.match_sum == 101 && Ledger.match_count == 1 {
+        raw!("scoreboard players set #match_eager_a numeric_probe 1");
+    }
+}
+
+pub fn queue_matches_b() {
+    match_wait(3, 7);
+    match_wait(4, 13);
+    if Ledger.match_sum == 113 && Ledger.match_count == 1 {
+        raw!("scoreboard players set #match_eager_b numeric_probe 1");
+    }
+}
+
+pub fn check_matches_a() {
+    if Ledger.match_sum == 128 && Ledger.match_count == 3 {
+        raw!("scoreboard players set #match_after_a numeric_probe 1");
+    }
+}
+
+pub fn check_matches_b() {
+    if Ledger.match_sum == 130 && Ledger.match_count == 2 {
+        raw!("scoreboard players set #match_after_b numeric_probe 1");
+    }
+}
+
+fn loop_wait(initial: number, values: Vec<number>) {
+    let mut total = initial;
+    let mut pass = 0;
+    while pass < 2 {
+        wait(2);
+        pass += 1;
+        total += pass;
+    }
+    for entry in values {
+        wait(2);
+        if entry == 2 { continue; }
+        if entry == 9 { break; }
+        total += entry;
+    }
+    Ledger.loop_sum += total;
+    Ledger.loop_count += 1;
+    raw!("say __SAND_LOOP_WAIT_DONE__");
+}
+
+pub fn queue_loops_a() {
+    loop_wait(10, [1, 2, 3]);
+    loop_wait(20, [4, 9, 7]);
+    if Ledger.loop_count == 0 {
+        raw!("scoreboard players set #loop_eager_a numeric_probe 1");
+    }
+}
+
+pub fn queue_loops_b() {
+    loop_wait(100, [5, 2, 6, 7]);
+    if Ledger.loop_count == 0 {
+        raw!("scoreboard players set #loop_eager_b numeric_probe 1");
+    }
+}
+
+pub fn check_loops_a() {
+    if Ledger.loop_sum == 44 && Ledger.loop_count == 2 {
+        raw!("scoreboard players set #loop_after_a numeric_probe 1");
+    }
+}
+
+pub fn check_loops_b() {
+    if Ledger.loop_sum == 121 && Ledger.loop_count == 1 {
+        raw!("scoreboard players set #loop_after_b numeric_probe 1");
+    }
+}

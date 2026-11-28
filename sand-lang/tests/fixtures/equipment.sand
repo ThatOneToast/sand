@@ -1,0 +1,50 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+
+item ScoutHelmet {
+    base: Item::IronHelmet,
+    name: "Scout helmet",
+    enchantments: [{ enchantment: Enchantment::Protection, level: 2 }],
+}
+global state Report { checks: number, failed: number }
+
+fn check(value: bool) {
+    Report.checks += 1;
+    if !value { Report.failed += 1; }
+}
+
+fn run() {
+    Report.checks = 0;
+    Report.failed = 0;
+    raw!("execute positioned 0 80 0 run summon minecraft:zombie ~ ~ ~ {NoAI:1b,Tags:[\"sand_equipped\"]}");
+    raw!("execute positioned 1 80 0 run summon minecraft:zombie ~ ~ ~ {NoAI:1b,Tags:[\"sand_other\"]}");
+
+    for scout in entities(type = Entity::Zombie, tag = "sand_equipped") {
+        equip(ScoutHelmet, EquipmentSlot::Head);
+        check(holding(ScoutHelmet, slot = EquipmentSlot::Head));
+        raw!("execute if data entity @s equipment.head.components.\"minecraft:enchantments\"{\"minecraft:protection\":2} run tag @s add scout_protected");
+        check(any_entities(tag = "scout_protected"));
+        check(!holding(ScoutHelmet));
+        equip(Item::IronHelmet, EquipmentSlot::Head);
+        check(holding(Item::IronHelmet, slot = EquipmentSlot::Head));
+        check(!holding(ScoutHelmet, slot = EquipmentSlot::Head));
+
+        equip(Item::Arrow, EquipmentSlot::Offhand, count = 3);
+        check(holding(Item::Arrow, offhand = true));
+        check(holding(Item::Arrow, slot = EquipmentSlot::Offhand));
+        check(!holding(Item::Arrow));
+        clear_equipment(EquipmentSlot::Offhand);
+        check(!holding(Item::Arrow, offhand = true));
+
+        clear_equipment(EquipmentSlot::Head);
+        check(!holding(Item::IronHelmet, slot = EquipmentSlot::Head));
+        kill();
+    }
+    for other in entities(type = Entity::Zombie, tag = "sand_other") {
+        check(!holding(ScoutHelmet, slot = EquipmentSlot::Head));
+        check(!holding(Item::Arrow, offhand = true));
+        kill();
+    }
+
+    if Report.checks == 12 && Report.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    else { raw!("say __SAND_LANGUAGE_FAILED__"); }
+}

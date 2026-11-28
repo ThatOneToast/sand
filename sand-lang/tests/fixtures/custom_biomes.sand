@@ -1,0 +1,63 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+
+const TEMPERATURE: float = -0.25;
+
+biome LanternGrove {
+    precipitation: false,
+    temperature: TEMPERATURE,
+    downfall: 0.65,
+    fog_color: "#8595A6",
+    water_color: "#246A73",
+    water_fog_color: "#183F43",
+    sky_color: "#8D98A9",
+    grass_color: "#648B72",
+    foliage_color: "#436A55",
+    spawners: {
+        creature: [
+            { entity: Entity::Rabbit, weight: 12, min_count: 2, max_count: 4 },
+            { entity: Entity::Sheep },
+        ],
+        monster: [{ entity: Entity::Zombie, weight: 3 }],
+    },
+    spawn_costs: [{ entity: Entity::Rabbit, energy_budget: 1.5, charge: 0.25 }],
+}
+
+dimension Grove {
+    biome: LanternGrove,
+    layers: [{ block: Block::Stone, height: 1 }],
+}
+
+predicate InGrove {
+    biome: LanternGrove,
+    dimension: Grove,
+}
+
+global state Report { checks: number, failed: number }
+
+fn check(value: bool) {
+    Report.checks += 1;
+    if !value {
+        Report.failed += 1;
+        broadcast!("Custom biome assertion {Report.checks} failed.");
+    }
+}
+
+fn inspect_grove() {
+    check(biome_is(LanternGrove, pos(0, 80, 0)));
+    check(!biome_is(Biome::Plains, pos(0, 80, 0)));
+    check(predicate_matches(InGrove));
+}
+
+fn run() {
+    Report.checks = 0;
+    Report.failed = 0;
+    check(!predicate_matches(InGrove));
+    in_dimension(Grove, inspect_grove);
+    check(!predicate_matches(InGrove));
+
+    if Report.checks == 5 && Report.failed == 0 {
+        raw!("say __SAND_LANGUAGE_OK__");
+    } else {
+        raw!("say __SAND_LANGUAGE_FAILED__");
+    }
+}

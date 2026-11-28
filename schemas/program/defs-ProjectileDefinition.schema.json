@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A player-owned sampled projectile, built through Sand's shared flight runtime.",
+  "properties": {
+    "damage": {
+      "description": "Native damage in hit points, attributed to the launching player.",
+      "format": "double",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "hit": {
+      "anyOf": [
+        {
+          "$ref": "defs-FunctionReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Player function run at the first block or entity impact."
+    },
+    "id": {
+      "description": "Identity used to launch or cancel flight.",
+      "type": "string"
+    },
+    "radius": {
+      "description": "Entity collision radius. Defaults to half a block.",
+      "format": "double",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "speed": {
+      "description": "Speed in blocks per tick. Defaults to one.",
+      "format": "double",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "target": {
+      "description": "Filter potential hits to this entity type.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "ticks": {
+      "description": "Maximum flight in loaded ticks.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "ticks"
+  ],
+  "type": "object"
+}

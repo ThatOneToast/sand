@@ -1,13 +1,133 @@
 //! Transactional lowering for canonical State combat.
-use super::{combat::CombatAction, runtime};
+use super::{
+    combat::{CombatAction, CombatField},
+    runtime,
+};
 use crate::{
     IntoCommands,
-    entity::{EntityStateField, FixedPoint, NumericStateField, StatCurve},
+    entity::{
+        EntityCooldown, EntityScore, EntityStateField, FixedPoint, NumericStateField, StatCurve,
+    },
     execute_when::when,
     ir::{Actions, Cmd, NumericWrite},
 };
 use sand_commands::{CommandError, CommandResult, ObjectiveName, ScoreHolder};
 use sand_components::ResourceLocation;
+use std::collections::{BTreeMap, BTreeSet};
+
+impl<T: EntityStateField> CombatField<T> {
+    fn objective(&self) -> String {
+        match self {
+            Self::Declared(field) => field.objective(),
+            Self::Player(field) => field.objective.to_string(),
+        }
+    }
+
+    fn resolve_schema(
+        &self,
+        presence: &mut BTreeMap<String, (ObjectiveName, u32)>,
+        dirty: &mut BTreeSet<String>,
+    ) -> CommandResult<()> {
+        let field = match self {
+            Self::Declared(field) => field,
+            Self::Player(field) => {
+                presence.insert(
+                    field.presence.to_string(),
+                    (field.presence.clone(), field.revision),
+                );
+                return Ok(());
+            }
+        };
+        let error = |message| CommandError::new("combat", "state", message);
+        let reference = field.field_reference();
+        let schema = inventory::iter::<crate::state::StateDescriptor>
+            .into_iter()
+            .find(|schema| schema.id == reference.component)
+            .ok_or_else(|| error("combat fields must belong to registered State"))?;
+        if matches!(schema.scope, crate::state::StateScope::Global(_)) {
+            return Err(error(
+                "combat requires player, entity or living State, not global State",
+            ));
+        }
+        if !schema.fields.iter().any(|field| {
+            ObjectiveName::logical(field.objective).as_str() == reference.objective
+                && field.field == reference.descriptor
+        }) {
+            return Err(error(
+                "combat field metadata must match its registered State schema",
+            ));
+        }
+        if matches!(
+            schema.scope,
+            crate::state::StateScope::Entity | crate::state::StateScope::Living
+        ) {
+            dirty.insert(reference.component);
+        }
+        presence.insert(
+            schema.id.into(),
+            (
+                ObjectiveName::logical(schema.presence_objective),
+                schema.version,
+            ),
+        );
+        Ok(())
+    }
+}
+
+impl CombatField<EntityScore> {
+    fn scale(&self) -> i32 {
+        match self {
+            Self::Declared(field) => field.numeric_scale(),
+            Self::Player(_) => 1,
+        }
+    }
+
+    fn bounds(&self) -> Option<(i32, i32)> {
+        match self {
+            Self::Declared(field) => field.descriptor().bounds,
+            Self::Player(field) => field.bounds,
+        }
+    }
+
+    fn read(&self) -> StatCurve {
+        match self {
+            Self::Declared(field) => StatCurve::state(*field),
+            Self::Player(field) => {
+                StatCurve::runtime_score(ScoreHolder::self_(), field.objective.clone(), 1)
+            }
+        }
+    }
+
+    fn write(&self, value: StatCurve, dirty: &BTreeSet<String>) -> Actions {
+        match self {
+            Self::Declared(field) => field
+                .bind_to("@s", dirty.contains(&field.component_id()))
+                .set(value),
+            Self::Player(field) => Cmd::NumericWrite(Box::new(NumericWrite {
+                value,
+                holder: ScoreHolder::self_(),
+                objective: field.objective.clone(),
+                scale: 1,
+                fixed: FixedPoint::default(),
+                bounds: field.bounds,
+                dirty: vec![],
+            }))
+            .into_commands(),
+        }
+    }
+}
+
+impl CombatField<EntityCooldown> {
+    fn start(&self, duration: crate::state::Ticks, dirty: &BTreeSet<String>) -> Actions {
+        match self {
+            Self::Declared(field) => field
+                .bind_to("@s", dirty.contains(&field.component_id()))
+                .start(duration)
+                .into_commands(),
+            Self::Player(field) => field.set(duration.get() as i32).into_commands(),
+        }
+    }
+}
 
 impl CombatAction {
     pub(crate) fn lower(&self, owner: &ResourceLocation) -> CommandResult<Vec<Cmd>> {
@@ -23,13 +143,10 @@ impl CombatAction {
                 "maximum health must be finite and positive",
             ));
         }
-        let scale = policy.health.numeric_scale();
-        for field in std::iter::once(policy.health).chain(policy.shield) {
-            if field.numeric_scale() != scale
-                || field
-                    .descriptor()
-                    .bounds
-                    .is_some_and(|(min, max)| min > 0 || max <= 0)
+        let scale = policy.health.scale();
+        for field in std::iter::once(&policy.health).chain(&policy.shield) {
+            if field.scale() != scale
+                || field.bounds().is_some_and(|(min, max)| min > 0 || max <= 0)
             {
                 return Err(error(
                     "state",
@@ -39,6 +156,7 @@ impl CombatAction {
         }
         if policy
             .shield
+            .as_ref()
             .is_some_and(|shield| shield.objective() == policy.health.objective())
         {
             return Err(error(
@@ -48,6 +166,7 @@ impl CombatAction {
         }
         if policy
             .immunity
+            .as_ref()
             .is_some_and(|(_, duration)| duration.get() == 0 || duration.get() > i32::MAX as u32)
         {
             return Err(error(
@@ -75,38 +194,23 @@ impl CombatAction {
                 "damage and healing must be finite and nonnegative",
             ));
         }
-        let mut schemas = std::collections::BTreeMap::new();
-        for reference in std::iter::once(policy.health.field_reference())
-            .chain(policy.shield.map(|field| field.field_reference()))
-            .chain(policy.immunity.map(|(field, _)| field.field_reference()))
-        {
-            let schema = inventory::iter::<crate::state::StateDescriptor>
-                .into_iter()
-                .find(|schema| schema.id == reference.component)
-                .ok_or_else(|| error("state", "combat fields must belong to registered State"))?;
-            if matches!(schema.scope, crate::state::StateScope::Global(_)) {
+        let mut presence = BTreeMap::new();
+        let mut dirty = BTreeSet::new();
+        for field in std::iter::once(&policy.health).chain(&policy.shield) {
+            field.resolve_schema(&mut presence, &mut dirty)?;
+            if matches!(field, CombatField::Player(field) if field.timer) {
                 return Err(error(
                     "state",
-                    "combat requires player, entity or living State, not global State",
+                    "health and shield require non-ticking player scores",
                 ));
             }
-            if !schema.fields.iter().any(|field| {
-                ObjectiveName::logical(field.objective).as_str() == reference.objective
-                    && field.field == reference.descriptor
-            }) {
-                return Err(error(
-                    "state",
-                    "combat field metadata must match its registered State schema",
-                ));
-            }
-            schemas.insert(reference.component, schema);
         }
-        let tracks_dirty = |component: &str| {
-            matches!(
-                schemas[component].scope,
-                crate::state::StateScope::Entity | crate::state::StateScope::Living
-            )
-        };
+        if let Some((cooldown, _)) = &policy.immunity {
+            cooldown.resolve_schema(&mut presence, &mut dirty)?;
+            if matches!(cooldown, CombatField::Player(field) if !field.timer) {
+                return Err(error("invulnerability", "requires a player timer"));
+            }
+        }
         let path = crate::function::generated_function_path(
             "sand/combat/resolve",
             &Actions(vec![Cmd::Combat(Box::new(self.clone()))]),
@@ -144,20 +248,17 @@ impl CombatAction {
             }))
         };
         let mut body = cleanup.clone();
-        for schema in schemas.values() {
-            let presence = ObjectiveName::logical(schema.presence_objective);
+        for (presence, revision) in presence.values() {
             body.extend([format!(
-                "execute unless score @s {presence} matches {} {fail}",
-                schema.version
+                "execute unless score @s {presence} matches {revision} {fail}"
             )]);
         }
-        body.0
-            .push(write("#health", StatCurve::state(policy.health)));
+        body.0.push(write("#health", policy.health.read()));
         body.extend([format!(
             "execute unless score #health {objective} matches 1.. {fail}"
         )]);
         if !self.healing
-            && let Some((cooldown, _)) = policy.immunity
+            && let Some((cooldown, _)) = &policy.immunity
         {
             // A missing cooldown is not ready. Never create missing State.
             body.extend([format!(
@@ -201,8 +302,7 @@ impl CombatAction {
             )]);
             if let Some((_, maximum)) = policy
                 .health
-                .descriptor()
-                .bounds
+                .bounds()
                 .filter(|(_, maximum)| *maximum < i32::MAX)
             {
                 body.extend([format!("execute if score #maximum {objective} matches {}.. run scoreboard players set #maximum {objective} {maximum}", i64::from(maximum) + 1)]);
@@ -214,8 +314,8 @@ impl CombatAction {
                 format!("scoreboard players operation #health {objective} += #amount {objective}"),
             ]);
         } else {
-            if let Some(shield) = policy.shield {
-                body.0.push(write("#shield", StatCurve::state(shield)));
+            if let Some(shield) = &policy.shield {
+                body.0.push(write("#shield", shield.read()));
                 body.extend([
                     format!("execute unless score #shield {objective} matches 0.. {fail}"),
                     format!(
@@ -239,20 +339,13 @@ impl CombatAction {
         }
         // All fallible calculations precede this commit. Direct score reads
         // preserve scale exactly, and all committed values already fit bounds.
-        body.extend([policy
-            .health
-            .bind_to("@s", tracks_dirty(&policy.health.component_id()))
-            .set(read("#health"))]);
+        body.extend([policy.health.write(read("#health"), &dirty)]);
         if !self.healing {
-            if let Some(shield) = policy.shield {
-                body.extend([shield
-                    .bind_to("@s", tracks_dirty(&shield.component_id()))
-                    .set(read("#shield"))]);
+            if let Some(shield) = &policy.shield {
+                body.extend([shield.write(read("#shield"), &dirty)]);
             }
-            if let Some((cooldown, duration)) = policy.immunity {
-                body.extend([cooldown
-                    .bind_to("@s", tracks_dirty(&cooldown.component_id()))
-                    .start(duration)]);
+            if let Some((cooldown, duration)) = &policy.immunity {
+                body.extend([cooldown.start(*duration, &dirty)]);
             }
         }
         let mut complete = cleanup.clone();

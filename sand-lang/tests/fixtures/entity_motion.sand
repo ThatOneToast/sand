@@ -1,0 +1,37 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+
+global state Report { checks: number, failed: number }
+
+fn check(value: bool) {
+    Report.checks += 1;
+    if !value { Report.failed += 1; }
+}
+
+fn run() {
+    Report.checks = 0;
+    Report.failed = 0;
+    fill_blocks(Block::Air, pos(0, 78, 0), pos(15, 82, 3));
+    raw!("summon minecraft:item 1.0 80.0 1.0 {NoGravity:1b,Tags:[\"motion_probe\"],Item:{id:\"minecraft:stone\",count:1}}");
+
+    for actor in entities(type = Entity::Item, tag = "motion_probe") {
+        let horizontal = 0.75;
+        set_velocity(z = 0.5, x = horizontal, y = -0.25);
+        check(actor.velocity_x == 0.75);
+        check(actor.velocity_y == -0.25);
+        check(actor.velocity_z == 0.5);
+        let too_fast = 11;
+        set_velocity(too_fast, 1, 2);
+        check(actor.velocity_x == 0.75 && actor.velocity_y == -0.25 && actor.velocity_z == 0.5);
+        set_velocity(0.75, 0, 0);
+    }
+    schedule(finish, ticks = 5);
+}
+
+fn finish() {
+    for actor in entities(type = Entity::Item, tag = "motion_probe") {
+        check(actor.x > 3.0 && actor.y == 80.0 && actor.z == 1.0);
+        kill();
+    }
+    if Report.checks == 5 && Report.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    else { raw!("say __SAND_LANGUAGE_FAILED__"); }
+}

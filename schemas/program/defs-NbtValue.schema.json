@@ -1,0 +1,209 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A typed SNBT value used by `data modify` and `data merge`.\n\n# Context\nA typed SNBT value used by `data modify` and `data merge`. This API models a typed NBT value, path, target, or data command. Raw SNBT entry points are explicit escape hatches rather than the normal representation.\n\n# Minecraft behavior\nOperations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.\n\n# Use when\n- Reading or mutating structured Minecraft NBT through typed paths and values\n\n# Avoid when\n- A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT\n\n# Example\n```rust,ignore\nuse sand::data::NbtValue;\n```\nA typed SNBT value used by `data modify` and `data merge`.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "Selects the bool NBT or data-command operation.\nSelects the bool NBT or data-command operation.",
+      "properties": {
+        "type": {
+          "const": "bool",
+          "type": "string"
+        },
+        "value": {
+          "description": "Selects the bool NBT or data-command operation.\nSelects the bool NBT or data-command operation.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Selects the byte NBT or data-command operation.\nSelects the byte NBT or data-command operation.",
+      "properties": {
+        "type": {
+          "const": "byte",
+          "type": "string"
+        },
+        "value": {
+          "description": "Selects the byte NBT or data-command operation.\nSelects the byte NBT or data-command operation.",
+          "format": "int8",
+          "maximum": 127,
+          "minimum": -128,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Selects the short NBT or data-command operation.\nSelects the short NBT or data-command operation.",
+      "properties": {
+        "type": {
+          "const": "short",
+          "type": "string"
+        },
+        "value": {
+          "description": "Selects the short NBT or data-command operation.\nSelects the short NBT or data-command operation.",
+          "format": "int16",
+          "maximum": 32767,
+          "minimum": -32768,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Selects the int NBT or data-command operation.\nSelects the int NBT or data-command operation.",
+      "properties": {
+        "type": {
+          "const": "int",
+          "type": "string"
+        },
+        "value": {
+          "description": "Selects the int NBT or data-command operation.\nSelects the int NBT or data-command operation.",
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Selects the long NBT or data-command operation.\nSelects the long NBT or data-command operation.",
+      "properties": {
+        "type": {
+          "const": "long",
+          "type": "string"
+        },
+        "value": {
+          "description": "Selects the long NBT or data-command operation.\nSelects the long NBT or data-command operation.",
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Selects the float NBT or data-command operation.\nSelects the float NBT or data-command operation.",
+      "properties": {
+        "type": {
+          "const": "float",
+          "type": "string"
+        },
+        "value": {
+          "description": "Selects the float NBT or data-command operation.\nSelects the float NBT or data-command operation.",
+          "format": "float",
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Selects the double NBT or data-command operation.\nSelects the double NBT or data-command operation.",
+      "properties": {
+        "type": {
+          "const": "double",
+          "type": "string"
+        },
+        "value": {
+          "description": "Selects the double NBT or data-command operation.\nSelects the double NBT or data-command operation.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Selects the string NBT or data-command operation.\nSelects the string NBT or data-command operation.",
+      "properties": {
+        "type": {
+          "const": "string",
+          "type": "string"
+        },
+        "value": {
+          "description": "Selects the string NBT or data-command operation.\nSelects the string NBT or data-command operation.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Selects the list NBT or data-command operation.\nSelects the list NBT or data-command operation.",
+      "properties": {
+        "type": {
+          "const": "list",
+          "type": "string"
+        },
+        "value": {
+          "description": "Selects the list NBT or data-command operation.\nSelects the list NBT or data-command operation.",
+          "items": {
+            "$ref": "defs-NbtValue.schema.json"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Selects the compound NBT or data-command operation.\nSelects the compound NBT or data-command operation.",
+      "properties": {
+        "type": {
+          "const": "compound",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "defs-NbtCompound.schema.json",
+          "description": "Selects the compound NBT or data-command operation.\nSelects the compound NBT or data-command operation."
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ],
+      "type": "object"
+    }
+  ]
+}

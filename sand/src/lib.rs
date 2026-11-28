@@ -358,14 +358,15 @@ pub mod component {
         BannerPattern, Biome, BiomeAdditionsSound, BiomeAmbientSounds, BiomeEffects,
         BiomeMoodSound, BiomeSource, CarverFloatRange, CarvingStep, CaveCarverConfig,
         ChatDecoration, ChatDecorationParameter, ChatStyle, ChatType, ConfiguredCarver,
-        ConfiguredFeature, CustomData, DensityFunction, DensityFunctionBinaryOp,
-        DensityFunctionExpr, DensityFunctionUnaryOp, Dimension, DimensionType, EnchantmentEntry,
-        FlatGenerator, FlatLayer, Generator, Instrument, IntoItemStack, ItemComponent,
-        ItemStackComponents, JukeboxSong, LootText, MonsterSpawnLightLevel, Noise, NoiseGenerator,
-        NoiseSettingsRef, OreConfig, OreTarget, PlacedFeature, PlacementModifier, PotionContents,
-        RawComponent, RawJson, RawSnbt, Result, RuleTest, SandError, SoundEventDefinition,
-        SpawnCondition, SpawnCost, StatusEffectInstance, StructureTemplate, SuspiciousStewEffect,
-        TagEntry, TagRegistry, TemperatureModifier, TypedTag, VanillaNoiseSettings, WrittenBook,
+        ConfiguredFeature, CustomData, DamageEffects, DamageScaling, DamageType, DeathMessageType,
+        DensityFunction, DensityFunctionBinaryOp, DensityFunctionExpr, DensityFunctionUnaryOp,
+        Dimension, DimensionType, EnchantmentEntry, FlatGenerator, FlatLayer, Generator,
+        Instrument, IntoItemStack, ItemComponent, ItemStackComponents, JukeboxSong, LootText,
+        MonsterSpawnLightLevel, Noise, NoiseGenerator, NoiseSettingsRef, OreConfig, OreTarget,
+        PlacedFeature, PlacementModifier, PotionContents, RawComponent, RawJson, RawSnbt, Result,
+        RuleTest, SandError, SoundEventDefinition, SpawnCondition, SpawnCost, StatusEffectInstance,
+        StructureTemplate, SuspiciousStewEffect, TagEntry, TagRegistry, TemperatureModifier,
+        TypedTag, VanillaNoiseSettings, WrittenBook,
     };
     pub use sand_core::components::*;
 }
@@ -489,10 +490,10 @@ pub mod registry {
         BiomeId, BlockId, ChickenVariantId, ConfiguredCarverId, ConfiguredFeatureId, CowVariantId,
         DamageTypeId, DensityFunctionId, DimensionId, DimensionTypeId, EffectId,
         EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, EquipmentModelId, ItemId,
-        NoiseId, NoiseSettingsId, ParticleId, PigVariantId, PotionId, PotionRegistryId,
-        ProcessorListId, RandomSequenceId, SoundEventId, StatusEffectId, StructureId,
-        StructureSetId, StructureTemplateId, StructureTypeId, TemplatePoolId, TradeSetId,
-        VillagerTradeId,
+        NoiseId, NoiseSettingsId, ParticleId, PigVariantId, PlacedFeatureId, PotionId,
+        PotionRegistryId, ProcessorListId, RandomSequenceId, SoundEventId, StatusEffectId,
+        StructureId, StructureSetId, StructureTemplateId, StructureTypeId, TemplatePoolId,
+        TradeSetId, VillagerTradeId,
     };
 }
 
@@ -631,15 +632,9 @@ pub mod data {
 /// the typed `*Id` wrappers instead (`ItemId::minecraft`/`::custom`,
 /// `BlockId`, `EntityTypeId`, ...) — see [`prelude`].
 ///
-/// Not every generated Minecraft registry is exposed here: `sand-build`'s
-/// codegen also lists `minecraft:worldgen/biome` and `minecraft:enchantment`
-/// as candidate registries, but Mojang's data generator report does not
-/// currently include either as a plain registry (biome and enchantment data
-/// moved to datapack-authorable JSON), so no `Biome`/`Enchantment` enum is
-/// actually generated — only `Item`, `Block`, `EntityType`, and `SoundEvent`
-/// exist today. Effects, particles, and other registries without generated
-/// data still require typed ID wrappers (e.g. `EffectId`) or raw resource
-/// locations.
+/// `Enchantment` uses the same verified vanilla catalog as the Sand language.
+/// Biomes and other registries with no generated enum use typed ID wrappers
+/// such as `BiomeId` or `EffectId`.
 ///
 /// # Example
 /// ```
@@ -662,7 +657,9 @@ pub mod data {
 )]
 pub mod vanilla {
     #[cfg(not(sand_placeholder_codegen))]
-    pub use sand_core::generated::{Block, EntityType, Item, SoundEvent};
+    pub use sand_core::generated::{
+        Attribute, Block, Enchantment, EntityType, Item, ParticleType, SoundEvent,
+    };
 }
 
 /// Supported low-level hook for framework integrators that need to drive the

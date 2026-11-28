@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One independently rolled group of weighted loot choices.",
+  "properties": {
+    "chance": {
+      "description": "Probability that this pool runs, from zero to one.",
+      "format": "double",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "items": {
+      "description": "Weighted item choices.",
+      "items": {
+        "$ref": "defs-LootItem.schema.json"
+      },
+      "type": "array"
+    },
+    "predicate": {
+      "description": "Optional reusable predicate that this pool requires.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "rolls": {
+      "default": 1,
+      "description": "Choices drawn from this pool.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "weather": {
+      "anyOf": [
+        {
+          "$ref": "defs-Weather.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Required weather in the loot context."
+    }
+  },
+  "required": [
+    "items"
+  ],
+  "type": "object"
+}

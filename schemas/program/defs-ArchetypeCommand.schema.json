@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "One entity archetype lifecycle operation.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "Summon and initialize a new entity.",
+      "properties": {
+        "action": {
+          "const": "spawn",
+          "type": "string"
+        },
+        "at": {
+          "$ref": "defs-BlockPosition.schema.json",
+          "description": "Absolute or relative block coordinates."
+        }
+      },
+      "required": [
+        "action",
+        "at"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Initialize the executing entity if its kind matches.",
+      "properties": {
+        "action": {
+          "const": "attach",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Release the executing entity and run canonical cleanup.",
+      "properties": {
+        "action": {
+          "const": "release",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "type": "object"
+    }
+  ]
+}

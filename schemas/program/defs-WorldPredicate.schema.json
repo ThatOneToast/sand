@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A reusable native test of location or weather, optionally gated by chance.",
+  "properties": {
+    "biome": {
+      "description": "Biome at the execution origin.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "block": {
+      "description": "Block at the execution origin.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "chance": {
+      "description": "Probability between zero and one.",
+      "format": "double",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "dimension": {
+      "description": "Dimension of the execution origin.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "id": {
+      "description": "Predicate identity.",
+      "type": "string"
+    },
+    "weather": {
+      "anyOf": [
+        {
+          "$ref": "defs-Weather.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Current weather."
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "type": "object"
+}

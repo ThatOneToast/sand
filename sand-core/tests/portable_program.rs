@@ -19,18 +19,57 @@ fn counter() -> Program {
             namespace: "demo".into(),
             description: "Player counter".into(),
         },
+        structure_assets: Default::default(),
         requires: vec![],
         modules: vec![Module {
+            events: vec![],
+            items: vec![],
+            recipes: vec![],
+            resource_tags: vec![],
+            loot_tables: vec![],
+            boss_bars: vec![],
+            damage_types: vec![],
+            predicates: vec![],
+            advancements: vec![],
+            dialogs: vec![],
+            dimensions: vec![],
+            dimension_types: vec![],
+            biomes: vec![],
+            structure_templates: vec![],
+            structure_sets: vec![],
+            ore_features: vec![],
+            configured_features: vec![],
+            placed_features: vec![],
+            jigsaw_structures: vec![],
+            template_pools: vec![],
+            inventory_transfers: vec![],
+            checkpoints: vec![],
+            encounters: vec![],
+            rosters: vec![],
+            status_effects: vec![],
+            archetypes: vec![],
+            huds: vec![],
+            menus: vec![],
+            projectiles: vec![],
+            progressions: vec![],
+            sessions: vec![],
+            abilities: vec![],
+            combats: vec![],
+            scenes: vec![],
+            jobs: vec![],
             flows: vec![],
             id: "demo:counter_module".parse().unwrap(),
             states: vec![State {
+                data_fields: Vec::new(),
                 id: "demo:counter".parse().unwrap(),
                 scope: "player".into(),
                 revision: 1,
+                migrations: Vec::new(),
                 fields: vec![ScoreField {
                     name: "value".into(),
                     default: 0,
                     bounds: None,
+                    timer: false,
                 }],
             }],
             functions: vec![
@@ -262,7 +301,8 @@ fn branch_uses_one_guard_and_returns_before_otherwise() {
             score: score.clone(),
             min: Some(0),
             max: Some(0),
-        },
+        }
+        .into(),
         then: vec![operation(Action::ScoreSet {
             score: score.clone(),
             value: 1,
@@ -743,7 +783,8 @@ fn runtime_report_attributes_helpers_and_load_contributions() {
             score: score.clone(),
             min: Some(0),
             max: Some(0),
-        },
+        }
+        .into(),
         then: vec![operation(Action::ScoreSet {
             score: score.clone(),
             value: 1,
@@ -1065,4 +1106,63 @@ fn bounded_constant_branch_keeps_one_decision_and_owned_return_run_helpers() {
         Compiler::compile(&program).unwrap().resources,
         compiled.resources
     );
+}
+
+#[test]
+fn block_data_copies_checked_values_without_interpolating_authored_paths() {
+    let mut program = counter();
+    let module = &mut program.modules[0];
+    let state = &mut module.states[0];
+    let source = DataReference {
+        field: FieldReference {
+            state: state.id.clone(),
+            field: "items".into(),
+        },
+        path: Vec::new(),
+    };
+    state.data_fields.push(DataField {
+        name: "items".into(),
+        default: sand::data::NbtValue::List(vec![]),
+    });
+    let from = BlockDataAddress {
+        at: BlockPosition::Absolute { x: 1, y: 80, z: 2 },
+        path: "Items".into(),
+    };
+    let to = BlockDataAddress {
+        at: BlockPosition::Absolute { x: 3, y: 80, z: 4 },
+        path: r#""$(literal)""#.into(),
+    };
+    let projection = DataReference {
+        field: source.field.clone(),
+        path: vec![DataProjection::Index {
+            index: ScoreOperand::Field(FieldReference {
+                state: state.id.clone(),
+                field: "value".into(),
+            }),
+        }],
+    };
+    module.functions[1].body = vec![
+        operation(Action::DataModify {
+            target: source,
+            operator: DataModifyOperation::Set,
+            source: DataOperand::Block { value: from },
+        }),
+        operation(Action::WriteBlockData {
+            target: to,
+            value: Some(DataOperand::Reference { value: projection }),
+        }),
+    ];
+    let pack = Compiler::compile(&program).unwrap();
+    let entry =
+        std::str::from_utf8(&pack.resources["data/demo/function/increment.mcfunction"]).unwrap();
+    assert!(entry.contains("input set from block 1 80 2 Items"));
+    assert!(entry.contains(
+        r#"data modify block 3 80 4 "$(literal)" set from storage demo:__program_data output"#
+    ));
+    assert!(pack.resources.iter().any(|(path, source)| {
+        path.ends_with("/data_value.mcfunction")
+            && String::from_utf8_lossy(source)
+                .contains("output set from storage demo:__program_data input[$(i0)]")
+            && !String::from_utf8_lossy(source).contains("$(literal)")
+    }));
 }

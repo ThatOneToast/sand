@@ -1,0 +1,64 @@
+//! Imported by the two-client runtime probe.
+use crate::collections::{Map, Set};
+
+player state Journal {
+    notes: Map<string, Vec<string>>,
+    visited: Set<string>,
+    describe: fn(number) -> string,
+    offset: number,
+    adjusted: player fn(number) -> string,
+}
+
+global state JournalLoads { count: number }
+
+#[load]
+fn confirm_reload() {
+    JournalLoads.count += 1;
+    if JournalLoads.count >= 2 { raw!("say __SAND_PLAYER_MAPS_RELOADED__"); }
+}
+
+fn describe_prefix(prefix: string) -> fn(number) -> string {
+    return move |value: number| -> string { return prefix + value.to_string(); };
+}
+
+fn adjusted_prefix(prefix: string) -> player fn(number) -> string {
+    return move |value: number| -> string {
+        return prefix + (value + Journal.offset).to_string();
+    };
+}
+
+pub fn store_a() {
+    Journal.notes.insert("today", ["A", "🌍"]);
+    Journal.visited.insert("overworld");
+    Journal.describe = describe_prefix("A/");
+    Journal.adjusted = adjusted_prefix("A/");
+    Journal.offset = 10;
+}
+
+pub fn store_b() {
+    Journal.notes.insert("today", ["B"]);
+    Journal.visited.insert("nether");
+    Journal.describe = describe_prefix("B/");
+    Journal.adjusted = adjusted_prefix("B/");
+    Journal.offset = 20;
+}
+
+pub fn check_a() {
+    let describe = Journal.describe;
+    let adjusted = Journal.adjusted;
+    if Journal.notes.get_or("today", []) == ["A", "🌍"]
+        && Journal.visited.values() == ["overworld"] && describe(1) == "A/1"
+        && adjusted(1) == "A/11" {
+        raw!("scoreboard players set #maps_a numeric_probe 1");
+    }
+}
+
+pub fn check_b() {
+    let describe = Journal.describe;
+    let adjusted = Journal.adjusted;
+    if Journal.notes.get_or("today", []) == ["B"]
+        && Journal.visited.values() == ["nether"] && describe(2) == "B/2"
+        && adjusted(2) == "B/22" {
+        raw!("scoreboard players set #maps_b numeric_probe 1");
+    }
+}

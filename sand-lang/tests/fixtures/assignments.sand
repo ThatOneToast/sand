@@ -1,0 +1,49 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+global state Result { checks: number, failed: number }
+global state Data {
+    value: number,
+    delay: timer,
+    #[clamp(0..=10)] whole: number,
+    #[clamp(1.0..=10.0)] decimal: float = 1.0,
+}
+fn check(actual: number, expected: number) {
+    Result.checks += 1;
+    if actual != expected { Result.failed += 1; }
+}
+fn read() -> number { return Data.value; }
+fn mutate() -> number { Data.value = 100; return 2; }
+fn from_float(n: float) { Data.whole = n as number; }
+fn from_number(n: number) { Data.decimal = n as float; }
+fn duration(seconds: number) { start_timer(Data.delay, seconds = seconds); }
+fn run() {
+    Result.checks = 0;
+    Result.failed = 0;
+    Data.value = 10;
+    Data.value = 2 + read();
+    check(Data.value, 12);
+    Data.value = 0;
+    Data.value = 10 + ((Data.value == 0) as number);
+    check(Data.value, 11);
+    Data.value = 10;
+    Data.value = Data.value + mutate();
+    check(Data.value, 12);
+    from_float(5.0);
+    check(Data.whole, 5);
+    from_number(5);
+    check((Data.decimal * 1000.0) as number, 5000);
+    Data.decimal = 8.0;
+    Data.decimal *= 1.5;
+    check((Data.decimal * 1000.0) as number, 10000);
+    Data.decimal = 8.0;
+    let divisor = 0.3;
+    Data.decimal /= divisor;
+    check((Data.decimal * 1000.0) as number, 10000);
+    duration(3);
+    check(Data.delay, 60);
+    duration(-1);
+    check(Data.delay, 60);
+    duration(107374183);
+    check(Data.delay, 60);
+    if Result.checks == 10 && Result.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    else { raw!("say __SAND_LANGUAGE_FAILED__"); }
+}

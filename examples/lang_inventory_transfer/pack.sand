@@ -1,0 +1,47 @@
+#![pack(namespace = "camp_supplies", minecraft = "26.2", description = "Sort camp supplies")]
+
+inventory_transfer PackSupplies {
+    from: 0,
+    to: 9,
+    amount: 2,
+    success: packed,
+    rejected: no_room,
+}
+
+menu CampSupplies {
+    title: "{gold}Camp supplies",
+    ticks: 200,
+    page_size: 1,
+    choices: [
+        { label: "Stow two supplies", next: "confirm" },
+        { label: "View slot guide", action: show_slots },
+    ],
+    views: [{
+        name: "confirm",
+        title: "{gold}Pack two items?",
+        choices: [
+            { label: "Pack supplies", action: stow },
+            { label: "Back to supplies", next: "main" },
+        ],
+    }],
+}
+
+pub fn supplies() {
+    open_menu(CampSupplies);
+}
+
+fn show_slots() {
+    chat!("The first hotbar slot is the source. The first main inventory slot is the destination.");
+}
+
+pub fn stow() {
+    transfer_inventory(PackSupplies);
+}
+
+fn packed() {
+    actionbar!("{green}Packed two items");
+}
+
+fn no_room() {
+    actionbar!("{red}Check the source stack and destination slot");
+}

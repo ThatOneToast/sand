@@ -82,7 +82,11 @@ impl InventoryTransfer {
     /// Attempt the registered move for the executing player.
     #[sand_macros::api(registry = sand_api_contract, path = "sand::systems::InventoryTransfer::transfer", module = "sand::systems", summary = "Attempt the registered quantity-aware player move.", context = "Use from player-context functions, menus, or interaction callbacks.", minecraft = "Admission precedes checked destination mutation and source clearing.", use_when = ["Invoking a registered move"], avoid_when = ["Running outside player context"], returns = "Retained gameplay actions.", example = "use sand::systems::InventoryTransfer;")]
     pub fn transfer(&self) -> Actions {
-        identity::call(&self.id, "inventory_transfer_move")
+        Self::invoke(&self.id)
+    }
+
+    pub(crate) fn invoke(id: &ResourceLocation) -> Actions {
+        identity::call(id, "inventory_transfer_move")
     }
 }
 impl IntoDatapack for InventoryTransfer {

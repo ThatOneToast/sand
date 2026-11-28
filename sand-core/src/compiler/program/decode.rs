@@ -231,6 +231,7 @@ pub(super) fn resolve(
         pack: input.pack,
         requires: input.requires,
         modules: resolved,
+        structure_assets: input.structure_assets,
     })
 }
 

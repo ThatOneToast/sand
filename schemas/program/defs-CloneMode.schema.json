@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Clone mode for the `clone` command.\n\n# Context\nClone mode for the `clone` command. This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.\n\n# Minecraft behavior\nBuilders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.\n\n# Use when\n- Constructing Minecraft commands through Sand's typed command model\n\n# Avoid when\n- Passing unvalidated command fragments when a typed builder or validated try_* entry point exists\n\n# Example\n```rust,ignore\nuse sand::command::CloneMode;\n```\nClone mode for the `clone` command.",
+  "oneOf": [
+    {
+      "const": "normal",
+      "description": "Normal cloning (default).\nNormal cloning (default).",
+      "type": "string"
+    },
+    {
+      "const": "force",
+      "description": "Force-clone even if blocks overlap.\nForce-clone even if blocks overlap.",
+      "type": "string"
+    },
+    {
+      "const": "move",
+      "description": "Move blocks (clone then clear source).\nMove blocks (clone then clear source).",
+      "type": "string"
+    }
+  ]
+}

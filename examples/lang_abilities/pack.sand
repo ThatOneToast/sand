@@ -1,0 +1,32 @@
+#![pack(namespace = "scout_magic", minecraft = "26.2", description = "A bounded mana-powered spark")]
+
+player state Focus {
+    mana: number = 8,
+    cooldown: timer,
+    ready: bool = true,
+}
+
+projectile Spark {
+    ticks: 24,
+    speed: 1.5,
+    radius: 0.75,
+    target: Entity::Zombie,
+    damage: 6,
+    hit: impact,
+}
+
+ability CastSpark {
+    ticks: 24,
+    projectile: Spark,
+    cost: { balance: Focus.mana, amount: 2 },
+    cooldown: { timer: Focus.cooldown, ticks: 20 },
+    when: Focus.ready,
+    start: cast_message,
+}
+
+fn cast_message() { actionbar!("Spark cast"); }
+fn impact() { spawn_particle(Particle::Flame, count = 8); }
+
+pub fn cast() { activate_ability(CastSpark); }
+pub fn status() { diagnose_ability(CastSpark); }
+pub fn cancel() { cancel_ability(CastSpark); }

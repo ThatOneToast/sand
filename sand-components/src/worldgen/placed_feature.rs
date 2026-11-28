@@ -34,7 +34,8 @@ const KIND: &str = "worldgen/placed_feature";
     variant_fields(Count = ["Number of repetitions, in 0..=4096."], RarityFilter = ["Positive reciprocal probability."], HeightRange = ["The canonical height provider."], Heightmap = ["The canonical heightmap selector."], SurfaceWaterDepth = ["Maximum water depth in blocks."], Raw = ["An object with a valid resource-location type field."]),
     example = "use sand::component::PlacementModifier; let scatter = PlacementModifier::InSquare;",
 )]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum PlacementModifier {
     /// Repeat each input position `0..=4096` times (a constant count provider).
     Count(i32),
@@ -117,9 +118,10 @@ impl PlacementModifier {
 }
 
 /// How the referenced configured feature was supplied.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 enum ConfiguredFeatureReference {
-    Typed(ConfiguredFeatureId),
+    Typed(#[schemars(with = "String")] ConfiguredFeatureId),
     Raw(String),
 }
 
@@ -151,7 +153,10 @@ impl ConfiguredFeatureReference {
 /// Author the referenced feature with
 /// [`ConfiguredFeature`](crate::worldgen::ConfiguredFeature) and pass
 /// [`ConfiguredFeature::id`](crate::worldgen::ConfiguredFeature::id) here.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct PlacedFeature {
+    #[schemars(with = "String")]
     location: ResourceLocation,
     /// The configured feature to place.
     feature: ConfiguredFeatureReference,

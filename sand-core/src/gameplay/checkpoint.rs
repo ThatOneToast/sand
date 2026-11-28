@@ -128,7 +128,7 @@ impl Checkpoint {
 
  returns = "The configured checkpoint or retained player-context actions.", example = "use sand::systems::Checkpoint;")]
     pub fn save(&self) -> Actions {
-        identity::call(&self.id, "checkpoint_save")
+        Self::invoke(&self.id, crate::compiler::program::CheckpointCommand::Save)
     }
     /// Restore the valid saved projection after preparation and revalidation.
     /// Missing/offline original players cause no live writes after preparation.
@@ -139,7 +139,10 @@ impl Checkpoint {
 
  returns = "The configured checkpoint or retained player-context actions.", example = "use sand::systems::Checkpoint;")]
     pub fn restore(&self) -> Actions {
-        identity::call(&self.id, "checkpoint_restore")
+        Self::invoke(
+            &self.id,
+            crate::compiler::program::CheckpointCommand::Restore,
+        )
     }
     /// Disable the saved-valid flag without changing live or saved field values.
     /// Live State may be absent; the saved schema must still be current/attached.
@@ -150,7 +153,7 @@ impl Checkpoint {
 
  returns = "The configured checkpoint or retained player-context actions.", example = "use sand::systems::Checkpoint;")]
     pub fn clear(&self) -> Actions {
-        identity::call(&self.id, "checkpoint_clear")
+        Self::invoke(&self.id, crate::compiler::program::CheckpointCommand::Clear)
     }
 
     fn schemas(&self) -> CommandResult<BTreeMap<String, &'static StateDescriptor<'static>>> {
@@ -222,71 +225,257 @@ impl Checkpoint {
         }
         Ok(schemas)
     }
-    fn ready(&self, restore: bool, saved_only: bool) -> CommandResult<Actions> {
-        let schemas = self.schemas()?;
-        let mut actions =
-            "execute unless entity @s[type=minecraft:player] run return 0".into_commands();
-        let saved_component = self.valid.field_reference().component;
-        for schema in schemas
-            .values()
-            .filter(|schema| !saved_only || schema.id == saved_component)
-        {
-            actions.extend([format!(
-                "execute unless score @s {} matches {} run return 0",
-                ObjectiveName::logical(schema.presence_objective),
-                schema.version
-            )]);
-        }
-        let valid = self.valid.field_reference();
-        actions.extend([format!(
-            "execute unless score @s {} matches {} run return 0",
-            valid.objective,
-            if restore { "1" } else { "0..1" }
-        )]);
-        if !saved_only {
-            for (live, saved) in &self.fields {
-                for field in [live, saved] {
-                    actions.extend([format!(
-                        "execute unless score @s {} matches -2147483648..2147483647 run return 0",
-                        field.objective()
-                    )]);
-                }
-                let (source, destination) = if restore {
-                    (saved, live)
-                } else {
-                    (live, saved)
-                };
-                let bounds = destination
-                    .descriptor()
-                    .bounds
-                    .unwrap_or((i32::MIN, i32::MAX));
-                let own = source.descriptor().bounds.unwrap_or((i32::MIN, i32::MAX));
-                let min = bounds.0.max(own.0);
-                let max = bounds.1.min(own.1);
-                if min > max {
-                    return Err(CommandError::new(
-                        "checkpoint",
-                        "fields",
-                        "a field pair has no common representable integer range",
-                    ));
-                }
-                actions.extend([format!(
-                    "execute unless score @s {} matches {min}..{max} run return 0",
-                    source.objective()
-                )]);
-            }
-        }
-        Ok(actions)
-    }
     fn dirty(schemas: &BTreeMap<String, &StateDescriptor>, field: StateFieldReference) -> bool {
         matches!(
             schemas[&field.component].scope,
             StateScope::Entity | StateScope::Living
         )
     }
-    fn build(&self, part: &str) -> CommandResult<Actions> {
+
+    fn plan(&self) -> CommandResult<CheckpointPlan> {
         let schemas = self.schemas()?;
-        let id = crate::function::resolve_export_location(&self.id)?;
+        let valid = self.valid.field_reference();
+        let mut save = Actions::default();
+        let mut restore = Actions::default();
+        let mut fields = Vec::with_capacity(self.fields.len());
+        for (live, saved) in &self.fields {
+            fields.push(CheckpointPair::new(
+                live.objective().to_string(),
+                saved.objective().to_string(),
+                live.descriptor().bounds,
+                saved.descriptor().bounds,
+            )?);
+            let live = live.bind_to("@s", Self::dirty(&schemas, live.field_reference()));
+            let saved = saved.bind_to("@s", Self::dirty(&schemas, saved.field_reference()));
+            save.extend([saved.set(live)]);
+            restore.extend([live.set(saved)]);
+        }
+        let flag = self
+            .valid
+            .bind_to("@s", Self::dirty(&schemas, valid.clone()));
+        save.extend([flag.enable()]);
+        let clear = flag.disable().into_commands();
+        let presence = schemas
+            .into_iter()
+            .map(|(id, schema)| {
+                (
+                    id,
+                    (
+                        ObjectiveName::logical(schema.presence_objective),
+                        schema.version,
+                    ),
+                )
+            })
+            .collect();
+        Ok(CheckpointPlan {
+            presence,
+            valid: valid.objective,
+            saved_component: valid.component,
+            fields,
+            save,
+            restore,
+            clear,
+        })
+    }
+
+    pub(crate) fn portable(
+        spec: &crate::compiler::program::CheckpointDefinition,
+        states: &BTreeMap<String, crate::compiler::program::State>,
+        before: Option<String>,
+        after: Option<String>,
+    ) -> CommandResult<DatapackRegistration> {
+        use crate::compiler::program::FieldReference;
+        use crate::state::owned::PlayerScore;
+
+        let error = |field, message| CommandError::new("checkpoint", field, message);
+        if spec.fields.is_empty() || spec.fields.len() > 64 {
+            return Err(error("fields", "requires 1..=64 explicit field pairs"));
+        }
+        let mut presence = BTreeMap::new();
+        let mut score = |reference: &FieldReference| {
+            let id = reference.state.to_string();
+            let field = states
+                .get(&id)
+                .and_then(|state| PlayerScore::from_state(state, &reference.field))
+                .filter(|score| !score.timer)
+                .ok_or_else(|| error("fields", "requires a non-ticking player State score"))?;
+            presence.insert(id, (field.presence.clone(), field.revision));
+            Ok(field)
+        };
+        let valid = score(&spec.valid)?;
+        if valid.default != 0 || valid.bounds.is_some_and(|(min, max)| min > 0 || max < 1) {
+            return Err(error(
+                "valid",
+                "requires a field initially disabled and able to hold 0 and 1",
+            ));
+        }
+        let mut save = Actions::default();
+        let mut restore = Actions::default();
+        let mut fields = Vec::with_capacity(spec.fields.len());
+        let mut seen_live = BTreeSet::new();
+        let mut seen_saved = BTreeSet::new();
+        for pair in &spec.fields {
+            if pair.live.state == spec.valid.state
+                || pair.saved.state != spec.valid.state
+                || pair.saved == spec.valid
+            {
+                return Err(error(
+                    "fields",
+                    "saved fields and validity must share one schema, distinct from live schemas",
+                ));
+            }
+            let live = score(&pair.live)?;
+            let saved = score(&pair.saved)?;
+            let live_name = live.objective.to_string();
+            let saved_name = saved.objective.to_string();
+            if !seen_live.insert(live_name.clone()) || !seen_saved.insert(saved_name.clone()) {
+                return Err(error("fields", "live and saved fields must be unique"));
+            }
+            // The shared preflight establishes that both current values are present
+            // and the source fits the destination before any write. Portable
+            // player State does not have archetype dirty objectives.
+            save.extend([format!(
+                "scoreboard players operation @s {saved_name} = @s {live_name}"
+            )]);
+            restore.extend([format!(
+                "scoreboard players operation @s {live_name} = @s {saved_name}"
+            )]);
+            fields.push(CheckpointPair::new(
+                live_name,
+                saved_name,
+                live.bounds,
+                saved.bounds,
+            )?);
+        }
+        if !seen_live.is_disjoint(&seen_saved) || seen_saved.contains(valid.objective.as_str()) {
+            return Err(error(
+                "fields",
+                "live, saved, and validity fields must be disjoint",
+            ));
+        }
+        save.extend([valid.set(1)]);
+        let plan = CheckpointPlan {
+            presence,
+            valid: valid.objective.to_string(),
+            saved_component: spec.valid.state.to_string(),
+            fields,
+            save,
+            restore,
+            clear: valid.set(0).into_commands(),
+        };
+        let callback = |function: String| -> PlayerAction {
+            Arc::new(move |_| Cmd::Function(function.clone()).into_commands())
+        };
+        let before = before.map(callback);
+        let after = after.map(callback);
+        let id = spec.id.clone();
+        Ok(register_checkpoint(&spec.id, move |part| {
+            plan.build(&id, part, before.as_ref(), after.as_ref())
+        }))
+    }
+
+    pub(crate) fn invoke(
+        id: &ResourceLocation,
+        command: crate::compiler::program::CheckpointCommand,
+    ) -> Actions {
+        use crate::compiler::program::CheckpointCommand;
+        let part = match command {
+            CheckpointCommand::Save => "checkpoint_save",
+            CheckpointCommand::Restore => "checkpoint_restore",
+            CheckpointCommand::Clear => "checkpoint_clear",
+        };
+        identity::call(id, part)
+    }
+
+    fn build(&self, part: &str) -> CommandResult<Actions> {
+        self.plan()?
+            .build(&self.id, part, self.before.as_ref(), self.after.as_ref())
+    }
+}
+
+struct CheckpointPair {
+    live: String,
+    saved: String,
+    range: (i32, i32),
+}
+
+impl CheckpointPair {
+    fn new(
+        live: String,
+        saved: String,
+        live_bounds: Option<(i32, i32)>,
+        saved_bounds: Option<(i32, i32)>,
+    ) -> CommandResult<Self> {
+        let live_bounds = live_bounds.unwrap_or((i32::MIN, i32::MAX));
+        let saved_bounds = saved_bounds.unwrap_or((i32::MIN, i32::MAX));
+        let min = live_bounds.0.max(saved_bounds.0);
+        let max = live_bounds.1.min(saved_bounds.1);
+        if min > max {
+            return Err(CommandError::new(
+                "checkpoint",
+                "fields",
+                "a field pair has no common representable integer range",
+            ));
+        }
+        Ok(Self {
+            live,
+            saved,
+            range: (min, max),
+        })
+    }
+}
+
+struct CheckpointPlan {
+    presence: BTreeMap<String, (ObjectiveName, u32)>,
+    valid: String,
+    saved_component: String,
+    fields: Vec<CheckpointPair>,
+    save: Actions,
+    restore: Actions,
+    clear: Actions,
+}
+
+impl CheckpointPlan {
+    fn ready(&self, restore: bool, saved_only: bool) -> Actions {
+        let mut actions =
+            "execute unless entity @s[type=minecraft:player] run return 0".into_commands();
+        for (schema, (presence, version)) in &self.presence {
+            if !saved_only || schema == &self.saved_component {
+                actions.extend([format!(
+                    "execute unless score @s {presence} matches {version} run return 0"
+                )]);
+            }
+        }
+        let valid = &self.valid;
+        actions.extend([format!(
+            "execute unless score @s {valid} matches {} run return 0",
+            if restore { "1" } else { "0..1" }
+        )]);
+        if !saved_only {
+            for pair in &self.fields {
+                for objective in [&pair.live, &pair.saved] {
+                    actions.extend([format!(
+                        "execute unless score @s {objective} matches -2147483648..2147483647 run return 0",
+                    )]);
+                }
+                let source = if restore { &pair.saved } else { &pair.live };
+                let (min, max) = pair.range;
+                actions.extend([format!(
+                    "execute unless score @s {source} matches {min}..{max} run return 0",
+                )]);
+            }
+        }
+        actions
+    }
+
+    fn build(
+        &self,
+        location: &ResourceLocation,
+        part: &str,
+        before: Option<&PlayerAction>,
+        after: Option<&PlayerAction>,
+    ) -> CommandResult<Actions> {
+        let id = crate::function::resolve_export_location(location)?;
         let pack_namespace = identity::pack_namespace()?;
         let lock =
             ObjectiveName::logical(format!("sand checkpoint {pack_namespace} transaction lock"));
@@ -301,8 +490,8 @@ impl Checkpoint {
             .into_commands());
         }
         if part == "restore_owner" {
-            let mut actions = self.ready(true, false)?;
-            if let Some(callback) = &self.before {
+            let mut actions = self.ready(true, false);
+            if let Some(callback) = before {
                 actions.extend([runtime::isolated(callback(EntityContext::default()))]);
             }
             actions.extend([format!(
@@ -312,14 +501,10 @@ impl Checkpoint {
             return Ok(actions);
         }
         if part == "restore_commit" {
-            let mut actions = self.ready(true, false)?;
-            for (live, saved) in &self.fields {
-                actions.extend([live
-                    .bind_to("@s", Self::dirty(&schemas, live.field_reference()))
-                    .set(saved.bind_to("@s", Self::dirty(&schemas, saved.field_reference())))]);
-            }
+            let mut actions = self.ready(true, false);
+            actions.extend([self.restore.clone()]);
             actions.extend([format!("scoreboard players set #accepted {result} 1")]);
-            if let Some(callback) = &self.after {
+            if let Some(callback) = after {
                 actions.extend([runtime::isolated(callback(EntityContext::default()))]);
             }
             return Ok(actions);
@@ -332,30 +517,16 @@ impl Checkpoint {
             format!("scoreboard players set #accepted {result} 0"),
             format!("data remove storage {scratch} operation"),
         ]);
-        let mut operation = self.ready(part == "restore", part == "clear")?;
+        let mut operation = self.ready(part == "restore", part == "clear");
         match part {
-            "save" => {
-                for (live, saved) in &self.fields {
-                    operation.extend([saved
-                        .bind_to("@s", Self::dirty(&schemas, saved.field_reference()))
-                        .set(live.bind_to("@s", Self::dirty(&schemas, live.field_reference())))]);
-                }
-                operation.extend([self
-                    .valid
-                    .bind_to("@s", Self::dirty(&schemas, self.valid.field_reference()))
-                    .enable()
-                    .into_commands()]);
-                operation.extend([format!("scoreboard players set #accepted {result} 1")]);
-            }
-            "clear" => {
-                operation.extend([
-                    self.valid
-                        .bind_to("@s", Self::dirty(&schemas, self.valid.field_reference()))
-                        .disable()
-                        .into_commands(),
-                    format!("scoreboard players set #accepted {result} 1").into_commands(),
-                ]);
-            }
+            "save" => operation.extend([
+                self.save.clone(),
+                format!("scoreboard players set #accepted {result} 1").into_commands(),
+            ]),
+            "clear" => operation.extend([
+                self.clear.clone(),
+                format!("scoreboard players set #accepted {result} 1").into_commands(),
+            ]),
             "restore" => operation.extend([
                 format!("data modify storage {scratch} operation.owner set from entity @s UUID"),
                 format!(
@@ -379,28 +550,34 @@ impl Checkpoint {
 }
 impl IntoDatapack for Checkpoint {
     fn into_datapack(self) -> DatapackRegistration {
-        let mut registration =
-            DatapackRegistration::new().lifecycle(LifecycleContribution::load(format!(
-                "function {}",
-                identity::resource(&self.id, "checkpoint_load")
-            )));
-        for part in [
-            "load",
-            "save",
-            "restore",
-            "clear",
-            "restore_owner",
-            "restore_commit",
-        ] {
-            let definition = self.clone();
-            registration = registration.component(runtime::Function::new(
-                &self.id,
-                &format!("checkpoint_{part}"),
-                move || definition.build(part),
-            ));
-        }
-        registration
+        register_checkpoint(&self.id.clone(), move |part| self.build(part))
     }
+}
+
+fn register_checkpoint(
+    id: &ResourceLocation,
+    build: impl Fn(&str) -> CommandResult<Actions> + 'static,
+) -> DatapackRegistration {
+    let build = Arc::new(build);
+    let mut registration = DatapackRegistration::new().lifecycle(LifecycleContribution::load(
+        format!("function {}", identity::resource(id, "checkpoint_load")),
+    ));
+    for part in [
+        "load",
+        "save",
+        "restore",
+        "clear",
+        "restore_owner",
+        "restore_commit",
+    ] {
+        let build = build.clone();
+        registration = registration.component(runtime::Function::new(
+            id,
+            &format!("checkpoint_{part}"),
+            move || build(part),
+        ));
+    }
+    registration
 }
 
 #[cfg(test)]

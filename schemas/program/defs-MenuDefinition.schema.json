@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "An ordered native dialog menu with one-shot callbacks as the owning player.",
+  "properties": {
+    "choices": {
+      "description": "Buttons in authored order.",
+      "items": {
+        "$ref": "defs-MenuChoice.schema.json"
+      },
+      "type": "array"
+    },
+    "id": {
+      "description": "Identity used to open or close a session.",
+      "type": "string"
+    },
+    "page_size": {
+      "description": "Optional count of choices per page.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "start": {
+      "description": "Initial view name. Omission selects the main view.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "ticks": {
+      "description": "Online ticks before the open session expires.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "title": {
+      "description": "Title of each native dialog page.",
+      "items": {
+        "$ref": "defs-TextPart.schema.json"
+      },
+      "type": "array"
+    },
+    "views": {
+      "description": "Additional views in declaration order.",
+      "items": {
+        "$ref": "defs-MenuView.schema.json"
+      },
+      "type": "array"
+    },
+    "while_open": {
+      "anyOf": [
+        {
+          "$ref": "defs-FieldReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "When present, the referenced score must equal one while the session is open."
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "ticks",
+    "choices"
+  ],
+  "type": "object"
+}

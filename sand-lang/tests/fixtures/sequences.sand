@@ -1,0 +1,162 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+struct Point { x: number, title: string, values: [number; 2] }
+impl Point {
+    fn add(&mut self, amount: number) -> number { Result.calls += 1; self.x += amount; self.title += "!"; return self.x; }
+}
+struct Tree { value: number, children: Vec<Tree> }
+enum Phase { Ready = 7, Done = 9 }
+global state Data { values: Vec<number> = [1, 2, 3], nodes: Vec<Point>, rows: [Vec<Point>; 2] }
+global state Full { values: Vec<number> = [0; 1024], near: Vec<number> = [0; 1023] }
+global state Result { checks: number, failed: number, calls: number, order: number, events: number }
+event Batch(values: Vec<Point>);
+#[on(Batch)]
+fn first_batch(mut values: Vec<Point>) { values[0].x += 10; Result.events += values[0].x; }
+#[on(Batch)]
+fn second_batch(values: Vec<Point>) { Result.events += values[0].x; }
+fn check(value: bool) { Result.checks += 1; if !value { Result.failed += 1; } }
+fn next() -> number { Result.order += 1; return Result.order; }
+fn identity(values: Vec<Point>, n: number) -> Vec<Point> { if n == 0 { return values; } return identity(values, n - 1); }
+fn first(values: Vec<number>) -> number { for value in values { return value; } return 0; }
+fn text_once() -> string { Result.order += 1; return "é🌍"; }
+fn slice_source() -> Vec<number> { Result.order = Result.order * 10 + 1; return Data.values; }
+fn slice_start() -> number { Result.order = Result.order * 10 + 2; Data.values.push(99); return -1; }
+fn slice_end() -> number { Result.order = Result.order * 10 + 3; return 100; }
+entity state Hidden { values: Vec<string>, text: string, n: number = 42, owner: EntityRef, phase: Phase = Phase::Done }
+fn read_hidden() -> Vec<string> { return Hidden.values; }
+fn read_text() -> string { return Hidden.text; }
+fn read_n() -> number { return Hidden.n; }
+fn read_phase() -> Phase { return Hidden.phase; }
+fn read_owner() -> EntityRef { return Hidden.owner; }
+fn run() {
+    Result.checks = 0; Result.failed = 0; Result.calls = 0; Result.order = 0; Result.events = 0;
+    Data.values = [1, 2, 3];
+    check(Data.values.len() == 3); check(!Data.values.is_empty());
+    check(Data.values.pop_or(9) == 3); check(Data.values.len() == 2);
+    check(Data.values.get_or(1, 9) == 2); check(Data.values.get_or(-1, 9) == 9);
+    check(Data.values.remove_or(99, 9) == 9); check(Data.values.len() == 2);
+    check(Data.values.insert(1, 8)); check(Data.values == [1, 8, 2]);
+    check(!Data.values.insert(-1, 0)); check(!Data.values.insert(9, 0));
+    check(Data.values.push(4)); check(Data.values.contains(8)); check(!Data.values.contains(77));
+    check(Data.values.remove_or(1, 0) == 8); check(Data.values == [1, 2, 4]);
+    check(Data.values.extend([5, 6]) == 2); check(Data.values == [1, 2, 4, 5, 6]);
+    Data.values.truncate(2); check(Data.values == [1, 2]);
+    Data.values.truncate(9); check(Data.values.len() == 2);
+    Data.values.truncate(-1); check(Data.values.is_empty());
+    check(Data.values.pop_or(25) == 25);
+    Data.values.push(next()); check(Result.order == 1); check(Data.values[0] == 1);
+    let mut copied = Data.values;
+    copied[0] = 90; check(copied[0] == 90); check(Data.values[0] == 1);
+    let bad = 9;
+    check(copied[bad] == 0); copied[bad] = 100; check(copied[0] == 90);
+    Data.nodes = [Point { x: 1, title: "p", values: [2, 3] }];
+    check(Data.nodes[0].add(4) == 5); check(Data.nodes[0].title == "p!");
+    check(Data.nodes[bad].add(4) == 0); check(Result.calls == 1);
+    Data.nodes[0].values[1] += 7; check(Data.nodes[0].values[1] == 10);
+    Data.rows[0] = identity(Data.nodes, 2);
+    let i = 0;
+    Data.rows[i][i].x += 2; check(Data.rows[0][0].x == 7); check(Data.nodes[0].x == 5);
+    let nested: Vec<Vec<number>> = [[1, 2], [3]];
+    check(nested[0][1] == 2);
+    let phases: Vec<Phase> = [Phase::Done]; check(phases[bad] == Phase::Ready);
+    let mut names: Vec<string> = ["a", "b"];
+    check(names.push("c")); names[1] += "!"; check(names[1] == "b!");
+    check(names.contains("c")); check(names.pop_or("fallback") == "c");
+    let mut decimals: Vec<float> = [1.5, -2.25]; decimals[0] *= 2.0; check(decimals[0] == 3.0);
+    let mut originals: Vec<Point> = [Point { x: 8, title: "copy", values: [1, 2] }];
+    check(originals.extend(originals) == 1);
+    originals[1].x = 12; check(originals[0].x == 8); check(originals[1].x == 12);
+    check(originals.contains(Point { x: 8, title: "copy", values: [1, 2] }));
+    check(!Full.values.push(9)); check(!Full.values.insert(0, 9)); check(Full.values.len() == 1024);
+    check(Full.values.extend([1, 2]) == 0);
+    Full.near.truncate(1023); check(Full.near.extend([6, 7]) == 1); check(Full.near[1023] == 6);
+    names.clear(); check(names.is_empty());
+    let mut total = 0;
+    Data.values = [1, 2, 3];
+    for value in Data.values { total += value; Data.values.clear(); }
+    check(total == 6); check(Data.values.is_empty());
+    let values: Vec<number> = [1, 2, 3, 4];
+    total = 0;
+    for value in values { if value == 2 { continue; } if value == 4 { break; } total += value; }
+    check(total == 4); check(first(values) == 1);
+    total = 0;
+    for values in values { total += values; }
+    check(total == 10);
+    total = 0;
+    let matrix: Vec<Vec<number>> = [[1, 2], [3]];
+    for row in matrix { for value in row { total += value; } }
+    check(total == 6);
+    let mut text = "ab";
+    let mut seen = "";
+    for character in text { seen += character; text = "x"; }
+    check(seen == "ab"); check(text == "x");
+    Result.order = 0; seen = "";
+    for character in text_once() { seen += character; }
+    check(seen == "é🌍"); check(Result.order == 1);
+    let empty: Vec<Point>;
+    for point in empty { total += point.x; }
+    check(total == 6);
+    let row = 1;
+    check(Data.rows[row][0].add(5) == 0); check(Result.calls == 1);
+    let mut nested_vectors: Vec<Vec<number>> = [[1]];
+    check(nested_vectors[0].push(2)); check(nested_vectors[0] == [1, 2]);
+    check(!nested_vectors[bad].push(next())); check(Result.order == 2);
+    let mut converted = [2, 3].to_vec();
+    converted.push(4); check(converted == [2, 3, 4]);
+    let mut point_copies = [Point { x: 7, title: "array", values: [1, 2] }; 2].to_vec();
+    point_copies[0].x = 20; check(point_copies[1].x == 7);
+    let mut forest: Vec<Tree> = [Tree { value: 1, children: [Tree { value: 2, children: [] }] }];
+    forest[0].children[0].value += 5; check(forest[0].children[0].value == 7);
+    forest[0].children.push(Tree { value: 9, children: [] });
+    check(forest[0].children.len() == 2); check(forest[0].children[1].value == 9);
+    emit Batch(Data.nodes);
+    check(Result.events == 20); check(Data.nodes[0].x == 5); check(Data.nodes.len() == 1);
+    let found = Data.nodes.get_or(0, Point { x: next(), title: "fallback", values: [0, 0] });
+    check(found.x == 5); check(Result.order == 3);
+    check(!Full.values.push(next())); check(Result.order == 4);
+
+    Data.values = [10, 20, 30];
+    Result.order = 0;
+    let ordered = slice_source().slice(slice_start(), slice_end());
+    check(Result.order == 123);
+    check(ordered == [10, 20, 30]);
+    check(Data.values == [10, 20, 30, 99]);
+    check(ordered.slice(1, 2) == [20]);
+    check(ordered.slice(2, 1).is_empty());
+    check(ordered.slice(8, 10).is_empty());
+    check(ordered.slice(0, -1).is_empty());
+    let mut fragment = originals.slice(0, 1);
+    fragment[0].values[0] = 99;
+    check(fragment[0].values[0] == 99 && originals[0].values[0] == 1);
+    check(nested.slice(0, 1) == [[1, 2]]);
+    Data.values = Data.values.slice(1, 3);
+    check(Data.values == [20, 30]);
+    let mut borrowed_total = 0;
+    for value in ordered.borrow_slice(-3, 2) { borrowed_total += value; }
+    check(borrowed_total == 30);
+    for value in ordered.borrow_slice(2, 1) { borrowed_total += value; }
+    check(borrowed_total == 30);
+    for value in ordered.borrow_slice(2, 100) { borrowed_total += value; }
+    check(borrowed_total == 60);
+    let fixed = [5, 10, 20];
+    for value in fixed.borrow_slice(1, 99) { borrowed_total += value; }
+    check(borrowed_total == 90);
+    let letters = "aé🌍z";
+    let mut borrowed_text = "";
+    for letter in letters.borrow_slice(1, 3) { borrowed_text += letter; }
+    check(borrowed_text == "é🌍");
+
+    summon(Entity::Pig, tag = "hidden_probe");
+    for actor in entities(type = Entity::Pig, tag = "hidden_probe", limit = 1) {
+        attach_state(Hidden); Hidden.values = ["secret"]; Hidden.text = "owned"; Hidden.owner = entity_ref();
+        check(read_hidden() == ["secret"]); check(read_text() == "owned");
+        check(read_n() == 42); check(read_owner() == entity_ref()); check(read_phase() == Phase::Done);
+        detach_state(Hidden);
+        check(read_hidden().is_empty()); check(read_text() == "");
+        check(read_n() == 0);
+        let empty_owner: EntityRef; check(read_owner() == empty_owner); check(read_phase() == Phase::Ready);
+        attach_state(Hidden); check(read_n() == 42); check(read_phase() == Phase::Done);
+        detach_state(Hidden); kill();
+    }
+    if Result.checks == 110 && Result.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    else { raw!("say __SAND_LANGUAGE_FAILED__"); }
+}

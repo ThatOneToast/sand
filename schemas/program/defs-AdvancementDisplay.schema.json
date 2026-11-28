@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The optional native presentation of an advancement.",
+  "properties": {
+    "background": {
+      "description": "Root texture identity. Minecraft 26.3 requires one for displayed roots.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "description": {
+      "description": "Static rich description.",
+      "items": {
+        "$ref": "defs-TextPart.schema.json"
+      },
+      "type": "array"
+    },
+    "icon": {
+      "description": "Vanilla item identity used as the icon.",
+      "type": "string"
+    },
+    "title": {
+      "description": "Static rich title.",
+      "items": {
+        "$ref": "defs-TextPart.schema.json"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "icon",
+    "title",
+    "description"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A loot table containing one or more independently rolled pools.",
+  "properties": {
+    "id": {
+      "description": "Identity.",
+      "type": "string"
+    },
+    "pools": {
+      "description": "Ordered independent, optionally conditional pools.",
+      "items": {
+        "$ref": "defs-LootPool.schema.json"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "pools"
+  ],
+  "type": "object"
+}

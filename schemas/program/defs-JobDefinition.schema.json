@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Player-owned indexed work with a bounded number of callbacks per loaded tick.",
+  "properties": {
+    "capacity": {
+      "description": "Maximum simultaneous instances of this definition. Defaults to 128.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "complete": {
+      "anyOf": [
+        {
+          "$ref": "defs-FunctionReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Callback invoked as the player when the work completes."
+    },
+    "count": {
+      "description": "Number of steps, starting at index zero.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "id": {
+      "description": "Identity used to start or cancel this job.",
+      "type": "string"
+    },
+    "index": {
+      "$ref": "defs-FieldReference.schema.json",
+      "description": "Writable global integer score slot receiving the zero-based index."
+    },
+    "per_tick": {
+      "description": "Maximum callbacks per instance per tick. Defaults to one.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "step": {
+      "$ref": "defs-FunctionReference.schema.json",
+      "description": "Step callback invoked as the player."
+    },
+    "ticks": {
+      "description": "Loaded-tick deadline for each instance.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "ticks",
+    "count",
+    "index",
+    "step"
+  ],
+  "type": "object"
+}

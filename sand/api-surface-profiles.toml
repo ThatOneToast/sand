@@ -40,6 +40,77 @@
 # Checkpoint/Journal policies add 15 systems items; RuntimeAdvice and report
 # guidance add two advanced items (+47 source items in this increment).
 # Bounded Roster adds one type and nine contracted systems methods (+10).
+# Portable gameplay vocabulary (score operations, relations, messages, sounds,
+# particles, effects, items, schedules and player events) adds 117 advanced items.
+# Portable control flow (Return, While) and attribute get/set with scaled
+# amounts add 19 advanced items.
+# Generated ParticleType and Attribute registries add two enums, two
+# resource_location methods and one variant per vanilla entry (+169 on 26.2,
+# +172 on 26.3).
+# Typed portable storage fields, projections, operations and safe NBT text add
+# 44 contracted source items, reusing canonical NBT and State ownership models.
+# Portable retained entity capture/resolution and attributed damage add seven advanced items.
+# Retaining one related entity adds one portable CaptureEntity field.
+# Opt-in portable command locations add seven contracted advanced items.
+# Retained vehicle mounting and dismounting add two portable Action items.
+# Portable owned continuations add five contracted Action items.
+# Portable clone and dimension scoping add fourteen contracted advanced items.
+# Portable biome predicates add five contracted advanced items.
+# Checked block data reads and writes add nine contracted advanced items.
+# Portable equipment adds five contracted advanced items.
+# NBT and score entity filters add two contracted advanced fields.
+# Independent loot pools add four net contracted advanced items.
+# Verified enchantment catalogs add 43 variants, an enum, and a generated method.
+# Shared damage types add 25 component items and two portable fields.
+# Portable block data sources add one variant and one field.
+# Entity velocity adds seven portable API members.
+# Named world predicates add eleven portable API members.
+# Portable smithing trims add one recipe variant and five contracted fields.
+# Translated text adds a variant, three fields, and two shared validation APIs.
+# Interactive chat adds a variant, three fields, and two native click methods.
+# Written books add one portable type and four contracted fields.
+# Portable advancements add three types, three variants, and thirteen fields.
+# Advancement progress adds one selector method and three portable items.
+# Native notices add one resource type, one action variant and six fields.
+# Flat dimensions add one resource type and four fields.
+# Custom biomes add one resource type and eleven fields.
+# Structure templates add one action variant and four fields.
+# Advancement completion adds one event variant and its identity field.
+# Inventory and entity data reads add two action variants and four fields.
+# Inventory transfers add one definition, one action variant, and eight fields.
+# HUDs add two types, one action variant, and eleven fields.
+# Menus add two types, one action variant, and ten fields.
+# Named menu views and guards add one type and eight fields.
+# Biome spawn tables add two portable fields and a SpawnEntry accessor.
+# Projectiles add one type, one action variant, and ten fields.
+# Progression and sessions add five types, seven variants, and twenty fields.
+# Player abilities add four types, four variants, and fourteen fields.
+# State combat adds two types, one variant, and sixteen fields.
+# Indexed jobs add one type, one variant, and eleven fields.
+# Display scenes add four types, four variants, and eighteen fields.
+# Wait cancellation groups add two portable operation fields.
+# Portable State migrations and server wait modes add three operation fields.
+# Portable player transitions add eight PlayerEvent variants.
+# Portable fixed-biome noise dimensions add ten source items.
+# Consumption and dimension-arrival advancement criteria add four source items.
+# Event predicate filtering adds one portable hook field.
+# Live State inspection adds one portable compiler method.
+# Pending wait inspection adds one method, one type, and four fields.
+# Portable dimension types add one module field.
+# Biome feature references add one field and one typed registry ID.
+# Portable structure sets add one module field.
+# Portable player checkpoints add 17 source items.
+# Portable encounters add 15 source items.
+# Breakpoint control adds one portable compiler method.
+# Portable ore placement adds one type and six fields.
+# Portable jigsaw structures and template pools add three types and 17 fields.
+# Portable online rosters add 23 source items.
+# Fire and health add five portable event kinds.
+# Three portable advancement criteria add seven source items.
+# Portable owned statuses add 11 source items.
+# Portable entity archetypes add 18 source items.
+# Native configured and placed features add two Module fields.
+# Portable VFX cues and playback add 14 source items.
 schema_version = 1
 
 # Explicit source-only profile used solely when sand-core code generation has
@@ -48,19 +119,19 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 5269
+static_surface_items = 6251
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 11369
+static_surface_items = 12565
 pending_item_ceiling = 0
 baseline = "api-surface-baseline.txt"
 
 # Verified 26.3 command/registry report: +22 command and +237 registry items.
 [[profile]]
 minecraft_version = "26.3"
-static_surface_items = 11628
+static_surface_items = 12827
 pending_item_ceiling = 0
 baseline = "api-surface-baseline-26.3.txt"

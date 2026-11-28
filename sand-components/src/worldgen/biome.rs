@@ -9,13 +9,15 @@
 
 use std::collections::BTreeMap;
 
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::SoundEventDefinition;
 use crate::component::DatapackComponent;
 use crate::error::Result as SandResult;
 use crate::raw::RawJson;
-use crate::registry::{ConfiguredCarverId, ConfiguredFeatureId, EntityTypeId};
+use crate::registry::{ConfiguredCarverId, EntityTypeId, PlacedFeatureId};
 use crate::resource_location::ResourceLocation;
 use crate::validation;
 use crate::worldgen::structure::{GenerationStep, MobCategory, SpawnEntry};
@@ -45,7 +47,8 @@ const GENERATION_STEP_COUNT: usize = 11;
     avoid_when = ["Choosing spawn weights or group sizes; use SpawnEntry"],
     example = "use sand::component::SpawnCost; let cost = SpawnCost::new(1.0, 0.2);",
 )]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SpawnCost {
     energy_budget: f64,
     charge: f64,
@@ -106,8 +109,8 @@ enum SpawnValue<T> {
 #[derive(Debug, Clone)]
 enum FeaturesValue {
     /// Fixed-length (`GENERATION_STEP_COUNT`) per-step lists of typed
-    /// configured-feature references, indexed by [`GenerationStep::index`].
-    Typed(Vec<Vec<ConfiguredFeatureId>>),
+    /// placed-feature references, indexed by [`GenerationStep::index`].
+    Typed(Vec<Vec<PlacedFeatureId>>),
     Raw(Value),
 }
 
@@ -416,6 +419,10 @@ pub struct BiomeEffects {
     music: Option<Value>,
 }
 
+fn rgb_json(color: u32) -> Value {
+    Value::String(format!("#{color:06x}"))
+}
+
 impl BiomeEffects {
     /// Creates effects with the minimum required colors.
     #[sand_macros::api(
@@ -527,29 +534,25 @@ impl BiomeEffects {
         self
     }
 
+    fn visual_attributes(&self) -> serde_json::Map<String, Value> {
+        [
+            ("minecraft:visual/fog_color", self.fog_color),
+            ("minecraft:visual/water_fog_color", self.water_fog_color),
+            ("minecraft:visual/sky_color", self.sky_color),
+        ]
+        .into_iter()
+        .map(|(name, color)| (name.to_owned(), rgb_json(color)))
+        .collect()
+    }
+
     fn to_json(&self) -> Value {
         let mut map = serde_json::Map::new();
-        map.insert(
-            "fog_color".to_string(),
-            Value::Number(self.fog_color.into()),
-        );
-        map.insert(
-            "water_color".to_string(),
-            Value::Number(self.water_color.into()),
-        );
-        map.insert(
-            "water_fog_color".to_string(),
-            Value::Number(self.water_fog_color.into()),
-        );
-        map.insert(
-            "sky_color".to_string(),
-            Value::Number(self.sky_color.into()),
-        );
-        if let Some(gc) = self.grass_color {
-            map.insert("grass_color".to_string(), Value::Number(gc.into()));
+        map.insert("water_color".to_owned(), rgb_json(self.water_color));
+        if let Some(color) = self.grass_color {
+            map.insert("grass_color".to_owned(), rgb_json(color));
         }
-        if let Some(fc) = self.foliage_color {
-            map.insert("foliage_color".to_string(), Value::Number(fc.into()));
+        if let Some(color) = self.foliage_color {
+            map.insert("foliage_color".to_owned(), rgb_json(color));
         }
         if let Some(ref p) = self.particle {
             map.insert("particle".to_string(), p.clone());
@@ -684,7 +687,7 @@ impl CarvingStep {
 )]
 pub struct Biome {
     location: ResourceLocation,
-    /// Whether it rains (false = snows if cold enough).
+    /// Whether the biome has rain or snow. Temperature selects the form.
     has_precipitation: bool,
     /// Temperature used for mob spawning and weather (typical range -0.5–2.0).
     temperature: f32,
@@ -924,7 +927,7 @@ impl Biome {
         self
     }
 
-    /// Adds a typed configured-feature reference to the given
+    /// Adds a typed placed-feature reference to the given
     /// [`GenerationStep`]'s bucket of the `features` list-of-lists.
     ///
     /// Repeated calls append to the same step and accumulate across steps.
@@ -935,16 +938,16 @@ impl Biome {
         path = "sand::component::Biome::feature",
         module = "sand::component",
         kind = "method",
-        summary = "Adds a typed configured-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists.",
-        context = "Adds a typed configured-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists. Repeated calls append to the same step and accumulate across steps. If [`Biome::raw_features`] was used previously, this replaces it with a fresh typed feature map (typed and raw features are not merged).",
+        summary = "Adds a typed placed-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists.",
+        context = "Adds a typed placed-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists. Repeated calls append to the same step and accumulate across steps. If [`Biome::raw_features`] was used previously, this replaces it with a fresh typed feature map (typed and raw features are not merged).",
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
         use_when = ["Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component"],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
-        params(step = "`step` provides the step added when building a typed configured-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists.", feature = "`feature` provides the typed Minecraft resource identifier used to add a typed configured-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists."),
-        returns = "The `Biome` value with the documented change applied to add a typed configured-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists.",
-        example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, step: sand::component::GenerationStep, feature: sand::registry::ConfiguredFeatureId)  {\n    let updated_biome = biome_value.feature(step, feature);\n}",
+        params(step = "`step` provides the step added when building a typed placed-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists.", feature = "`feature` provides the typed Minecraft resource identifier used to add a typed placed-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists."),
+        returns = "The `Biome` value with the documented change applied to add a typed placed-feature reference to the given [`GenerationStep`]'s bucket of the `features` list-of-lists.",
+        example = "use sand::prelude::*;\n\nfn demonstrate(biome_value: sand::component::Biome, step: sand::component::GenerationStep, feature: sand::registry::PlacedFeatureId)  {\n    let updated_biome = biome_value.feature(step, feature);\n}",
     )]
-    pub fn feature(mut self, step: GenerationStep, feature: ConfiguredFeatureId) -> Self {
+    pub fn feature(mut self, step: GenerationStep, feature: PlacedFeatureId) -> Self {
         let mut steps = match self.features {
             Some(FeaturesValue::Typed(steps)) => steps,
             _ => vec![Vec::new(); GENERATION_STEP_COUNT],
@@ -958,7 +961,7 @@ impl Biome {
     /// compatibility path.
     ///
     /// Prefer [`Biome::feature`] with a [`GenerationStep`] and
-    /// [`ConfiguredFeatureId`]. This escape hatch exists for modded or
+    /// [`PlacedFeatureId`]. This escape hatch exists for modded or
     /// version-specific feature shapes.
     #[sand_macros::api(
         registry = sand_api_contract,
@@ -966,9 +969,9 @@ impl Biome {
         module = "sand::component",
         kind = "method",
         summary = "Sets the features list-of-lists through the explicit raw compatibility path.",
-        context = "Sets the features list-of-lists through the explicit raw compatibility path. Prefer [`Biome::feature`] with a [`GenerationStep`] and [`ConfiguredFeatureId`]. This escape hatch exists for modded or version-specific feature shapes.",
+        context = "Sets the features list-of-lists through the explicit raw compatibility path. Prefer [`Biome::feature`] with a [`GenerationStep`] and [`PlacedFeatureId`]. This escape hatch exists for modded or version-specific feature shapes.",
         minecraft = "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
-        use_when = ["Prefer [`Biome::feature`] with a [`GenerationStep`] and [`ConfiguredFeatureId`]. This escape hatch exists for modded or version-specific feature shapes."],
+        use_when = ["Prefer [`Biome::feature`] with a [`GenerationStep`] and [`PlacedFeatureId`]. This escape hatch exists for modded or version-specific feature shapes."],
         avoid_when = ["Injecting unchecked JSON when the typed schema can represent the resource"],
         params(features = "`features` provides the features applied when setting the features list-of-lists through the explicit raw compatibility path."),
         returns = "The `Biome` value with the documented change applied to set the features list-of-lists through the explicit raw compatibility path.",
@@ -1079,12 +1082,11 @@ impl DatapackComponent for Biome {
 
     fn to_json(&self) -> Value {
         let mut map = serde_json::Map::new();
+        let mut attributes = self.effects.visual_attributes();
         if let Some(sounds) = &self.ambient_sounds {
-            map.insert(
-                "attributes".into(),
-                serde_json::json!({AMBIENT_SOUNDS_ATTRIBUTE: sounds.to_json()}),
-            );
+            attributes.insert(AMBIENT_SOUNDS_ATTRIBUTE.into(), sounds.to_json());
         }
+        map.insert("attributes".into(), Value::Object(attributes));
 
         map.insert(
             "has_precipitation".to_string(),
@@ -1283,6 +1285,33 @@ mod tests {
     }
 
     #[test]
+    fn visual_environment_attributes_share_the_attributes_map_with_ambient_audio() {
+        let sound = SoundEventDefinition::reference(
+            crate::SoundEventId::minecraft("ambient.cave").unwrap(),
+        );
+        let biome = Biome::new(location(), effects().grass_color(0x001010))
+            .ambient_sounds(BiomeAmbientSounds::new().loop_sound(sound));
+        let json = biome.to_json();
+        assert_eq!(json["attributes"]["minecraft:visual/fog_color"], "#c0d8ff");
+        assert_eq!(
+            json["attributes"]["minecraft:visual/water_fog_color"],
+            "#050533"
+        );
+        assert_eq!(json["attributes"]["minecraft:visual/sky_color"], "#78a7ff");
+        assert_eq!(
+            json["attributes"][AMBIENT_SOUNDS_ATTRIBUTE],
+            serde_json::json!({"loop": "minecraft:ambient.cave", "additions": []})
+        );
+        assert_eq!(
+            json["effects"],
+            serde_json::json!({
+                "water_color": "#3f76e4",
+                "grass_color": "#001010",
+            })
+        );
+    }
+
+    #[test]
     fn valid_biome_exports_unchanged() {
         let biome = Biome::new(location(), effects())
             .temperature(0.5)
@@ -1374,15 +1403,15 @@ mod tests {
         let biome = Biome::new(location(), effects())
             .feature(
                 GenerationStep::VegetalDecoration,
-                ConfiguredFeatureId::minecraft("oak").unwrap(),
+                PlacedFeatureId::minecraft("oak").unwrap(),
             )
             .feature(
                 GenerationStep::UndergroundOres,
-                ConfiguredFeatureId::minecraft("ore_iron").unwrap(),
+                PlacedFeatureId::minecraft("ore_iron").unwrap(),
             )
             .feature(
                 GenerationStep::UndergroundOres,
-                ConfiguredFeatureId::minecraft("ore_gold").unwrap(),
+                PlacedFeatureId::minecraft("ore_gold").unwrap(),
             );
         assert!(biome.validate().is_ok());
         let features = biome.to_json()["features"].clone();

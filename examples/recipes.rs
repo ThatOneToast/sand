@@ -4,7 +4,7 @@
 //! stonecutting, and smithing.
 
 use sand_core::{
-    CookingRecipe, CookingType, Ingredient, ItemId, RecipeResult, ShapedRecipe, ShapelessRecipe,
+    CookingRecipe, CookingType, Ingredient, ItemId, RecipeResult, ResourceLocation, ShapedRecipe, ShapelessRecipe,
     SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe, TagId, generated::Item,
 };
 use sand_macros::datapack_component;
@@ -91,7 +91,10 @@ pub fn custom_upgrade() -> SmithingTransformRecipe {
 
 #[datapack_component]
 pub fn custom_trim() -> SmithingTrimRecipe {
-    SmithingTrimRecipe::new("my_pack:custom_trim".parse().unwrap())
+    SmithingTrimRecipe::new(
+        "my_pack:custom_trim".parse().unwrap(),
+        ResourceLocation::minecraft("coast").unwrap(),
+    )
         .template(Ingredient::item_id(
             ItemId::minecraft("coast_armor_trim_smithing_template").unwrap(),
         ))

@@ -1,0 +1,33 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+struct Point { x: number }
+global state World { point: Point }
+global state Result { checks: number, failed: number }
+impl Point {
+    fn get(&self) -> number { return self.x; }
+    fn add(&mut self, n: number) -> number { self.x += n; return self.x; }
+    fn recurse(&mut self, n: number) { if n == 0 { return; } self.add(1); self.recurse(n - 1); }
+    fn copy_after_add(&mut self) -> Self { self.x += 2; return self; }
+    fn value_add(mut self) -> Self { self.x += 100; return self; }
+}
+fn check(actual: number, expected: number) { Result.checks += 1; if actual != expected { Result.failed += 1; } }
+fn run() {
+    Result.checks = 0; Result.failed = 0;
+    let mut p = Point { x: 1 };
+    p.recurse(3);
+    check(p.get(), 4);
+    let n = p.add(p.get());
+    check(n, 8); check(p.x, 8);
+    World.point = p;
+    World.point.add(n);
+    check(World.point.x, 16);
+    check(p.x, 8);
+    let copied = p.copy_after_add();
+    check(p.x, 10); check(copied.x, 10);
+    let shifted = p.value_add();
+    check(p.x, 10); check(shifted.x, 110);
+    let mut nested = Point { x: 1 };
+    nested.recurse(12);
+    check(nested.x, 13);
+    if Result.checks == 10 && Result.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    else { raw!("say __SAND_LANGUAGE_FAILED__"); }
+}

@@ -6,6 +6,7 @@ use crate::{
 };
 use sand_commands::{CommandResult, ObjectiveName};
 use sand_components::ResourceLocation;
+use std::fmt;
 
 /// The compilation's pack namespace, independent of a definition's resource
 /// namespace. Shared admission/transaction state must cover imported definitions
@@ -35,14 +36,36 @@ pub(crate) fn task_tag(scope: &ResourceLocation) -> CommandResult<String> {
 }
 
 /// Retained compiler-only context traversal from an owned runtime instance.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct OwnedContext {
     pub(crate) scope: ResourceLocation,
     pub(crate) kind: &'static str,
     pub(crate) field: &'static str,
+    pub(crate) position_at_target: bool,
     pub(crate) body: Actions,
     pub(crate) child: Option<ResourceLocation>,
     pub(crate) damage: Option<(sand_commands::DamageAmount, sand_commands::DamageKind)>,
+}
+
+impl fmt::Debug for OwnedContext {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut context = formatter.debug_struct("OwnedContext");
+        context
+            .field("scope", &self.scope)
+            .field("kind", &self.kind)
+            .field("field", &self.field);
+        // Generated helper identities hash this representation. Preserve the
+        // established key for owner-position actions and encode the alternate
+        // positioning mode explicitly.
+        if !self.position_at_target {
+            context.field("position_at_target", &self.position_at_target);
+        }
+        context
+            .field("body", &self.body)
+            .field("child", &self.child)
+            .field("damage", &self.damage)
+            .finish()
+    }
 }
 
 impl OwnedContext {
@@ -75,6 +98,11 @@ impl OwnedContext {
                 "sand/runtime/owned_body",
                 self.body.clone(),
             );
+            let position = if self.position_at_target {
+                " at @s"
+            } else {
+                ""
+            };
             selectors(
                 self.kind,
                 &objective.to_string(),
@@ -82,7 +110,9 @@ impl OwnedContext {
             )
             .into_iter()
             .map(|selector| {
-                format!("$execute as {selector} at @s run return run function __sand_local:{body}")
+                format!(
+                    "$execute as {selector}{position} run return run function __sand_local:{body}"
+                )
             })
             .collect::<Vec<_>>()
         };
@@ -110,10 +140,14 @@ pub(crate) fn selectors(kind: &str, objective: &str, value: &str) -> Vec<String>
         "player" => vec![format!("@a[{score}]")],
         "entity" => vec![
             format!("@a[{score}]"),
-            format!("@e[type=!minecraft:player,distance=0..,{score}]"),
+            non_player_selector(objective, value),
         ],
         kind => vec![format!("@e[type=minecraft:{kind},distance=0..,{score}]")],
     }
+}
+
+pub(crate) fn non_player_selector(objective: &str, value: &str) -> String {
+    format!("@e[type=!minecraft:player,distance=0..,scores={{{objective}={value}}},limit=1]")
 }
 
 pub(crate) fn call(scope: &ResourceLocation, suffix: &str) -> Actions {

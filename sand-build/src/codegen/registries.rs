@@ -18,28 +18,20 @@ const REGISTRIES: &[(&str, &str, &str)] = &[
         "EntityType",
         "Minecraft entity type registry.",
     ),
-    // NOTE (issue #356): "minecraft:worldgen/biome" and "minecraft:enchantment"
-    // never appear as keys in the real `reports/registries.json` output --
-    // biomes and enchantments are data-driven registries, not network
-    // protocol registries, so `all.get(registry_key)` always misses and
-    // `generate` silently skips them (see the loop below). Left in place
-    // rather than removed to avoid unrelated scope creep; real, working
-    // biome data now comes from `biomes.rs` instead (a different report
-    // source -- see that module's docs).
-    (
-        "minecraft:worldgen/biome",
-        "Biome",
-        "Minecraft biome registry.",
-    ),
-    (
-        "minecraft:enchantment",
-        "Enchantment",
-        "Minecraft enchantment registry.",
-    ),
     (
         "minecraft:sound_event",
         "SoundEvent",
         "Minecraft sound event registry.",
+    ),
+    (
+        "minecraft:particle_type",
+        "ParticleType",
+        "Minecraft particle type registry.",
+    ),
+    (
+        "minecraft:attribute",
+        "Attribute",
+        "Minecraft entity attribute registry.",
     ),
 ];
 
@@ -71,11 +63,44 @@ pub fn generate(reports_dir: &Path, out_dir: &Path, minecraft_version: &str) -> 
         };
 
         // Sort entries by protocol_id for a stable, game-order enum.
-        let mut entries: Vec<(&String, &EntryData)> = registry.entries.iter().collect();
-        entries.sort_by_key(|(_, v)| v.protocol_id);
+        let mut entries: Vec<_> = registry.entries.iter().collect();
+        entries.sort_by_key(|(_, value)| value.protocol_id);
+        let ids: Vec<_> = entries.into_iter().map(|(key, _)| key.as_str()).collect();
 
-        let contracts = enum_api_entries(enum_name, registry_key, &entries, minecraft_version);
-        write_enum(&mut code, enum_name, doc, &entries, &contracts);
+        let contracts = enum_api_entries(enum_name, registry_key, &ids, minecraft_version);
+        write_enum(&mut code, enum_name, doc, &ids, &contracts);
+        api_entries.extend(contracts);
+    }
+
+    // Enchantments are loaded from built-in datapack data by the catalog
+    // maintenance generator. Runtime language checking and Rust generation
+    // use that same version-specific catalog.
+    if let Some(entries) =
+        sand_version::registry::variants(minecraft_version, "minecraft:enchantment")
+    {
+        let ids: Vec<_> = entries.values().map(String::as_str).collect();
+        let contracts = enum_api_entries(
+            "Enchantment",
+            "minecraft:enchantment",
+            &ids,
+            minecraft_version,
+        );
+        write_enum(
+            &mut code,
+            "Enchantment",
+            "Minecraft enchantment registry.",
+            &ids,
+            &contracts,
+        );
+        code.push_str(
+            r#"
+impl From<Enchantment> for sand_components::EnchantmentId {
+    fn from(enchantment: Enchantment) -> Self {
+        enchantment.resource_location().parse().expect("generated enchantment IDs are valid")
+    }
+}
+"#,
+        );
         api_entries.extend(contracts);
     }
 
@@ -89,7 +114,7 @@ pub fn generate(reports_dir: &Path, out_dir: &Path, minecraft_version: &str) -> 
 fn enum_api_entries(
     enum_name: &str,
     registry_key: &str,
-    entries: &[(&String, &EntryData)],
+    entries: &[&str],
     minecraft_version: &str,
 ) -> Vec<GeneratedProviderEntry> {
     let enum_path = format!("sand::vanilla::{enum_name}");
@@ -98,7 +123,7 @@ fn enum_api_entries(
         .strip_prefix("minecraft:")
         .unwrap_or(registry_key);
     let availability = vec![format!("minecraft = {minecraft_version}")];
-    let example_variant = entries.first().map(|(key, _)| resource_key_to_variant(key));
+    let example_variant = entries.first().map(|key| resource_key_to_variant(key));
     let enum_example = example_variant.as_ref().map_or_else(
         || format!("let value: Option<sand::vanilla::{enum_name}> = None;"),
         |variant| format!("let value = sand::vanilla::{enum_name}::{variant};"),
@@ -167,7 +192,7 @@ fn enum_api_entries(
         },
     });
 
-    result.extend(entries.iter().map(|(key, _)| {
+    result.extend(entries.iter().map(|key| {
         let variant = resource_key_to_variant(key);
         GeneratedProviderEntry {
             definition_identity: format!("sand_core::generated::{enum_name}::{variant}"),
@@ -202,7 +227,7 @@ fn write_enum(
     code: &mut String,
     enum_name: &str,
     _doc: &str,
-    entries: &[(&String, &EntryData)],
+    entries: &[&str],
     contracts: &[GeneratedProviderEntry],
 ) {
     let enum_contract = contracts
@@ -213,7 +238,7 @@ fn write_enum(
     writeln!(code, "#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]").unwrap();
     writeln!(code, "pub enum {enum_name} {{").unwrap();
 
-    for (key, _) in entries {
+    for key in entries {
         let variant = resource_key_to_variant(key);
         let path = format!("sand::vanilla::{enum_name}::{variant}");
         let variant_contract = contracts
@@ -240,7 +265,7 @@ fn write_enum(
     )
     .unwrap();
     writeln!(code, "        match self {{").unwrap();
-    for (key, _) in entries {
+    for key in entries {
         let variant = resource_key_to_variant(key);
         writeln!(code, "            Self::{variant} => {key:?},").unwrap();
     }
@@ -369,5 +394,23 @@ mod tests {
             std::fs::read(second_out.join("registries.rs")).unwrap(),
             "generated Rust must be byte-for-byte deterministic"
         );
+    }
+
+    #[test]
+    fn enchantments_generate_from_the_language_catalog_without_network_report_entries() {
+        let directory = tempfile::tempdir().unwrap();
+        std::fs::write(directory.path().join("registries.json"), "{}").unwrap();
+        generate(directory.path(), directory.path(), "26.2").unwrap();
+
+        let expected = sand_version::registry::variants("26.2", "minecraft:enchantment").unwrap();
+        let api: ApiProviderCatalog = serde_json::from_slice(
+            &std::fs::read(directory.path().join("registries.api.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(api.entries.len(), expected.len() + 2);
+        for variant in expected.keys() {
+            assert!(api.entries.iter().any(|entry| entry.contract.canonical_path
+                == format!("sand::vanilla::Enchantment::{variant}")));
+        }
     }
 }

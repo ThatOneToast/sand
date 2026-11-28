@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A vanilla height provider. [`HeightProvider::Raw`] is the explicit escape hatch for provider types Sand does not model yet (for example `weighted_list`).\n\n# Context\nA vanilla height provider. [`HeightProvider::Raw`] is the explicit escape hatch for provider types Sand does not model yet (for example `weighted_list`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::HeightProvider;\n```\nA vanilla height provider.\n\n[`HeightProvider::Raw`] is the explicit escape hatch for provider types\nSand does not model yet (for example `weighted_list`).",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "A constant anchor, emitted using the vanilla inline shorthand.\nA constant anchor, emitted using the vanilla inline shorthand.",
+      "properties": {
+        "constant": {
+          "$ref": "defs-VerticalAnchor.schema.json",
+          "description": "A constant anchor, emitted using the vanilla inline shorthand.\nA constant anchor, emitted using the vanilla inline shorthand."
+        }
+      },
+      "required": [
+        "constant"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "A uniformly sampled inclusive anchor range.\nA uniformly sampled inclusive anchor range.",
+      "properties": {
+        "uniform": {
+          "additionalProperties": false,
+          "properties": {
+            "max_inclusive": {
+              "$ref": "defs-VerticalAnchor.schema.json",
+              "description": "`max_inclusive` provides the max inclusive when a uniformly sampled inclusive anchor range.\n`max_inclusive` provides the max inclusive when a uniformly sampled inclusive anchor range."
+            },
+            "min_inclusive": {
+              "$ref": "defs-VerticalAnchor.schema.json",
+              "description": "`min_inclusive` provides the min inclusive when a uniformly sampled inclusive anchor range.\n`min_inclusive` provides the min inclusive when a uniformly sampled inclusive anchor range."
+            }
+          },
+          "required": [
+            "min_inclusive",
+            "max_inclusive"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "uniform"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "A trapezoidal distribution between two anchors.\nA trapezoidal distribution between two anchors.",
+      "properties": {
+        "trapezoid": {
+          "additionalProperties": false,
+          "properties": {
+            "max_inclusive": {
+              "$ref": "defs-VerticalAnchor.schema.json",
+              "description": "`max_inclusive` provides the max inclusive when a trapezoidal distribution between two anchors.\n`max_inclusive` provides the max inclusive when a trapezoidal distribution between two anchors."
+            },
+            "min_inclusive": {
+              "$ref": "defs-VerticalAnchor.schema.json",
+              "description": "`min_inclusive` provides the min inclusive when a trapezoidal distribution between two anchors.\n`min_inclusive` provides the min inclusive when a trapezoidal distribution between two anchors."
+            },
+            "plateau": {
+              "description": "`plateau` provides the plateau when a trapezoidal distribution between two anchors.\n`plateau` provides the plateau when a trapezoidal distribution between two anchors.",
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "min_inclusive",
+            "max_inclusive",
+            "plateau"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "trapezoid"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "An explicitly raw height provider object.\nAn explicitly raw height provider object.",
+      "properties": {
+        "raw": {
+          "$ref": "defs-RawJson.schema.json",
+          "description": "An explicitly raw height provider object.\nAn explicitly raw height provider object."
+        }
+      },
+      "required": [
+        "raw"
+      ],
+      "type": "object"
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+#![pack(namespace = "cart_shuttle", minecraft = "26.2", description = "A minecart shuttle")]
+
+#[on(first_join)]
+fn issue_pass() {
+    give_item(Item::CarrotOnAStick);
+    chat!("Use your shuttle pass near a cart to board or get off.");
+}
+
+/// Place a shuttle cart at the function's execution position.
+pub fn place_cart() {
+    summon(Entity::Minecart, tag = "cart_shuttle_vehicle");
+}
+
+#[on(use_item = Item::CarrotOnAStick)]
+fn toggle_seat() {
+    let empty: EntityRef;
+    let current = entity_ref(Relation::Vehicle);
+    if current != empty {
+        dismount();
+        return;
+    }
+
+    let mut vehicle: EntityRef;
+    for cart in entities(type = Entity::Minecart, tag = "cart_shuttle_vehicle", distance = ..=8, sort = Sort::Nearest, limit = 1) {
+        vehicle = entity_ref();
+    }
+    if vehicle == empty {
+        chat!("No shuttle cart nearby.");
+        return;
+    }
+    mount(vehicle);
+}
+/// Nudge the nearest shuttle cart east.
+pub fn boost_cart() {
+    for cart in entities(type = Entity::Minecart, tag = "cart_shuttle_vehicle", distance = ..=8, sort = Sort::Nearest, limit = 1) {
+        set_velocity(cart.velocity_x + 0.15, cart.velocity_y, cart.velocity_z);
+    }
+}

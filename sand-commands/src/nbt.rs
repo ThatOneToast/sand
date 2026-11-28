@@ -34,7 +34,13 @@ use crate::selector::{Selector, TargetArgument};
     variant_fields(Bool = ["Selects the bool NBT or data-command operation."], Byte = ["Selects the byte NBT or data-command operation."], Compound = ["Selects the compound NBT or data-command operation."], Double = ["Selects the double NBT or data-command operation."], Float = ["Selects the float NBT or data-command operation."], Int = ["Selects the int NBT or data-command operation."], List = ["Selects the list NBT or data-command operation."], Long = ["Selects the long NBT or data-command operation."], Raw = ["Explicit opaque SNBT. Sand renders this unchanged and does not parse it."], Short = ["Selects the short NBT or data-command operation."], String = ["Selects the string NBT or data-command operation."]),
 )]
 /// A typed SNBT value used by `data modify` and `data merge`.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(
+    tag = "type",
+    content = "value",
+    rename_all = "snake_case",
+    deny_unknown_fields
+)]
 pub enum NbtValue {
     #[doc = "Selects the bool NBT or data-command operation."]
     Bool(#[doc = "Selects the bool NBT or data-command operation."] bool),
@@ -57,6 +63,7 @@ pub enum NbtValue {
     #[doc = "Selects the compound NBT or data-command operation."]
     Compound(#[doc = "Selects the compound NBT or data-command operation."] NbtCompound),
     /// Explicit opaque SNBT. Sand renders this unchanged and does not parse it.
+    #[serde(skip)]
     Raw(#[doc = "Explicit opaque SNBT. Sand renders this unchanged and does not parse it."] String),
 }
 
@@ -132,11 +139,18 @@ impl fmt::Display for NbtValue {
             Self::Long(value) => write!(f, "{value}L"),
             Self::Float(value) => write!(f, "{value}f"),
             Self::Double(value) => write!(f, "{value}d"),
-            Self::String(value) => write!(
-                f,
-                "\"{}\"",
-                value.replace('\\', "\\\\").replace('"', "\\\"")
-            ),
+            Self::String(value) => {
+                f.write_str("\"")?;
+                for character in value.chars() {
+                    match character {
+                        '\\' => f.write_str("\\\\")?,
+                        '"' => f.write_str("\\\"")?,
+                        control if control.is_control() => write!(f, "\\u{:04x}", control as u32)?,
+                        other => write!(f, "{other}")?,
+                    }
+                }
+                f.write_str("\"")
+            }
             Self::List(values) => {
                 let values = values
                     .iter()
@@ -201,7 +215,10 @@ impl From<NbtCompound> for NbtValue {
     example = "use sand::data::NbtCompound;",
 )]
 /// A typed SNBT compound preserving declaration order.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(
+    Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
 pub struct NbtCompound {
     entries: Vec<(String, NbtValue)>,
 }
@@ -283,6 +300,12 @@ impl NbtCompound {
     )]
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
+    }
+}
+
+impl Validate for NbtCompound {
+    fn validate(&self, _profile: &CommandProfile) -> CommandResult<()> {
+        validate_compound(self)
     }
 }
 
@@ -909,6 +932,10 @@ impl<T> From<NbtRef<T>> for ReadOnlyNbtRef<T> {
 }
 
 impl<T> ReadOnlyNbtRef<T> {
+    pub(crate) fn into_parts(self) -> (DataTarget, NbtPath) {
+        (self.reference.location, self.reference.path)
+    }
+
     /// Returns the typed path carried by this read-only reference.
     #[sand_macros::api(registry = sand_api_contract, path = "sand::data::ReadOnlyNbtRef::path_value", aliases = ["sand::cmd::ReadOnlyNbtRef::path_value", "sand::command::ReadOnlyNbtRef::path_value", "sand::prelude::ReadOnlyNbtRef::path_value", "sand::prelude::cmd::ReadOnlyNbtRef::path_value"], module = "sand::data", kind = "method", summary = "Returns the typed path carried by this read-only reference.", context = "The target remains read-only while its path can be inspected or extended.", minecraft = "Emits no command.", use_when = ["Inspecting the addressed NBT path"], avoid_when = ["Mutating NBT"], returns = "The typed NBT path.", example = "use sand::prelude::*; let path = ItemLocation::PlayerMainHand.nbt().path_value().clone();")]
     pub fn path_value(&self) -> &NbtPath {
@@ -1562,7 +1589,26 @@ impl<T> NbtRef<T> {
 // ── Typed data command IR ────────────────────────────────────────────────────
 
 #[doc = "Defines data modify operation for typed Minecraft NBT and data commands."]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[serde(
+    tag = "kind",
+    content = "index",
+    rename_all = "snake_case",
+    deny_unknown_fields
+)]
+#[sand_macros::api(
+    registry = sand_api_contract, path = "sand::advanced::compiler::DataModifyOperation", module = "sand::advanced::compiler",
+    summary = "A canonical typed data-modify operation.",
+    context = "The same operation model drives typed NBT commands and portable storage-value writes.",
+    minecraft = "Lowers to set, append, prepend, insert or merge against a validated NBT selection.",
+    use_when = ["Choosing how a portable storage-value write combines its source and target"],
+    avoid_when = ["Reading or comparing a stored value"],
+    example = "let operation = sand::advanced::compiler::DataModifyOperation::Append;",
+    variants(Set = "Replace the selection.", Append = "Append to a list.", Prepend = "Prepend to a list.", Insert = "Insert at a fixed list offset.", Merge = "Merge compound members."),
+    variant_fields(Insert = ["Fixed insertion offset, using Minecraft's native negative-offset semantics."]),
+)]
 pub enum DataModifyOperation {
     #[doc = "Selects the set NBT or data-command operation."]
     Set,
@@ -1755,10 +1801,6 @@ fn validate_value(value: &NbtValue) -> CommandResult<()> {
         NbtValue::Double(value) if !value.is_finite() => {
             Err(data_error("value", "SNBT doubles must be finite"))
         }
-        NbtValue::String(value) if value.chars().any(char::is_control) => Err(data_error(
-            "value",
-            "typed SNBT strings cannot contain control characters",
-        )),
         NbtValue::List(values) => {
             for value in values {
                 validate_value(value)?;

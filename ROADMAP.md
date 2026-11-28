@@ -214,6 +214,178 @@ Acceptance: deterministic output and semantic parity across targets; optimized
 paths have versioned native evidence. Static command counts are not MSPT claims.
 See [benchmarks and limitations](BENCHMARKS.md).
 
+## Sand language expansion
+
+The language uses the portable compiler shared with Rust. The current surface
+and Rust-only areas are documented in [the language guide](book/src/language.md).
+This checklist tracks the requested expansion; unchecked entries are not shipped.
+
+- [x] Recursive functions, scoped locals, scalar casts, counting loops and custom
+  events with payloads.
+- [x] Exhaustive statement `match`, constant alternatives, mutable parameters,
+  reversed/stepped ranges, left-to-right bound evaluation and safe range endpoints.
+- [x] Package formatting through `sand fmt`, `sand lang fmt`, `--check` and LSP;
+  naming and mutability quick fixes that edit declarations and references.
+- [x] Automated vanilla 26.2 control-flow probe with 20 assertions and reload;
+  run `scripts/validate_language.py` with a built CLI and bundled server JAR.
+- [x] Constant/runtime signed arithmetic parity, target-specific vanilla catalogs
+  shared by validation/completion, and runtime item counts, damage, teleport,
+  experience and sound options.
+- [x] General boolean arguments and stored predicates; two-player native proof
+  for inventory isolation, runtime numeric commands and player properties.
+- [x] Named, nested struct values in locals, arguments, returns, events and State;
+  value receivers and State receivers in impl blocks, with privacy and IDE support.
+- [x] Final-write assignment clamping and RHS snapshots; vanilla regression probes
+  for aliasing, casts, bounded float arithmetic, record calls and event copies.
+- [x] Runtime timer durations with checked seconds conversion and player-State
+  method isolation in the two-player runtime probe.
+- [x] Fixed-size arrays with inference, repeat literals, nested State/records,
+  calls/returns, snapshot iteration, checked indexing, indexed mutable receivers,
+  and len/is_empty/contains/get_or/fill methods; forty native assertions.
+- [x] Owned runtime strings, scalar formatting, Unicode indexing/slicing, substring
+  methods, plain runtime text and styled interpolation; native recursive, owner
+  lifecycle and per-player reload proofs.
+- [x] Growable `Vec<T>` values, nested/recursive records, indexed borrowed
+  methods, deep copies/equality, bounded mutation and snapshot iteration; native
+  vector, array and text regressions plus independent player reload proofs.
+- [x] Value-producing matches for owned values, flat dispatch for large matches,
+  nested record/fixed-array destructuring and shorthand-safe editor renames.
+- [x] Match guards for statement and value forms, with ordered fallthrough.
+- [x] Arm-local match bindings and nested record and array destructuring.
+- [x] Scoped block expressions with tail values, including value match arms.
+- [x] Bundled generic maps and sets with owned values, whole-record and array
+  equality, an offline installer, and vanilla capacity and persistence checks.
+- [x] Read-only and mutable struct receivers, with write-back on early return and
+  recursive calls; retained EntityRef values, reload-safe identities, explicit
+  resolution, and damage attribution with native two-player kill-credit proof.
+- [x] Generic functions, nominal records and impl methods, inference and explicit
+  applications, per-specialization slots/contexts, canonical source identities,
+  bounded expansion and native recursive/owned-value proof.
+- [x] Static traits, required signatures, and generic function and method bounds.
+- [x] Trait default method bodies with concrete `Self`, overrides, and generic impls.
+- [x] Typed function values, owned move closures, generic call signatures,
+  recursive indirect calls and player-State persistence.
+- [x] Player- and entity-scoped callable signatures with context checks at assignment and invocation.
+- [x] Named groups for cancelling a subset of one executor's pending waits.
+- [x] Payload enums with owned values, exhaustive matching and State defaults.
+- [x] Generic enums and bundled `Option<T>` and `Result<T, E>`.
+- [x] Scoped immutable slices with nested subranges, indexed reads, length, fallback reads and iteration.
+- [ ] First-class borrowed parameters, return values, and mutable views.
+- [x] Owned vector subranges with clamped half-open bounds.
+- [x] Inline and named read-only range iteration over immutable local arrays,
+  vectors, and strings, including captured bounds and shadowing across waits.
+- [x] Typed enchantments generated from one verified catalog for Rust and Sand.
+- [x] Bundled typed durations and storable positions through ordinary Sand
+  records and impl methods. Use existing entity State for checked membership.
+- [x] Retain individual vanilla entity relationships in `EntityRef` values,
+  and mount and dismount retained vehicles.
+- [x] Equip, clear, and test hand and armor slots with typed equipment slots and
+  custom item identity.
+- [x] Filter entity queries with a State score range and a typed native NBT
+  compound, composed with attachment, distance, sorting, and limits.
+- [x] Velocity reads and bounded non-player velocity writes.
+- [x] Read-only inventory counts for vanilla and custom items, numeric queries
+  for checked entity NBT paths, and bounded item removal with a computed count.
+- [x] Numbered player-slot inventory transfers through the shared Rust system
+  with whole stacks, exact amounts, component checks, and callbacks.
+- [x] Entity archetypes with canonical component attachment, spawn and adoption,
+  shared State ownership, and lifecycle callbacks.
+- [ ] Broader equipment and entity data operations, motion controls, and
+  advanced archetype property reconciliation.
+- [ ] Broader event triggers, filters, tracked changes and event chains.
+- [x] Player sneaking, sprinting, swimming, flying, burning, and health
+  transitions through the shared observation planner.
+- [x] Named native predicate guards on player and custom event handlers.
+- [x] Top-level `wait` statements in entity and player functions, with
+  per-invocation locals, original dimension, and owner-scoped cancellation.
+- [x] Runtime wait durations in ticks and seconds, captured for each invocation.
+- [x] Waits in nested conditional branches with one shared continuation and
+  per-invocation locals.
+- [x] Waits inside statement match arms with guards, alternatives, and captures.
+- [x] Waits inside local loops retain iteration, collection and jump state.
+- [x] Server-owned continuations and independent waits inside executor-selection loops.
+- [x] Ordered State migrations for global, player, and entity State.
+- [x] Calls that suspend and resume their callers with return values or local mutable receiver updates.
+- [x] Dimension checks and scoped calls, and block cloning with mask, filter,
+  overlap, and move modes.
+- [x] Biome predicates validated against the target version’s shared catalog.
+- [x] Checked block entity paths, numeric reads and writes, and field removal.
+- [x] Typed NBT literal writes and native data copies between block entities.
+- [x] Flat dimension declarations, typed references and loaded waits in the
+  declared dimension.
+- [x] Custom biome climate and colors, with typed references from dimensions and
+  predicates.
+- [x] Structure template imports from saved native NBT files and typed placement
+  at absolute or relative positions.
+- [x] Biome spawn tables with typed weighted entities, group sizes, and density costs.
+- [x] Authored jigsaw structures and weighted NBT template pools for natural generation.
+- [x] Separately configured block, weighted block, layer, ore and no-op features with reusable ordered placement pipelines.
+- [ ] Additional feature algorithms and custom noise settings authoring.
+- [x] Native structure sets with weighted placement, random spread and rings.
+- [x] Custom dimension rules for height, lighting, coordinate scale,
+  infiniburn and spawn light, through native dimension type resources.
+- [x] Ordered placed-feature references and native ore vein configuration in custom biome terrain steps.
+- [x] Fixed, checkerboard and vanilla biome sources in noise dimensions.
+- [x] Native block-state property overrides in configured ore targets.
+- [x] Independent loot pools with weighted entries, random chance, and
+  weather conditions.
+- [x] Native damage type declarations and typed vanilla damage types, both
+  available with retained attacker attribution.
+- [x] Named native world predicates shared by function guards and loot pools.
+- [x] Smithing armor trim recipes with a named native pattern.
+- [x] Client-localized component text with positional arguments in messages and
+  static resources.
+- [x] Interactive chat with hover text, links, command suggestions and clipboard actions.
+- [x] Fixed written books using canonical item components, rich pages and page navigation.
+- [x] Runtime particle count, spread and speed with atomic range checks.
+- [x] Native advancement resources with named inventory, placement and kill criteria,
+  all/any requirements, visible presentation and experience rewards.
+- [x] Native advancement criteria for consuming a specific item and arriving
+  in a specific dimension.
+- [x] Player-scoped advancement completion and named criterion queries.
+- [x] Ordered completion handlers using the authored advancement's native reward
+  function.
+- [x] Native notice dialogs with translated text and player-scoped open and clear.
+- [x] Paginated native menus with named views, player-scoped one-shot callbacks,
+  and State guards for choices and sessions.
+- [x] Named spatial particle and sound sequences through the shared VFX renderer.
+- [ ] Broader advancement triggers and worldgen.
+- [x] Owner-scoped HUDs with bounded lifetime, rich actionbars, private
+  State-driven boss bars, and cancellation.
+- [x] Player-owned sampled projectiles with impact callbacks, target filters,
+  native damage attribution and owner-scoped cancellation.
+- [x] Player progression and sessions, with guarded objectives, forward
+  branches, committed rewards, and per-player lifecycle controls.
+- [x] Player abilities with checked costs and cooldowns, diagnostics, and
+  optional projectile flight under the same admission.
+- [x] Custom player health using shared Combat mitigation, shields, critical
+  damage, immunity, healing and committed callbacks.
+- [x] Bounded indexed player jobs with independent loaded-tick batches,
+  completion callbacks and owner cancellation.
+- [x] Owner-scoped native display scenes with block, item and text parts,
+  local poses, interpolation keyframes, follow behavior and cleanup.
+- [x] Player checkpoint projections reuse the Rust runtime for owned save,
+  restore, preflight, callback revalidation, and invalidation.
+- [x] Player encounters use the shared priority controller and child-task ownership.
+- [x] Shared Rust and Sand rosters with typed roles, checked admission, membership queries, and bounded online iteration.
+- [x] Shared player-owned timed statuses with refresh, stacking, and cleanup callbacks.
+- [x] Sand-authored tests with assertions, disposable vanilla runs, and source
+  maps for portable operations and emitted function identities.
+- [x] Emitted command-line mappings, including generated helper functions.
+- [x] CLI lookup of authored source for a generated function and line.
+- [x] Source annotations on identifiable commands in native debug traces.
+- [x] Read-only State inspection against a local running server.
+- [x] Pending wait inspection with source locations and group filtering.
+- [x] Live Zed diagnostics and inferred-context hints using a worktree build.
+- [x] Source-declared named breakpoints with live RCON control.
+- [ ] Editor breakpoints by line and execution stepping.
+
+Acceptance: compiler/export tests prove observable output, runtime features have
+native evidence, and each new public model preserves deterministic export,
+collision safety and per-player/per-invocation ownership. Minecraft's finite
+integer range, command limit and player-data restrictions remain runtime
+constraints; a new surface syntax alone does not remove them.
+
 ## Validation and coverage work
 
 - [x] Full local gate: `scripts/check.sh` plus `git diff --check`.

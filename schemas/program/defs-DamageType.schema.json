@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A Minecraft damage type definition. The portable representation includes\nthe resource identity. Resource export emits the native JSON body.",
+  "properties": {
+    "death_message_type": {
+      "anyOf": [
+        {
+          "$ref": "defs-DeathMessageType.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional death message format."
+    },
+    "effects": {
+      "anyOf": [
+        {
+          "$ref": "defs-DamageEffects.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional visual/sound effect."
+    },
+    "exhaustion": {
+      "default": 0.0,
+      "description": "Hunger exhaustion applied when this damage is taken (0.0\u20130.4 typical).\nMust be finite and non-negative. No upper bound is enforced.",
+      "format": "float",
+      "type": "number"
+    },
+    "id": {
+      "type": "string"
+    },
+    "message_id": {
+      "description": "Translation key suffix for death messages (e.g. `\"laser\"` \u2192 `\"death.attack.laser\"`).",
+      "type": "string"
+    },
+    "scaling": {
+      "$ref": "defs-DamageScaling.schema.json",
+      "default": "when_caused_by_living_non_player",
+      "description": "Whether the damage scales with difficulty."
+    }
+  },
+  "required": [
+    "id",
+    "message_id"
+  ],
+  "type": "object"
+}

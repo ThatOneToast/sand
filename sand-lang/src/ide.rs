@@ -1,0 +1,3443 @@
+//! Editor queries over an [`Analysis`]: hover, navigation, rename,
+//! completion, outline, and inlay hints.
+//!
+//! These functions are protocol-agnostic. Positions are byte offsets into a
+//! file's text; `sand-lsp` converts them to and from LSP positions.
+
+use crate::analysis::{Analysis, Context, DefId, DefInfo, DefKind, Ty, scope_names};
+use crate::ast::{Scope, Span};
+use crate::builtins;
+use crate::package::ModuleId;
+use crate::source::FileId;
+use std::collections::HashSet;
+
+/// Markdown hover content for a source range.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Hover {
+    /// Markdown body.
+    pub markdown: String,
+    /// The identifier the hover describes.
+    pub span: Span,
+}
+
+fn ty_name(analysis: &Analysis, ty: Ty) -> String {
+    match ty {
+        Ty::Number => "number".into(),
+        Ty::Float => "float".into(),
+        Ty::Bool => "bool".into(),
+        Ty::Enum(def) | Ty::Struct(def) | Ty::Callable(def) => analysis.def(def).name.clone(),
+        Ty::EntityRef => "EntityRef".into(),
+        Ty::String => "string".into(),
+        Ty::List(def) => analysis.def(def).name.clone(),
+        Ty::Unknown => "{unknown}".into(),
+        Ty::BorrowedSlice => "borrowed slice".into(),
+    }
+}
+
+fn variant_label(analysis: &Analysis, def: &crate::analysis::Def) -> String {
+    let DefInfo::Variant { value, fields } = &def.info else {
+        return def.name.clone();
+    };
+    let mut label = def.name.clone();
+    if !fields.is_empty() {
+        let payload = fields
+            .iter()
+            .filter_map(|field| {
+                let field = analysis.def(*field);
+                match field.info {
+                    DefInfo::Field {
+                        ty: Ty::Unknown, ..
+                    } => analysis.package.files[field.file.0]
+                        .text
+                        .get(field.span.start..field.span.end)
+                        .map(str::to_owned),
+                    DefInfo::Field { ty, .. } => Some(ty_name(analysis, ty)),
+                    _ => None,
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        label.push_str(&format!("({payload})"));
+    }
+    if let Some(value) = value {
+        label.push_str(&format!(" = {value}"));
+    }
+    label
+}
+
+/// Render the signature line and facts for a definition.
+pub fn describe(analysis: &Analysis, id: DefId) -> String {
+    let def = analysis.def(id);
+    let vis = if def.is_pub { "pub " } else { "" };
+    let (signature, facts): (String, Vec<String>) = match &def.info {
+        DefInfo::Trait => (format!("{vis}trait {}", def.name), Vec::new()),
+        DefInfo::Callable { .. } => (def.name.clone(), Vec::new()),
+        DefInfo::TypeParameter => (
+            format!("type {}", def.name),
+            vec!["Specialized at each concrete call.".into()],
+        ),
+        DefInfo::Module { target } => {
+            let path = target
+                .map(|t| analysis.package.module(t).display_path())
+                .unwrap_or_else(|| def.name.clone());
+            (format!("{vis}mod {}", def.name), vec![format!("`{path}`")])
+        }
+        DefInfo::Const { ty: Ty::String, .. } => {
+            (format!("{vis}const {}: string", def.name), Vec::new())
+        }
+        DefInfo::Const { ty, value } => (
+            format!(
+                "{vis}const {}: {} = {}",
+                def.name,
+                ty_name(analysis, *ty),
+                value_text(analysis, *ty, *value)
+            ),
+            Vec::new(),
+        ),
+        DefInfo::Enum { variants, layout } => {
+            let parameters: Vec<_> = analysis
+                .defs
+                .iter()
+                .filter(|candidate| {
+                    candidate.kind == DefKind::TypeParameter && candidate.parent == Some(id)
+                })
+                .map(|candidate| candidate.name.as_str())
+                .collect();
+            let parameters = if parameters.is_empty() {
+                String::new()
+            } else {
+                format!("<{}>", parameters.join(", "))
+            };
+            let body = variants
+                .iter()
+                .map(|v| format!("    {},", variant_label(analysis, analysis.def(*v))))
+                .collect::<Vec<_>>()
+                .join("\n");
+            (
+                format!("{vis}enum {}{parameters} {{\n{body}\n}}", def.name),
+                vec![if layout.is_some() {
+                    "An owned variant with a tag and typed payload.".into()
+                } else {
+                    "Stored in State as its integer discriminant.".into()
+                }],
+            )
+        }
+        DefInfo::Variant { .. } => {
+            let owner = def.parent.map(|p| analysis.def(p).name.clone());
+            (
+                format!(
+                    "{}::{}",
+                    owner.unwrap_or_default(),
+                    variant_label(analysis, def),
+                ),
+                Vec::new(),
+            )
+        }
+        DefInfo::List { element } => (
+            format!("Vec<{}>", ty_name(analysis, *element)),
+            vec!["Owned growable sequence; at most 1024 independently copied elements.".into()],
+        ),
+        DefInfo::Array { element, fields } => (
+            format!("[{}; {}]", ty_name(analysis, *element), fields.len()),
+            vec!["Fixed-size homogeneous array; value copies use the normal record layout.".into()],
+        ),
+        DefInfo::Struct { fields } => (
+            format!(
+                "{vis}struct {} {{\n{}\n}}",
+                def.name,
+                fields
+                    .iter()
+                    .map(|field| field_line(analysis, *field))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            ),
+            vec!["Copyable value; fields share the normal function-call and State layout.".into()],
+        ),
+        DefInfo::State { scope, id, fields } => {
+            let body = fields
+                .iter()
+                .map(|f| field_line(analysis, *f))
+                .collect::<Vec<_>>()
+                .join("\n");
+            let scope_text = match scope {
+                Scope::Player => "player",
+                Scope::Global => "global",
+                Scope::Entity => "entity",
+            };
+            let ownership = match scope {
+                Scope::Player => "One value per player; reading or writing needs a player.",
+                Scope::Global => "One shared value for the whole server.",
+                Scope::Entity => "One value per entity that has it attached with `attach_state`.",
+            };
+            (
+                format!("{vis}{scope_text} state {} {{\n{body}\n}}", def.name),
+                vec![format!("State `{id}`"), ownership.into()],
+            )
+        }
+        DefInfo::Field { bounds, timer, .. } => {
+            let owner = def.parent.map(|p| analysis.def(p));
+            let mut facts = Vec::new();
+            if let Some(owner) = owner
+                && let DefInfo::State { scope, .. } = owner.info
+            {
+                facts.push(format!(
+                    "Field of {} state `{}`",
+                    match scope {
+                        Scope::Player => "player",
+                        Scope::Global => "global",
+                        Scope::Entity => "entity",
+                    },
+                    owner.name
+                ));
+            }
+            if let Some((min, max)) = bounds {
+                facts.push(format!("Writes are clamped to `{min}..={max}`."));
+            }
+            if *timer {
+                facts.push(
+                    "Counts down by one every tick until zero; reads as the ticks left.".into(),
+                );
+            }
+            (field_line(analysis, id).trim().to_string(), facts)
+        }
+        DefInfo::Function {
+            id,
+            context,
+            player_reason,
+            entry,
+            signature,
+        } => {
+            let mut facts = vec![format!("Function `{id}`")];
+            facts.push(match (context, player_reason) {
+                (Context::Player, Some(reason)) => {
+                    format!("Runs as a **player** because it {reason}.")
+                }
+                (Context::Player, None) => "Runs as a **player**.".into(),
+                (Context::Entity, Some(reason)) => format!(
+                    "Runs as an **entity** (any entity, including players) because it {reason}."
+                ),
+                (Context::Entity, None) => "Runs as an **entity**.".into(),
+                (Context::Server, _) => "Runs on the **server**; callable from anywhere.".into(),
+            });
+            if !entry.is_empty() {
+                facts.push(format!("Entry point: {}", entry.join(", ")));
+            }
+            if def.kind == DefKind::Event {
+                let mut event_facts = vec![
+                    "Custom event. `#[on(...)]` functions handle it; `emit(...)` runs them.".into(),
+                ];
+                event_facts.extend(facts.into_iter().skip(1));
+                (format!("{vis}event {}{signature}", def.name), event_facts)
+            } else {
+                (format!("{vis}fn {}{signature}", def.name), facts)
+            }
+        }
+        DefInfo::ExternFunction { id, context } => (
+            format!("{vis}extern \"{id}\" fn {}()", def.name),
+            vec![format!(
+                "Implemented outside this pack; runs as {}.",
+                match context {
+                    Context::Player => "a **player**",
+                    Context::Entity => "an **entity**",
+                    Context::Server => "the **server**",
+                }
+            )],
+        ),
+        DefInfo::Flow { id } => (
+            format!("{vis}flow {}", def.name),
+            vec![format!("Flow `{id}`")],
+        ),
+        DefInfo::Data { kind, id, tag_type } => {
+            let (signature, fact) = match (kind, tag_type) {
+                (crate::ast::DataKind::Item, _) => (
+                    format!("{vis}item {}", def.name),
+                    format!(
+                        "Custom item `{id}`. Use it with `give_item`, `clear_item`, or as a recipe `result`."
+                    ),
+                ),
+                (crate::ast::DataKind::Recipe, _) => (
+                    format!("{vis}recipe {}", def.name),
+                    format!("Recipe `{id}`."),
+                ),
+                (crate::ast::DataKind::BossBar, _) => (
+                    format!("{vis}bossbar {}", def.name),
+                    format!(
+                        "Boss bar `{id}`. Use it with `show_bossbar`, `hide_bossbar`, and `set_bossbar`."
+                    ),
+                ),
+                (crate::ast::DataKind::Progression, _) => (
+                    format!("{vis}progression {}", def.name),
+                    format!("Player progression `{id}`. Advance it or run it in a session."),
+                ),
+                (crate::ast::DataKind::Combat, _) => (
+                    format!("{vis}combat {}", def.name),
+                    format!(
+                        "Custom player health policy `{id}`. Use `combat_damage` and `combat_heal`."
+                    ),
+                ),
+                (crate::ast::DataKind::Ability, _) => (
+                    format!("{vis}ability {}", def.name),
+                    format!(
+                        "Player ability `{id}`. Use `activate_ability` to attempt its admission."
+                    ),
+                ),
+                (crate::ast::DataKind::Scene, _) => (
+                    format!("{vis}scene {}", def.name),
+                    format!("Owned display scene `{id}`. Use `show_scene` or `cancel_scene`."),
+                ),
+                (crate::ast::DataKind::Job, _) => (
+                    format!("{vis}job {}", def.name),
+                    format!("Player-owned job `{id}`. Use `start_job` or `cancel_job`."),
+                ),
+                (crate::ast::DataKind::Session, _) => (
+                    format!("{vis}session {}", def.name),
+                    format!("Player session `{id}`. Use `start_session` to run its track."),
+                ),
+                (crate::ast::DataKind::Projectile, _) => (
+                    format!("{vis}projectile {}", def.name),
+                    format!(
+                        "Player-owned projectile `{id}`. Use `launch_projectile` or `cancel_projectile`."
+                    ),
+                ),
+                (crate::ast::DataKind::Menu, _) => (
+                    format!("{vis}menu {}", def.name),
+                    format!("Native menu `{id}`. Use `open_menu` or `close_menu`."),
+                ),
+                (crate::ast::DataKind::Hud, _) => (
+                    format!("{vis}hud {}", def.name),
+                    format!("Player-owned HUD `{id}`. Use `start_hud` or `cancel_hud`."),
+                ),
+                (crate::ast::DataKind::Archetype, _) => (
+                    format!("{vis}archetype {}", def.name),
+                    format!("Entity lifecycle composed from State under `{id}`."),
+                ),
+                (crate::ast::DataKind::Vfx, _) => (
+                    format!("{vis}vfx {}", def.name),
+                    format!(
+                        "Reusable particle and sound sequence `{id}`. Play it with `play_vfx`."
+                    ),
+                ),
+                (crate::ast::DataKind::StatusEffect, _) => (
+                    format!("{vis}status_effect {}", def.name),
+                    format!(
+                        "Timed player-owned status `{id}`. Apply or remove it with the status builtins."
+                    ),
+                ),
+                (crate::ast::DataKind::Roster, _) => (
+                    format!("{vis}roster {}", def.name),
+                    format!("Bounded online arena roster `{id}`."),
+                ),
+                (crate::ast::DataKind::Encounter, _) => (
+                    format!("{vis}encounter {}", def.name),
+                    format!("Player-owned priority encounter `{id}`."),
+                ),
+                (crate::ast::DataKind::Checkpoint, _) => (
+                    format!("{vis}checkpoint {}", def.name),
+                    format!(
+                        "Player checkpoint `{id}`. Use `save_checkpoint` or `restore_checkpoint`."
+                    ),
+                ),
+                (crate::ast::DataKind::InventoryTransfer, _) => (
+                    format!("{vis}inventory_transfer {}", def.name),
+                    format!("Player inventory transfer `{id}`. Run it with `transfer_inventory`."),
+                ),
+                (crate::ast::DataKind::ConfiguredFeature, _) => (
+                    format!("{vis}configured_feature {}", def.name),
+                    format!(
+                        "Native generation algorithm `{id}`. Reference it from a placed feature."
+                    ),
+                ),
+                (crate::ast::DataKind::PlacedFeature, _) => (
+                    format!("{vis}placed_feature {}", def.name),
+                    format!(
+                        "Native generation placement `{id}`. Include it in a biome generation step."
+                    ),
+                ),
+                (crate::ast::DataKind::OreFeature, _) => (
+                    format!("{vis}ore_feature {}", def.name),
+                    format!(
+                        "Native ore vein placement `{id}`. Include it in a biome generation step."
+                    ),
+                ),
+                (crate::ast::DataKind::JigsawStructure, _) => (
+                    format!("{vis}jigsaw_structure {}", def.name),
+                    format!("Native jigsaw structure `{id}`. Place it using a structure set."),
+                ),
+                (crate::ast::DataKind::TemplatePool, _) => (
+                    format!("{vis}template_pool {}", def.name),
+                    format!("Weighted NBT template pool `{id}`. Start a jigsaw structure from it."),
+                ),
+                (crate::ast::DataKind::StructureSet, _) => (
+                    format!("{vis}structure_set {}", def.name),
+                    format!("Native structure placement schedule `{id}`."),
+                ),
+                (crate::ast::DataKind::StructureTemplate, _) => (
+                    format!("{vis}structure_template {}", def.name),
+                    format!("Native template `{id}`. Use it with `place_template`."),
+                ),
+                (crate::ast::DataKind::Biome, _) => (
+                    format!("{vis}biome {}", def.name),
+                    format!("Custom biome `{id}`. Use it in a dimension or with `biome_is`."),
+                ),
+                (crate::ast::DataKind::DimensionType, _) => (
+                    format!("{vis}dimension_type {}", def.name),
+                    format!(
+                        "Environmental rules `{id}`. Refer to them from a dimension's `type` field."
+                    ),
+                ),
+                (crate::ast::DataKind::Dimension, _) => (
+                    format!("{vis}dimension {}", def.name),
+                    format!("Dimension `{id}`. Use it with `in_dimension` or `dimension_is`."),
+                ),
+                (crate::ast::DataKind::Dialog, _) => (
+                    format!("{vis}dialog {}", def.name),
+                    format!("Native notice `{id}`. Open it with `show_dialog`."),
+                ),
+                (crate::ast::DataKind::Advancement, _) => (
+                    format!("{vis}advancement {}", def.name),
+                    format!(
+                        "Native advancement `{id}`. Minecraft records progress for each player."
+                    ),
+                ),
+                (crate::ast::DataKind::Predicate, _) => (
+                    format!("{vis}predicate {}", def.name),
+                    format!(
+                        "Native predicate `{id}`. Use it in `predicate_matches` or a loot pool."
+                    ),
+                ),
+                (crate::ast::DataKind::DamageType, _) => (
+                    format!("{vis}damage_type {}", def.name),
+                    format!("Damage type `{id}`. Pass it to `damage(..., type = ...)`."),
+                ),
+                (crate::ast::DataKind::Loot, _) => (
+                    format!("{vis}loot {}", def.name),
+                    format!("Loot table `{id}`. Use it with `give_loot` or `drop_loot`."),
+                ),
+                (crate::ast::DataKind::Tag, ty) => {
+                    let ty = ty.unwrap_or("?");
+                    let usage = if ty == "Item" {
+                        " Use it as a recipe ingredient or in other `Item` tags."
+                    } else {
+                        ""
+                    };
+                    (
+                        format!("{vis}tag {}: {ty}", def.name),
+                        format!("`{ty}` tag `#{id}`.{usage}"),
+                    )
+                }
+            };
+            (signature, vec![fact])
+        }
+        DefInfo::Local {
+            ty,
+            mutable,
+            param,
+            owner,
+        } => {
+            let owner = owner
+                .map(|o| format!(" of `fn {}`", analysis.def(o).name))
+                .unwrap_or_default();
+            let kind = if *param {
+                "Parameter"
+            } else {
+                "Local variable"
+            };
+            let signature = if *param {
+                format!(
+                    "{}{}: {}",
+                    if *mutable { "mut " } else { "" },
+                    def.name,
+                    ty_name(analysis, *ty)
+                )
+            } else {
+                format!(
+                    "let {}{}: {}",
+                    if *mutable { "mut " } else { "" },
+                    def.name,
+                    ty_name(analysis, *ty)
+                )
+            };
+            (
+                signature,
+                vec![format!(
+                    "{kind}{owner}. Stored in compiler-owned value slots for this function."
+                )],
+            )
+        }
+    };
+    let mut out = format!("```sand\n{signature}\n```");
+    if !facts.is_empty() {
+        out.push_str("\n\n");
+        out.push_str(&facts.join("  \n"));
+    }
+    if !def.docs.is_empty() {
+        out.push_str("\n\n---\n\n");
+        out.push_str(&def.docs.join("\n"));
+    }
+    out
+}
+
+fn field_line(analysis: &Analysis, id: DefId) -> String {
+    let def = analysis.def(id);
+    let DefInfo::Field {
+        ty,
+        default,
+        bounds,
+        timer,
+    } = &def.info
+    else {
+        return String::new();
+    };
+    if def
+        .parent
+        .is_some_and(|parent| analysis.def(parent).kind == DefKind::Struct)
+    {
+        return format!(
+            "    {}{}: {},",
+            if def.is_pub { "pub " } else { "" },
+            def.name,
+            ty_name(analysis, *ty)
+        );
+    }
+    if matches!(
+        ty,
+        Ty::Struct(_) | Ty::String | Ty::List(_) | Ty::Callable(_)
+    ) {
+        return format!("    {}: {},", def.name, ty_name(analysis, *ty));
+    }
+    let default_text = value_text(analysis, *ty, *default);
+    let clamp = bounds
+        .map(|(min, max)| format!("    #[clamp({min}..={max})]\n"))
+        .unwrap_or_default();
+    format!(
+        "{clamp}    {}: {} = {default_text},",
+        def.name,
+        if *timer {
+            "timer".to_string()
+        } else {
+            ty_name(analysis, *ty)
+        }
+    )
+}
+
+/// A stored value as source text: `Phase::Busy`, `0.5`, `true`, or `3`.
+fn value_text(analysis: &Analysis, ty: Ty, value: Option<i64>) -> String {
+    match (ty, value) {
+        (Ty::Enum(e), Some(v)) => variant_name(analysis, e, v)
+            .map(|name| format!("{}::{name}", analysis.def(e).name))
+            .unwrap_or_else(|| v.to_string()),
+        (Ty::Float, Some(v)) => format!("{}", v as f64 / crate::analysis::FLOAT_SCALE as f64),
+        (Ty::Bool, Some(v)) => (v != 0).to_string(),
+        (_, Some(v)) => v.to_string(),
+        (_, None) => "?".into(),
+    }
+}
+
+fn variant_name(analysis: &Analysis, enum_def: DefId, value: i64) -> Option<String> {
+    let DefInfo::Enum { variants, .. } = &analysis.def(enum_def).info else {
+        return None;
+    };
+    variants.iter().find_map(|v| match analysis.def(*v).info {
+        DefInfo::Variant { value: Some(n), .. } if n == value => {
+            Some(analysis.def(*v).name.clone())
+        }
+        _ => None,
+    })
+}
+
+/// Hover information at `offset`.
+pub fn hover(analysis: &Analysis, file: FileId, offset: usize) -> Option<Hover> {
+    let Some(def) = analysis.def_at(file, offset) else {
+        return vocabulary_hover(analysis, file, offset);
+    };
+    let span = analysis
+        .references
+        .iter()
+        .filter(|r| r.file == file && r.span.contains(offset) && r.def == def)
+        .map(|r| r.span)
+        .chain(
+            Some(analysis.def(def))
+                .filter(|d| d.file == file && d.name_span.contains(offset))
+                .map(|d| d.name_span),
+        )
+        .next()?;
+    Some(Hover {
+        markdown: describe(analysis, def),
+        span,
+    })
+}
+
+/// The identifier-like word around `offset`.
+fn word_at(text: &str, offset: usize) -> Option<(usize, usize)> {
+    let offset = offset.min(text.len());
+    let is_word = |c: char| c.is_ascii_alphanumeric() || c == '_';
+    let start = text[..offset]
+        .char_indices()
+        .rev()
+        .take_while(|(_, c)| is_word(*c))
+        .last()
+        .map(|(i, _)| i)
+        .unwrap_or(offset);
+    let end = offset
+        + text[offset..]
+            .char_indices()
+            .find(|(_, c)| !is_word(*c))
+            .map(|(i, _)| i)
+            .unwrap_or(text.len() - offset);
+    (start < end).then_some((start, end))
+}
+
+/// Explain builtins, attributes, events, text styles, and keywords.
+fn vocabulary_hover(analysis: &Analysis, file: FileId, offset: usize) -> Option<Hover> {
+    use crate::builtins;
+    if let Some(used) = analysis
+        .property_uses
+        .iter()
+        .find(|u| u.file == file && u.span.contains(offset))
+    {
+        return Some(Hover {
+            markdown: used.property.describe(&used.handle),
+            span: used.span,
+        });
+    }
+    if let Some(used) = analysis
+        .vanilla_uses
+        .iter()
+        .find(|u| u.file == file && u.span.contains(offset))
+    {
+        return Some(Hover {
+            markdown: vanilla_doc(used.registry, &used.variant, &used.id),
+            span: used.span,
+        });
+    }
+    if let Some((_, span, name, kind)) = analysis
+        .builtin_uses
+        .iter()
+        .find(|(f, span, _, _)| *f == file && span.contains(offset))
+    {
+        return Some(Hover {
+            markdown: builtins::describe(builtins::documented(name, *kind)?),
+            span: *span,
+        });
+    }
+    let text = &analysis.package.files[file.0].text;
+    let (start, end) = word_at(text, offset)?;
+    let word = &text[start..end];
+    let span = Span::new(start, end);
+    let line_start = text[..start].rfind('\n').map(|i| i + 1).unwrap_or(0);
+    let before = &text[line_start..start];
+    let markdown = |body: String| {
+        Some(Hover {
+            markdown: body,
+            span,
+        })
+    };
+
+    // Inside `#[...]` or `#![...]`.
+    if let Some(open) = before.rfind("#[").or_else(|| before.rfind("#!["))
+        && !before[open..].contains(']')
+    {
+        if before[open..].contains("on(")
+            && let Some((name, _, doc)) = builtins::EVENTS.iter().find(|(name, _, _)| *name == word)
+        {
+            return markdown(format!("```sand\n#[on({name})]\n```\n\n{doc}"));
+        }
+        if let Some((_, signature, doc)) = builtins::ATTRIBUTES
+            .iter()
+            .find(|(name, _, _)| *name == word)
+        {
+            return markdown(format!("```sand\n{signature}\n```\n\n{doc}"));
+        }
+    }
+    // Interpolation inside text: `{gold}`, `{player}`.
+    if before.trim_end().ends_with('{') && before.matches('"').count() % 2 == 1 {
+        if word == "player" {
+            return markdown("`{player}` shows the executing player's name. Using it makes the function need a player.".into());
+        }
+        if builtins::STYLES.contains(&word) {
+            let doc = match word {
+                "bold" | "italic" | "underlined" => format!("Makes the following text {word}."),
+                "reset" => "Clears colour and formatting for the following text.".into(),
+                color => format!("Colours the following text {}.", color.replace('_', " ")),
+            };
+            return markdown(format!("`{{{word}}}`: {doc}"));
+        }
+    }
+    if text[end..].starts_with('.') {
+        match handle_at(analysis, file, offset, word) {
+            Some(true) if word == "Player" => {
+                return markdown(format!("```sand\nPlayer\n```\n\n{PLAYER_DOC}"));
+            }
+            Some(player) => {
+                let what = if player { "player" } else { "entity" };
+                return markdown(format!(
+                    "```sand\n{word}: {what}\n```\n\nThe {what} this loop runs as. \
+                     Its data (`{word}.health`, `{word}.on_ground`, ...) is read-only; \
+                     its attributes (`{word}.max_health`, `{word}.scale`, ...) can be assigned."
+                ));
+            }
+            None => {}
+        }
+    }
+    // A builtin written without a recorded use (for example with errors).
+    let after = &text[end..];
+    let kind = if after.starts_with('!') {
+        builtins::BuiltinKind::Macro
+    } else if word == "random" {
+        builtins::BuiltinKind::Expression
+    } else {
+        builtins::BuiltinKind::Statement
+    };
+    if after.trim_start().starts_with(['(', '!'])
+        && let Some(builtin) = builtins::find(word, kind)
+    {
+        return markdown(builtins::describe(builtin));
+    }
+    // Data declarations: the keyword and field names.
+    let file_ast = &analysis.package.files[file.0].ast;
+    let data_keyword = data_item_at(&file_ast.items, offset)
+        .map(|data| data.kind.keyword())
+        .or_else(|| match crate::position::classify(text, offset) {
+            crate::position::Position::Data { keyword, .. } => Some(keyword),
+            _ => None,
+        })
+        .or_else(|| {
+            // On the declaration keyword itself.
+            builtins::DATA_KINDS
+                .iter()
+                .map(|(keyword, _)| *keyword)
+                .find(|keyword| *keyword == word && before.trim().is_empty())
+        });
+    if let Some(keyword) = data_keyword {
+        if let Some(field) = builtins::data_fields(keyword).find(|f| f.name == word)
+            && after.trim_start().starts_with(':')
+        {
+            return markdown(format!(
+                "```sand\n{}: {}\n```\n\n{}",
+                field.name,
+                snippet_text(field.snippet),
+                field.doc
+            ));
+        }
+        if word == keyword
+            && let Some((_, doc)) = builtins::DATA_KINDS.iter().find(|(k, _)| *k == word)
+        {
+            return markdown(format!("**`{word}`**\n\n{doc}"));
+        }
+    }
+    builtins::KEYWORDS
+        .iter()
+        .find(|(name, _)| *name == word)
+        .and_then(|(name, doc)| markdown(format!("**`{name}`**\n\n{doc}")))
+}
+
+fn vanilla_doc(registry: &str, variant: &str, id: &str) -> String {
+    let table = crate::vanilla::registry(registry);
+    let noun = table.map(|t| t.noun).unwrap_or("value");
+    let rust = table.map(|t| t.rust_path).unwrap_or(registry);
+    format!(
+        "```sand\n{registry}::{variant}\n```\n\nThe vanilla {noun} `{id}`.\n\nRust: `{rust}::{variant}`"
+    )
+}
+
+fn registry_completions(
+    analysis: &Analysis,
+    registry: &'static crate::vanilla::Registry,
+    qualified: bool,
+) -> Vec<Completion> {
+    let target = analysis
+        .pack
+        .as_ref()
+        .map(|pack| pack.minecraft.as_str())
+        .unwrap_or(sand_version::LATEST_KNOWN);
+    let Some(registry) = crate::vanilla::for_target(target, registry.name) else {
+        return Vec::new();
+    };
+    registry
+        .order
+        .iter()
+        .map(|variant| (variant, &registry.variants[variant]))
+        .map(|(variant, id)| {
+            let label = if qualified {
+                format!("{}::{variant}", registry.name)
+            } else {
+                variant.clone()
+            };
+            Completion {
+                detail: Some(id.clone()),
+                documentation: Some(vanilla_doc(registry.name, variant, id)),
+                ..Completion::plain(&label, CompletionKind::Variant)
+            }
+        })
+        .collect()
+}
+
+/// A completion snippet as plain text: `Item::${1:Diamond}` -> `Item::Diamond`.
+fn snippet_text(snippet: &str) -> String {
+    let mut out = String::new();
+    let mut rest = snippet;
+    while let Some(start) = rest.find("${") {
+        out.push_str(&rest[..start]);
+        let inner = &rest[start + 2..];
+        let end = inner.find('}').unwrap_or(inner.len());
+        let placeholder = &inner[..end];
+        out.push_str(
+            placeholder
+                .split_once(':')
+                .map(|(_, text)| text)
+                .unwrap_or(""),
+        );
+        rest = inner.get(end + 1..).unwrap_or("");
+    }
+    out.push_str(rest);
+    out.replace("$0", "")
+}
+
+fn data_item_at(items: &[crate::ast::Item], offset: usize) -> Option<&crate::ast::DataItem> {
+    items.iter().find_map(|item| match &item.kind {
+        crate::ast::ItemKind::Data(data)
+            if item.span.start <= offset && offset <= item.span.end =>
+        {
+            Some(data)
+        }
+        crate::ast::ItemKind::Mod(module) => module
+            .inline
+            .as_ref()
+            .and_then(|inner| data_item_at(inner, offset)),
+        _ => None,
+    })
+}
+
+/// Where the definition named at `offset` is declared.
+pub fn definition(analysis: &Analysis, file: FileId, offset: usize) -> Option<(FileId, Span)> {
+    let def = analysis.def_at(file, offset)?;
+    let d = analysis.def(analysis.origin(def));
+    // A file module's definition is the module file itself.
+    if let DefInfo::Module {
+        target: Some(target),
+    } = d.info
+    {
+        let module = analysis.package.module(target);
+        if module.file != d.file {
+            return Some((module.file, Span::new(0, 0)));
+        }
+    }
+    Some((d.file, d.name_span))
+}
+
+/// Every location naming the definition at `offset`.
+pub fn references(
+    analysis: &Analysis,
+    file: FileId,
+    offset: usize,
+    include_declaration: bool,
+) -> Vec<(FileId, Span)> {
+    let Some(def) = analysis.def_at(file, offset) else {
+        return Vec::new();
+    };
+    let mut out: Vec<(FileId, Span)> = analysis
+        .references
+        .iter()
+        .filter(|r| analysis.origin(r.def) == analysis.origin(def))
+        .map(|r| (r.file, r.span))
+        .collect();
+    if include_declaration {
+        let d = analysis.def(analysis.origin(def));
+        out.insert(0, (d.file, d.name_span));
+    }
+    out.sort();
+    out.dedup();
+    out
+}
+
+/// A text replacement produced by rename.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Edit {
+    /// File to edit.
+    pub file: FileId,
+    /// Replaced range.
+    pub span: Span,
+    /// Replacement text.
+    pub text: String,
+}
+
+/// A concrete editor fix, including every affected reference across files.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodeAction {
+    /// Label shown in the editor's quick-fix menu.
+    pub title: String,
+    /// Replacements to apply together.
+    pub edits: Vec<Edit>,
+}
+
+/// Return available fixes for diagnostics overlapping a byte range.
+///
+/// Naming fixes use the same scope-aware references as rename. Mutability
+/// fixes edit the binding declaration, even when the diagnostic is at a use.
+/// No fix is offered for compiler-owned counters or a conflicting new name.
+pub fn code_actions(analysis: &Analysis, file: FileId, selection: Span) -> Vec<CodeAction> {
+    let mut out = Vec::new();
+    for diagnostic in &analysis.diagnostics {
+        if diagnostic.file != file
+            || diagnostic.span.end < selection.start
+            || diagnostic.span.start > selection.end
+        {
+            continue;
+        }
+        let Some(id) = analysis.def_at(file, diagnostic.span.start) else {
+            continue;
+        };
+        let def = analysis.def(id);
+        match diagnostic.code.as_str() {
+            "naming" => {
+                let Some((_, fixed)) = crate::analysis::name_suggestion(def) else {
+                    continue;
+                };
+                if analysis.defs.iter().any(|other| other.name == fixed) {
+                    continue;
+                }
+                if let Ok(edits) = rename(analysis, file, diagnostic.span.start, &fixed) {
+                    out.push(CodeAction {
+                        title: format!("Rename to `{fixed}`"),
+                        edits,
+                    });
+                }
+            }
+            "mutability" => {
+                let DefInfo::Local {
+                    mutable: false,
+                    param,
+                    ..
+                } = def.info
+                else {
+                    continue;
+                };
+                if !param
+                    && !analysis.package.files[def.file.0].text[def.span.start..def.span.end]
+                        .strip_prefix("let")
+                        .is_some_and(|tail| {
+                            tail.starts_with(char::is_whitespace) || tail.starts_with("/*")
+                        })
+                {
+                    continue;
+                }
+                out.push(CodeAction {
+                    title: format!("Make `{}` mutable", def.name),
+                    edits: vec![Edit {
+                        file: def.file,
+                        span: Span::new(def.name_span.start, def.name_span.start),
+                        text: "mut ".into(),
+                    }],
+                });
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
+/// The range and current name that would be renamed at `offset`.
+pub fn prepare_rename(analysis: &Analysis, file: FileId, offset: usize) -> Result<Span, String> {
+    let def = analysis
+        .def_at(file, offset)
+        .ok_or_else(|| "no renameable symbol here".to_string())?;
+    if analysis.def(def).kind == DefKind::Local && analysis.def(def).name == "self" {
+        return Err("the self receiver cannot be renamed".into());
+    }
+    if analysis.def(def).kind == DefKind::Module {
+        return Err("renaming modules would rename files; rename the file instead".into());
+    }
+    hover(analysis, file, offset)
+        .map(|h| h.span)
+        .ok_or_else(|| "no renameable symbol here".into())
+}
+
+/// Rename the definition at `offset` and every use of it.
+///
+/// Uses through a differently-named `use ... as alias` keep their alias.
+pub fn rename(
+    analysis: &Analysis,
+    file: FileId,
+    offset: usize,
+    new_name: &str,
+) -> Result<Vec<Edit>, String> {
+    prepare_rename(analysis, file, offset)?;
+    let valid = new_name
+        .chars()
+        .next()
+        .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+        && new_name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_')
+        && !KEYWORDS.contains(&new_name);
+    if !valid {
+        return Err(format!("`{new_name}` is not a valid identifier"));
+    }
+    let def = analysis.origin(analysis.def_at(file, offset).expect("checked by prepare"));
+    let old = analysis.def(def).name.clone();
+    Ok(references(analysis, file, offset, true)
+        .into_iter()
+        .filter(|(f, span)| {
+            analysis.package.files[f.0]
+                .text
+                .get(span.start..span.end)
+                .is_some_and(|text| text == old)
+        })
+        .map(|(file, span)| {
+            // A shorthand record field names both a member and a local. Expand
+            // it when renaming either symbol so the other keeps its identity.
+            let other = analysis
+                .references
+                .iter()
+                .filter(|r| r.file == file && r.span == span && r.def != def)
+                .map(|r| analysis.origin(r.def))
+                .chain(
+                    analysis
+                        .defs
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, d)| d.file == file && d.name_span == span)
+                        .map(|(i, _)| analysis.origin(crate::DefId(i))),
+                )
+                .filter(|other| *other != def)
+                .find(|other| {
+                    matches!(
+                        (analysis.def(def).kind, analysis.def(*other).kind),
+                        (DefKind::Field, DefKind::Local) | (DefKind::Local, DefKind::Field)
+                    )
+                });
+            let text = match other.map(|other| analysis.def(other).kind) {
+                Some(DefKind::Local) => format!("{new_name}: {old}"),
+                Some(DefKind::Field) => format!("{old}: {new_name}"),
+                _ => new_name.to_string(),
+            };
+            Edit { file, span, text }
+        })
+        .collect())
+}
+
+/// Reserved words that cannot name items.
+pub const KEYWORDS: &[&str] = &[
+    "move", "trait", "impl", "fn", "pub", "mod", "use", "const", "enum", "state", "flow", "if",
+    "else", "for", "in", "extern", "as", "let", "return", "while", "loop", "match", "struct",
+    "true", "false", "crate", "self", "super",
+];
+
+/// What kind of thing a completion inserts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompletionKind {
+    /// A language keyword.
+    Keyword,
+    /// A snippet template.
+    Snippet,
+    /// A module.
+    Module,
+    /// A function.
+    Function,
+    /// A constant.
+    Constant,
+    /// An enum.
+    Enum,
+    /// An enum variant.
+    Variant,
+    /// A generic type parameter.
+    TypeParameter,
+    /// A State.
+    State,
+    /// A State field.
+    Field,
+    /// A flow.
+    Flow,
+    /// An attribute name.
+    Attribute,
+    /// A local variable or parameter.
+    Variable,
+}
+
+/// One completion candidate.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Completion {
+    /// Label shown and filtered on.
+    pub label: String,
+    /// Candidate kind.
+    pub kind: CompletionKind,
+    /// Short type or signature detail.
+    pub detail: Option<String>,
+    /// Markdown documentation.
+    pub documentation: Option<String>,
+    /// Text to insert, when it differs from the label.
+    pub insert: Option<String>,
+    /// Whether `insert` uses LSP snippet syntax.
+    pub snippet: bool,
+}
+
+impl Completion {
+    fn plain(label: &str, kind: CompletionKind) -> Self {
+        Self {
+            label: label.into(),
+            kind,
+            detail: None,
+            documentation: None,
+            insert: None,
+            snippet: false,
+        }
+    }
+
+    fn snippet(label: &str, detail: &str, body: &str) -> Self {
+        Self {
+            label: label.into(),
+            kind: CompletionKind::Snippet,
+            detail: Some(detail.into()),
+            documentation: None,
+            insert: Some(body.into()),
+            snippet: true,
+        }
+    }
+}
+
+enum Target {
+    Module(ModuleId),
+    Def(DefId),
+}
+
+fn value_token_start(text: &str) -> usize {
+    let mut brackets = 0usize;
+    let mut parentheses = 0usize;
+    let mut angles = 0usize;
+    for (index, character) in text.char_indices().rev() {
+        match character {
+            '>' if brackets == 0 && parentheses == 0 => angles += 1,
+            '<' if angles > 0 && brackets == 0 && parentheses == 0 => angles -= 1,
+            ']' => brackets += 1,
+            ')' => parentheses += 1,
+            '[' if brackets > 0 => brackets -= 1,
+            '(' if parentheses > 0 => parentheses -= 1,
+            _ if brackets > 0 || parentheses > 0 || angles > 0 => {}
+            _ if character.is_ascii_alphanumeric() || matches!(character, '_' | ':' | '.') => {}
+            _ => return index + character.len_utf8(),
+        }
+    }
+    0
+}
+
+fn value_parts(text: &str) -> Vec<&str> {
+    let mut depth = 0usize;
+    let mut start = 0;
+    let mut result = Vec::new();
+    for (index, character) in text.char_indices() {
+        match character {
+            '[' | '(' => depth += 1,
+            ']' | ')' => depth = depth.saturating_sub(1),
+            '.' if depth == 0 => {
+                result.push(&text[start..index]);
+                start = index + 1;
+            }
+            _ => {}
+        }
+    }
+    result.push(&text[start..]);
+    result
+}
+
+fn indexed_type(analysis: &Analysis, mut ty: Ty, suffix: &str) -> Option<Ty> {
+    let mut depth = 0usize;
+    for character in suffix.chars() {
+        match character {
+            '[' => {
+                if depth == 0 {
+                    ty = match ty {
+                        Ty::String => Ty::String,
+                        Ty::List(def) => match analysis.def(def).info {
+                            DefInfo::List { element } => element,
+                            _ => return None,
+                        },
+                        Ty::Struct(def) => match analysis.def(def).info {
+                            DefInfo::Array { element, .. } => element,
+                            _ => return None,
+                        },
+                        _ => return None,
+                    };
+                }
+                depth += 1;
+            }
+            ']' => depth = depth.checked_sub(1)?,
+            _ => {}
+        }
+    }
+    (depth == 0).then_some(ty)
+}
+
+fn iterable_type(analysis: &Analysis, ty: Ty) -> bool {
+    matches!(ty, Ty::String | Ty::List(_))
+        || matches!(ty, Ty::Struct(def) if matches!(analysis.def(def).info, DefInfo::Array { .. }))
+}
+
+fn call_value_type(analysis: &Analysis, file: FileId, offset: usize, text: &str) -> Option<Ty> {
+    let mut depth = 0usize;
+    let open = text.char_indices().rev().find_map(|(index, character)| {
+        match character {
+            ')' => depth += 1,
+            '(' => {
+                depth = depth.checked_sub(1)?;
+                if depth == 0 {
+                    return Some(index);
+                }
+            }
+            _ => {}
+        }
+        None
+    })?;
+    let source = &analysis.package.files[file.0].text;
+    let start = source.get(..offset)?.rfind(text)?;
+    let reference = analysis
+        .references
+        .iter()
+        .filter(|reference| {
+            reference.file == file
+                && reference.span.start >= start
+                && reference.span.end <= start + open
+                && analysis.def(reference.def).kind == DefKind::Function
+        })
+        .max_by_key(|reference| reference.span.start)?;
+    analysis.function_types.get(&reference.def)?.returns
+}
+
+fn outer_index_start(text: &str) -> Option<usize> {
+    let mut depth = 0usize;
+    for (index, character) in text.char_indices() {
+        match character {
+            '[' if depth == 0 => return Some(index),
+            '(' | '<' => depth += 1,
+            ')' | '>' => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+    }
+    None
+}
+
+fn value_type(analysis: &Analysis, file: FileId, offset: usize, text: &str) -> Option<Ty> {
+    let module = analysis.package.module_at(file, offset)?;
+    let mut parts = value_parts(text).into_iter();
+    let root_text = parts.next()?;
+    let root = &root_text[..outer_index_start(root_text).unwrap_or(root_text.len())];
+    let local = analysis
+        .local_scopes
+        .iter()
+        .filter(|(f, span, def)| {
+            *f == file && span.contains(offset) && analysis.def(*def).name == root
+        })
+        .max_by_key(|(_, _, def)| def.0)
+        .map(|(_, _, def)| *def);
+    let mut owner = if root.ends_with(')') {
+        call_value_type(analysis, file, offset, root)?
+    } else if let Some(local) = local {
+        match analysis.def(local).info {
+            DefInfo::Local { ty, .. } => ty,
+            _ => return None,
+        }
+    } else if root == "self" || root == "Self" {
+        Ty::Struct(
+            analysis
+                .defs
+                .iter()
+                .find(|def| {
+                    def.file == file
+                        && def.kind == DefKind::Function
+                        && def.span.contains(offset)
+                        && def.parent.is_some()
+                })?
+                .parent?,
+        )
+    } else {
+        let Target::Def(def) =
+            resolve_names(analysis, module, &root.split("::").collect::<Vec<_>>())?
+        else {
+            return None;
+        };
+        match analysis.def(def).info {
+            DefInfo::Const { ty, .. } => ty,
+            _ => Ty::Struct(def),
+        }
+    };
+    owner = indexed_type(analysis, owner, &root_text[root.len()..])?;
+    for field_text in parts {
+        let field = &field_text[..outer_index_start(field_text).unwrap_or(field_text.len())];
+        if field.ends_with(')') {
+            let end = field.as_ptr().addr() - text.as_ptr().addr() + field.len();
+            let ty = call_value_type(analysis, file, offset, &text[..end])?;
+            owner = indexed_type(analysis, ty, &field_text[field.len()..])?;
+            continue;
+        }
+        let Ty::Struct(parent) = owner else {
+            return None;
+        };
+        let member = analysis.defs.iter().find(|def| {
+            def.parent == Some(parent) && def.name == field && def.kind == DefKind::Field
+        })?;
+        let DefInfo::Field { ty, .. } = member.info else {
+            return None;
+        };
+        owner = indexed_type(analysis, ty, &field_text[field.len()..])?;
+    }
+    Some(owner)
+}
+
+fn value_owner(analysis: &Analysis, file: FileId, offset: usize, text: &str) -> Option<DefId> {
+    match value_type(analysis, file, offset, text)? {
+        Ty::Struct(def) => Some(def),
+        _ => None,
+    }
+}
+
+fn kind_of(kind: DefKind) -> CompletionKind {
+    match kind {
+        DefKind::Module => CompletionKind::Module,
+        DefKind::Const => CompletionKind::Constant,
+        DefKind::Enum => CompletionKind::Enum,
+        DefKind::Variant => CompletionKind::Variant,
+        DefKind::State | DefKind::Struct | DefKind::Trait => CompletionKind::State,
+        DefKind::TypeParameter => CompletionKind::TypeParameter,
+        DefKind::Field => CompletionKind::Field,
+        DefKind::Function | DefKind::ExternFunction | DefKind::Event => CompletionKind::Function,
+        DefKind::Flow => CompletionKind::Flow,
+        DefKind::Local => CompletionKind::Variable,
+        DefKind::CustomItem
+        | DefKind::Recipe
+        | DefKind::Tag
+        | DefKind::BossBar
+        | DefKind::Loot
+        | DefKind::DamageType
+        | DefKind::Predicate
+        | DefKind::Advancement
+        | DefKind::Dialog
+        | DefKind::Dimension
+        | DefKind::DimensionType
+        | DefKind::Biome
+        | DefKind::StructureTemplate
+        | DefKind::OreFeature
+        | DefKind::ConfiguredFeature
+        | DefKind::PlacedFeature
+        | DefKind::StructureSet
+        | DefKind::JigsawStructure
+        | DefKind::TemplatePool
+        | DefKind::InventoryTransfer
+        | DefKind::Checkpoint
+        | DefKind::Encounter
+        | DefKind::Roster
+        | DefKind::StatusEffect
+        | DefKind::Vfx
+        | DefKind::Archetype
+        | DefKind::Hud
+        | DefKind::Progression
+        | DefKind::Combat
+        | DefKind::Ability
+        | DefKind::Scene
+        | DefKind::Job
+        | DefKind::Session
+        | DefKind::Projectile
+        | DefKind::Menu => CompletionKind::Constant,
+    }
+}
+
+fn def_completion(analysis: &Analysis, name: &str, def: DefId) -> Completion {
+    let d = analysis.def(def);
+    let detail = describe(analysis, def).lines().nth(1).map(str::to_string);
+    let mut snippet = false;
+    let insert = match &d.info {
+        DefInfo::Function { signature, .. } => {
+            let params: Vec<&str> = signature
+                .strip_prefix('(')
+                .and_then(|s| s.split_once(')'))
+                .map(|(inner, _)| inner.split(", ").filter(|p| !p.is_empty()).collect())
+                .unwrap_or_default();
+            snippet = !params.is_empty();
+            let args = params
+                .iter()
+                .enumerate()
+                .map(|(i, p)| format!("${{{}:{}}}", i + 1, p.split(':').next().unwrap_or(p)))
+                .collect::<Vec<_>>()
+                .join(", ");
+            Some(format!("{name}({args})"))
+        }
+        DefInfo::ExternFunction { .. } => Some(format!("{name}()")),
+        _ => None,
+    };
+    Completion {
+        label: name.into(),
+        kind: kind_of(d.kind),
+        detail,
+        documentation: (!d.docs.is_empty()).then(|| d.docs.join("\n")),
+        insert,
+        snippet,
+    }
+}
+
+fn resolve_names(analysis: &Analysis, from: ModuleId, names: &[&str]) -> Option<Target> {
+    let mut cur = Target::Module(from);
+    let enter = |def: DefId| match analysis.def(def).info {
+        DefInfo::Module {
+            target: Some(module),
+        } => Target::Module(module),
+        _ => Target::Def(def),
+    };
+    for (index, name) in names.iter().enumerate() {
+        cur = match (*name, &cur) {
+            ("crate", _) if index == 0 => Target::Module(ModuleId(0)),
+            ("self", _) if index == 0 => Target::Module(from),
+            ("super", Target::Module(m)) => Target::Module(analysis.package.module(*m).parent?),
+            (name, Target::Module(m)) => {
+                let def = scope_names(analysis, *m)
+                    .into_iter()
+                    .find(|(n, _)| n == name)?
+                    .1;
+                enter(def)
+            }
+            (name, Target::Def(def)) => {
+                let DefInfo::Enum { variants, .. } = &analysis.def(*def).info else {
+                    return None;
+                };
+                Target::Def(*variants.iter().find(|v| analysis.def(**v).name == name)?)
+            }
+        };
+    }
+    Some(cur)
+}
+
+/// Completion candidates at `offset`.
+pub fn completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Completion> {
+    use crate::position::{self, Position};
+    let text = &analysis.package.files[file.0].text;
+    let offset = offset.min(text.len());
+    let before = &text[..offset];
+    let line = before.rsplit('\n').next().unwrap_or("");
+    let module = analysis
+        .package
+        .module_at(file, offset)
+        .unwrap_or(ModuleId(0));
+    // `emit |`: the events in scope.
+    if let Some(rest) = line.trim_start().strip_prefix("emit ")
+        && !rest.contains(['(', ';', ':'])
+    {
+        return scope_names(analysis, module)
+            .into_iter()
+            .filter(|(_, def)| analysis.def(*def).kind == DefKind::Event)
+            .map(|(name, def)| def_completion(analysis, &name, def))
+            .collect();
+    }
+    let mut position = position::classify(text, offset);
+    // A path being typed (`Hero.en`, `Phase::F`) takes the position where
+    // the path starts.
+    let path_start = value_token_start(line);
+    if position == Position::Nothing && line[path_start..].contains(['.', ':']) {
+        let start = offset - (line.len() - path_start);
+        position = position::classify(text, start);
+    }
+
+    match &position {
+        Position::Nothing => return Vec::new(),
+        Position::Attribute { inner, target } => return attribute_completions(*inner, *target),
+        Position::AttributeArg { attr, key } => {
+            let mut out = attribute_arg_completions(analysis, attr, key.as_deref());
+            let definition = match (attr.as_str(), key.as_deref()) {
+                ("on", None) => Some(DefKind::Event),
+                ("on", Some("advancement")) => Some(DefKind::Advancement),
+                ("on", Some("when")) => Some(DefKind::Predicate),
+                _ => None,
+            };
+            if let Some(kind) = definition {
+                out.extend(
+                    scope_names(analysis, module)
+                        .into_iter()
+                        .filter(|(_, def)| analysis.def(*def).kind == kind)
+                        .map(|(name, def)| def_completion(analysis, &name, def)),
+                );
+            }
+            return out;
+        }
+        Position::Interpolation => {
+            return interpolation_completions(analysis, file, offset, module);
+        }
+        _ => {}
+    }
+
+    // The path being typed, such as `crate::rewards::gr` or `Hero.en`.
+    let token_start = value_token_start(line);
+    let token = &line[token_start..];
+    let value_position = matches!(
+        position,
+        Position::Statement(_)
+            | Position::Expression(_)
+            | Position::Condition(_)
+            | Position::ConstValue
+            | Position::ForSource
+            | Position::FlowField
+            | Position::Data { .. }
+    );
+    if value_position && let Some(dot) = token.rfind('.') {
+        if let Some(player) = handle_at(analysis, file, offset, &token[..dot]) {
+            return crate::properties::all()
+                .into_iter()
+                .filter(|p| player || !p.player_only)
+                .map(|p| property_completion(&token[..dot], p))
+                .collect();
+        }
+        if matches!(
+            value_type(analysis, file, offset, &token[..dot]),
+            Some(Ty::Number | Ty::Float | Ty::Bool | Ty::Enum(_))
+        ) {
+            return builtins::VALUE_METHODS
+                .iter()
+                .map(|method| Completion {
+                    detail: Some(method.signature.into()),
+                    documentation: Some(builtins::describe(method)),
+                    insert: Some(method.snippet.into()),
+                    snippet: false,
+                    ..Completion::plain("to_string", CompletionKind::Function)
+                })
+                .collect();
+        }
+        if matches!(
+            value_type(analysis, file, offset, &token[..dot]),
+            Some(Ty::List(_))
+        ) {
+            return builtins::LIST_METHODS
+                .iter()
+                .map(|method| Completion {
+                    detail: Some(method.signature.into()),
+                    documentation: Some(builtins::describe(method)),
+                    insert: Some(method.snippet.into()),
+                    snippet: method.snippet.contains("${"),
+                    ..Completion::plain(
+                        method.name.strip_prefix("vec.").expect("method namespace"),
+                        CompletionKind::Function,
+                    )
+                })
+                .collect();
+        }
+        if value_type(analysis, file, offset, &token[..dot]) == Some(Ty::String) {
+            return builtins::STRING_METHODS
+                .iter()
+                .map(|method| Completion {
+                    detail: Some(method.signature.into()),
+                    documentation: Some(builtins::describe(method)),
+                    insert: Some(method.snippet.into()),
+                    snippet: method.snippet.contains("${"),
+                    ..Completion::plain(
+                        method
+                            .name
+                            .strip_prefix("string.")
+                            .expect("method namespace"),
+                        CompletionKind::Function,
+                    )
+                })
+                .collect();
+        }
+        if let Some(owner) = value_owner(analysis, file, offset, &token[..dot]) {
+            if matches!(analysis.def(owner).info, DefInfo::Array { .. }) {
+                return builtins::ARRAY_METHODS
+                    .iter()
+                    .map(|method| Completion {
+                        detail: Some(method.signature.into()),
+                        documentation: Some(builtins::describe(method)),
+                        insert: Some(method.snippet.into()),
+                        snippet: method.snippet.contains("${"),
+                        ..Completion::plain(
+                            method
+                                .name
+                                .strip_prefix("array.")
+                                .expect("method namespace"),
+                            CompletionKind::Function,
+                        )
+                    })
+                    .collect();
+            }
+            return analysis.defs.iter().enumerate()
+                .filter(|(_, member)| member.parent == Some(owner)
+                    && (member.is_pub || is_ancestor(analysis, member.module, module)))
+                .filter(|(_, member)| member.kind == DefKind::Field || matches!(&member.info,
+                    DefInfo::Function { signature, .. } if analysis.def(owner).kind == DefKind::State
+                        || signature.starts_with("(self: ") || signature.starts_with("(mut self: ") || signature.starts_with("(&self") || signature.starts_with("(&mut self")))
+                .map(|(id, member)| def_completion(analysis, &member.name, DefId(id))).collect();
+        }
+        return Vec::new();
+    }
+
+    if let Some(sep) = token.rfind("::") {
+        let base: Vec<&str> = token[..sep].split("::").collect();
+        if let [name] = base.as_slice()
+            && let Some(registry) = crate::vanilla::registry(name)
+            && !scope_names(analysis, module).iter().any(|(n, _)| n == name)
+        {
+            return registry_completions(analysis, registry, false);
+        }
+        let types_only = matches!(
+            position,
+            Position::ScoreType | Position::FieldType | Position::ImplType
+        );
+        return match resolve_names(analysis, module, &base) {
+            Some(Target::Module(m)) => scope_names(analysis, m)
+                .into_iter()
+                .filter(|(_, def)| analysis.def(*def).is_pub || is_ancestor(analysis, m, module))
+                .filter(|(_, def)| {
+                    !types_only
+                        || matches!(
+                            analysis.def(*def).kind,
+                            DefKind::Enum | DefKind::Struct | DefKind::Module
+                        )
+                })
+                .map(|(name, def)| def_completion(analysis, &name, def))
+                .collect(),
+            Some(Target::Def(def)) => match &analysis.def(def).info {
+                DefInfo::Enum { variants, .. } if !types_only => variants
+                    .iter()
+                    .map(|v| def_completion(analysis, &analysis.def(*v).name, *v))
+                    .collect(),
+                DefInfo::Struct { .. } | DefInfo::State { .. } if !types_only => analysis
+                    .defs
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, member)| {
+                        member.parent == Some(def)
+                            && member.kind == DefKind::Function
+                            && (member.is_pub || is_ancestor(analysis, member.module, module))
+                    })
+                    .map(|(id, member)| def_completion(analysis, &member.name, DefId(id)))
+                    .collect(),
+                _ => Vec::new(),
+            },
+            None => Vec::new(),
+        };
+    }
+
+    let in_scope = scope_names(analysis, module);
+    let defs = |keep: &dyn Fn(&crate::analysis::Def) -> bool| scope_defs(analysis, &in_scope, keep);
+    let paths = || {
+        ["crate", "self", "super"]
+            .into_iter()
+            .map(|p| Completion::plain(p, CompletionKind::Keyword))
+    };
+    match position {
+        Position::ItemStart { after_pub } => item_snippets(after_pub),
+        Position::ImplType => {
+            defs(&|d| matches!(d.kind, DefKind::State | DefKind::Struct | DefKind::Module))
+        }
+        Position::StateKeyword => vec![Completion::plain("state", CompletionKind::Keyword)],
+        Position::FlowOn => vec![Completion::plain("on", CompletionKind::Keyword)],
+        Position::FlowField => defs(&|d| d.kind == DefKind::State),
+        Position::UsePath => {
+            let mut out = defs(&|d| d.kind != DefKind::Local);
+            out.extend(paths());
+            out
+        }
+        Position::ScoreType | Position::FieldType => {
+            let field_type = matches!(position, Position::FieldType);
+            let mut out = vec![Completion {
+                documentation: Some("A whole number.".into()),
+                ..Completion::plain("number", CompletionKind::Keyword)
+            }];
+            out.push(Completion {
+                documentation: Some("A decimal with three places, such as `1.5`.".into()),
+                ..Completion::plain("float", CompletionKind::Keyword)
+            });
+            out.push(Completion {
+                documentation: Some("`true` or `false`.".into()),
+                ..Completion::plain("bool", CompletionKind::Keyword)
+            });
+            out.push(Completion {
+                documentation: Some(
+                    "A retained entity identity, storable in State and records.".into(),
+                ),
+                ..Completion::plain("EntityRef", CompletionKind::Keyword)
+            });
+            out.push(Completion {
+                documentation: Some("Owned growable vector, up to 1024 elements.".into()),
+                insert: Some("Vec<${1:number}>".into()),
+                snippet: true,
+                ..Completion::plain("Vec", CompletionKind::Keyword)
+            });
+            out.push(Completion {
+                documentation: Some("Owned runtime Unicode text, copied by value.".into()),
+                ..Completion::plain("string", CompletionKind::Keyword)
+            });
+            if field_type {
+                out.push(Completion {
+                    documentation: Some("Counts down by one every tick until zero.".into()),
+                    ..Completion::plain("timer", CompletionKind::Keyword)
+                });
+            }
+            out.extend(defs(&|d| {
+                matches!(d.kind, DefKind::Enum | DefKind::Struct | DefKind::Module)
+            }));
+            out.extend(
+                analysis
+                    .defs
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, d)| {
+                        d.kind == DefKind::TypeParameter
+                            && d.file == file
+                            && d.span.contains(offset)
+                    })
+                    .map(|(index, d)| def_completion(analysis, &d.name, DefId(index))),
+            );
+            out
+        }
+        Position::TagType => ["Item", "Block", "Entity"]
+            .into_iter()
+            .map(|ty| Completion {
+                detail: Some(format!("a tag of `{ty}` values")),
+                ..Completion::plain(ty, CompletionKind::Enum)
+            })
+            .collect(),
+        Position::ConstValue => {
+            let mut out = defs(&|d| {
+                matches!(
+                    d.kind,
+                    DefKind::Const | DefKind::Enum | DefKind::Struct | DefKind::Module
+                )
+            });
+            out.extend(paths());
+            out
+        }
+        Position::Statement(body) => {
+            statement_completions(analysis, file, offset, &body, &in_scope, paths())
+        }
+        Position::Expression(body) => {
+            expression_completions(analysis, file, offset, &body, &in_scope, paths())
+        }
+        Position::Condition(body) => {
+            let mut out = expression_completions(analysis, file, offset, &body, &in_scope, paths());
+            out.extend(
+                crate::builtins::BUILTINS
+                    .iter()
+                    .filter(|b| b.kind == crate::builtins::BuiltinKind::Condition)
+                    .map(builtin_completion),
+            );
+            out
+        }
+        Position::ForIn => vec![Completion::plain("in", CompletionKind::Keyword)],
+        Position::ForSource => {
+            let mut out = vec![
+                Completion {
+                    documentation: Some("Run the body as each online player.".into()),
+                    insert: Some("players()".into()),
+                    ..Completion::plain("players()", CompletionKind::Function)
+                },
+                crate::builtins::find("entities", crate::builtins::BuiltinKind::Expression)
+                    .map(|b| Completion {
+                        label: "entities(..)".into(),
+                        kind: CompletionKind::Function,
+                        detail: Some(b.summary.into()),
+                        documentation: Some(crate::builtins::describe(b)),
+                        insert: Some("entities(type = Entity::${1:Zombie})".into()),
+                        snippet: true,
+                    })
+                    .expect("entities builtin"),
+            ];
+            for name in ["resolve_entity", "resolve_player"] {
+                let builtin = builtins::find(name, builtins::BuiltinKind::Expression)
+                    .expect("reference iterator");
+                let mut completion = builtin_completion(builtin);
+                completion.label = format!("{name}(..)");
+                out.push(completion);
+            }
+            out.extend(
+                local_completions(analysis, file, offset)
+                    .into_iter()
+                    .filter(|completion| {
+                        value_type(analysis, file, offset, &completion.label)
+                            .is_some_and(|ty| iterable_type(analysis, ty))
+                    }),
+            );
+            out.extend(defs(&|def| match &def.info {
+                DefInfo::Function { signature, .. } => signature.contains(") -> [") || signature.contains(") -> Vec<") || signature.ends_with(") -> string"),
+                DefInfo::State { fields, .. } => fields.iter().any(|field| matches!(analysis.def(*field).info, DefInfo::Field { ty, .. } if iterable_type(analysis, ty))),
+                _ => false,
+            }));
+            out
+        }
+
+        Position::AfterElse => vec![Completion::plain("if", CompletionKind::Keyword)],
+        Position::StateField => vec![Completion::snippet(
+            "#[clamp]",
+            "clamp writes to a range",
+            "#[clamp(${1:0}..=${2:100})]",
+        )],
+        Position::FlowEntry { field } => {
+            let mut out = vec![
+                Completion::snippet(
+                    "enter",
+                    "run when entering a phase",
+                    "enter ${1:Phase} => ${2:function};",
+                ),
+                Completion::snippet(
+                    "exit",
+                    "run when leaving a phase",
+                    "exit ${1:Phase} => ${2:function};",
+                ),
+                Completion::snippet(
+                    "tick",
+                    "run every tick in a phase",
+                    "tick ${1:Phase} {\n    $0\n}",
+                ),
+            ];
+            out.extend(flow_phases(analysis, module, &field));
+            out
+        }
+        Position::FlowPhase { field } => flow_phases(analysis, module, &field),
+        Position::FlowFunction => defs(&|d| {
+            matches!(&d.info, DefInfo::Function { signature, .. } if signature == "()")
+                || d.kind == DefKind::ExternFunction
+        }),
+        Position::Data {
+            keyword,
+            tag_type,
+            line,
+            used,
+        } => data_completions(analysis, module, keyword, tag_type, &line, &used),
+        Position::Nothing
+        | Position::Attribute { .. }
+        | Position::AttributeArg { .. }
+        | Position::Interpolation => Vec::new(),
+    }
+}
+
+/// Definitions in scope that satisfy `keep`.
+fn scope_defs(
+    analysis: &Analysis,
+    in_scope: &[(String, DefId)],
+    keep: &dyn Fn(&crate::analysis::Def) -> bool,
+) -> Vec<Completion> {
+    in_scope
+        .iter()
+        .filter(|(_, def)| keep(analysis.def(*def)))
+        .map(|(name, def)| def_completion(analysis, name, *def))
+        .collect()
+}
+
+/// `State.field` for every timer field visible here.
+fn timer_field_completions(analysis: &Analysis, in_scope: &[(String, DefId)]) -> Vec<Completion> {
+    let mut out = Vec::new();
+    for (name, def) in in_scope {
+        let DefInfo::State { fields, .. } = &analysis.def(*def).info else {
+            continue;
+        };
+        for field in fields {
+            let field = analysis.def(*field);
+            if matches!(field.info, DefInfo::Field { timer: true, .. }) {
+                out.push(Completion::plain(
+                    &format!("{name}.{}", field.name),
+                    CompletionKind::Field,
+                ));
+            }
+        }
+    }
+    out
+}
+
+fn statement_completions(
+    analysis: &Analysis,
+    file: FileId,
+    offset: usize,
+    body: &crate::position::Body,
+    in_scope: &[(String, DefId)],
+    paths: impl Iterator<Item = Completion>,
+) -> Vec<Completion> {
+    let mut out = local_completions(analysis, file, offset);
+    // Statements call functions and assign fields.
+    out.extend(scope_defs(analysis, in_scope, &|d| {
+        matches!(
+            d.kind,
+            DefKind::Function
+                | DefKind::ExternFunction
+                | DefKind::State
+                | DefKind::Struct
+                | DefKind::Module
+        )
+    }));
+    out.extend([
+        Completion::snippet("let", "declare a variable", "let ${1:name} = ${2:0};"),
+        Completion::snippet(
+            "let mut",
+            "declare a mutable variable",
+            "let mut ${1:name} = ${2:0};",
+        ),
+        Completion::snippet(
+            "if",
+            "branch on a condition",
+            "if ${1:condition} {\n    $0\n}",
+        ),
+        Completion::snippet(
+            "match",
+            "select an exhaustive arm",
+            "match ${1:value} {\n    ${2:pattern} => { $0 }\n    _ => {}\n}",
+        ),
+        Completion::snippet(
+            "while",
+            "repeat while a condition holds",
+            "while ${1:condition} {\n    $0\n}",
+        ),
+        Completion::snippet(
+            "for i in 0..n",
+            "count through a range of numbers",
+            "for ${1:i} in ${2:0}..${3:10} {\n    $0\n}",
+        ),
+        Completion::snippet(
+            "loop",
+            "repeat until `break` or `return`",
+            "loop {\n    $0\n}",
+        ),
+        Completion::snippet(
+            "emit",
+            "run every handler of a custom event",
+            "emit ${1:Event}($2);",
+        ),
+        Completion::snippet(
+            "for player in players()",
+            "run as each online player",
+            "for player in players() {\n    $0\n}",
+        ),
+        Completion::snippet(
+            "for entity in entities(..)",
+            "run as each matching entity",
+            "for ${1:entity} in entities(type = Entity::${2:Zombie}) {\n    $0\n}",
+        ),
+        if body.returns {
+            Completion::snippet("return", "return a value", "return ${1:value};")
+        } else {
+            Completion::snippet("return", "end the function early", "return;")
+        },
+    ]);
+    if body.in_repeat {
+        out.push(Completion::snippet("break", "leave the loop", "break;"));
+    }
+    if body.in_repeat || body.executor_loop.is_some() {
+        out.push(Completion::snippet(
+            "continue",
+            "skip to the next pass",
+            "continue;",
+        ));
+    }
+    out.extend(handle_completions(analysis, file, offset));
+    let in_entities = body.executor_loop == Some(true);
+    out.extend(
+        crate::builtins::BUILTINS
+            .iter()
+            .filter(|b| {
+                !matches!(
+                    b.kind,
+                    crate::builtins::BuiltinKind::Expression
+                        | crate::builtins::BuiltinKind::Condition
+                )
+            })
+            // An entity may not be a player.
+            .filter(|b| !(in_entities && b.needs_player))
+            .map(builtin_completion),
+    );
+    out.extend(paths);
+    out
+}
+
+fn expression_completions(
+    analysis: &Analysis,
+    file: FileId,
+    offset: usize,
+    _body: &crate::position::Body,
+    in_scope: &[(String, DefId)],
+    paths: impl Iterator<Item = Completion>,
+) -> Vec<Completion> {
+    let mut out = Vec::new();
+    // Inside a builtin call: its remaining named arguments, and typed values
+    // for the argument being written.
+    if let Some(help) = signature_help(analysis, file, offset) {
+        if help
+            .params
+            .get(help.active)
+            .is_some_and(|(start, end, _)| help.label[*start..*end].ends_with(": EntityState"))
+        {
+            return scope_defs(analysis, in_scope, &|d| {
+                matches!(
+                    d.info,
+                    DefInfo::State {
+                        scope: Scope::Entity,
+                        ..
+                    }
+                )
+            });
+        }
+        let active_type = help
+            .params
+            .get(help.active)
+            .and_then(|(start, end, _)| help.label[*start..*end].split_once(": "))
+            .map(|(_, ty)| ty);
+        match active_type {
+            Some("text") => {
+                out.push(translation_completion());
+                if help.label.starts_with("chat!(") || help.label.starts_with("broadcast!(") {
+                    out.extend([
+                        Completion::snippet(
+                            "Text::hover",
+                            "show a chat tooltip",
+                            "Text::hover(\"${1:label}\", \"${2:tooltip}\")",
+                        ),
+                        Completion::snippet(
+                            "Text::link",
+                            "open a URL from chat",
+                            "Text::link(\"${1:label}\", \"${2:https://example.com}\")",
+                        ),
+                        Completion::snippet(
+                            "Text::suggest",
+                            "fill the chat input when clicked",
+                            "Text::suggest(\"${1:label}\", \"${2:/trigger next}\")",
+                        ),
+                        Completion::snippet(
+                            "Text::copy",
+                            "copy text when clicked",
+                            "Text::copy(\"${1:label}\", \"${2:content}\")",
+                        ),
+                    ]);
+                }
+            }
+            Some("BossBar") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::BossBar);
+            }
+            Some("Loot") => return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Loot),
+            Some("Dialog") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Dialog);
+            }
+            Some("Advancement") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Advancement);
+            }
+            Some("Predicate") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Predicate);
+            }
+            Some("Progression") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Progression);
+            }
+            Some("Combat") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Combat);
+            }
+            Some("Ability") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Ability);
+            }
+            Some("Scene") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Scene);
+            }
+            Some("Job") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Job);
+            }
+            Some("Session") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Session);
+            }
+            Some("Projectile") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Projectile);
+            }
+            Some("Menu") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Menu);
+            }
+            Some("Hud") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Hud);
+            }
+            Some("Encounter") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Encounter);
+            }
+            Some("Checkpoint") => {
+                return scope_defs(analysis, in_scope, &|d| d.kind == DefKind::Checkpoint);
+            }
+            Some("InventoryTransfer") => {
+                return scope_defs(analysis, in_scope, &|d| {
+                    d.kind == DefKind::InventoryTransfer
+                });
+            }
+            Some("StructureTemplate") => {
+                return scope_defs(analysis, in_scope, &|d| {
+                    d.kind == DefKind::StructureTemplate
+                });
+            }
+            Some("Biome") => {
+                out.extend(scope_defs(analysis, in_scope, &|d| {
+                    d.kind == DefKind::Biome
+                }));
+            }
+            Some("Dimension") => {
+                out.extend(scope_defs(analysis, in_scope, &|d| {
+                    d.kind == DefKind::Dimension
+                }));
+            }
+            Some("DamageType") => {
+                out.extend(scope_defs(analysis, in_scope, &|d| {
+                    d.kind == DefKind::DamageType
+                }));
+            }
+            Some("timer") => return timer_field_completions(analysis, in_scope),
+            Some("Position") => {
+                return vec![
+                    Completion::snippet(
+                        "offset",
+                        "relative to the executor",
+                        "offset(${1:0}, ${2:0}, ${3:0})",
+                    ),
+                    Completion::snippet("pos", "world coordinates", "pos(${1:0}, ${2:64}, ${3:0})"),
+                ];
+            }
+            _ => {}
+        }
+        if let Some(registry) = help
+            .params
+            .get(help.active)
+            .and_then(|(start, end, _)| help.label[*start..*end].split_once(": "))
+            .and_then(|(_, ty)| crate::vanilla::registry(ty))
+        {
+            out.extend(registry_completions(analysis, registry, true));
+        }
+        if let Some((name, _)) = help.label.split_once('(')
+            && let Some(builtin) = crate::builtins::BUILTINS
+                .iter()
+                .find(|b| b.name == name.trim_end_matches('!'))
+        {
+            let text = &analysis.package.files[file.0].text[..offset];
+            let call = &text[text.rfind('(').map(|p| p + 1).unwrap_or(0)..];
+            for param in builtin.params.iter().filter(|p| !p.required) {
+                if !call.contains(&format!("{} =", param.name)) {
+                    out.push(Completion {
+                        detail: Some(param.doc.into()),
+                        insert: Some(format!("{} = ", param.name)),
+                        ..Completion::plain(&format!("{} =", param.name), CompletionKind::Field)
+                    });
+                }
+            }
+        }
+    }
+    out.extend(local_completions(analysis, file, offset));
+    out.extend(handle_completions(analysis, file, offset));
+    out.extend(scope_defs(analysis, in_scope, &|d| match &d.info {
+        DefInfo::Function { signature, .. } => signature.contains("->"),
+        DefInfo::Const { .. }
+        | DefInfo::Enum { .. }
+        | DefInfo::Struct { .. }
+        | DefInfo::Array { .. }
+        | DefInfo::State { .. }
+        | DefInfo::Module { .. } => true,
+        DefInfo::Data { kind, .. } => *kind == crate::ast::DataKind::Item,
+        _ => false,
+    }));
+    for registry in crate::vanilla::registries() {
+        out.push(Completion {
+            detail: Some(format!("{} values", registry.noun)),
+            documentation: Some(format!(
+                "Typed {} values, such as `{}::{}`. Rust: `{}`.",
+                registry.noun,
+                registry.name,
+                registry.order.first().map(String::as_str).unwrap_or(""),
+                registry.rust_path
+            )),
+            insert: Some(format!("{}::", registry.name)),
+            ..Completion::plain(registry.name, CompletionKind::Enum)
+        });
+    }
+    out.extend(
+        crate::builtins::BUILTINS
+            .iter()
+            // `entities(..)` is only a `for` source.
+            .filter(|b| b.kind == crate::builtins::BuiltinKind::Expression && b.name != "entities")
+            .map(builtin_completion),
+    );
+    out.extend(paths);
+    out
+}
+
+/// Docs for the `Player` handle.
+const PLAYER_DOC: &str = "The executing player. Read entity data such as `Player.health`, \
+    `Player.food`, or `Player.on_ground`, and read or assign any attribute's base value, \
+    such as `Player.max_health = 40.0;` or `Player.step_height`. Using it makes the \
+    function need a player.";
+
+/// Whether `name` is an entity handle at `offset`: `Some(true)` for a
+/// player (`Player`, or a `players()` loop binding), `Some(false)` for an
+/// `entities(..)` binding.
+fn handle_at(analysis: &Analysis, file: FileId, offset: usize, name: &str) -> Option<bool> {
+    let binding = analysis
+        .handle_scopes
+        .iter()
+        .filter(|(f, span, binding, _)| *f == file && span.contains(offset) && binding == name)
+        .min_by_key(|(_, span, _, _)| span.end - span.start)
+        .map(|(_, _, _, player)| *player);
+    if binding.is_some() {
+        return binding;
+    }
+    let module = analysis.package.module_at(file, offset)?;
+    (name == "Player"
+        && !scope_names(analysis, module)
+            .iter()
+            .any(|(n, _)| n == "Player"))
+    .then_some(true)
+}
+
+/// `Player` and the loop bindings visible at `offset`.
+fn handle_completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Completion> {
+    let mut out = Vec::new();
+    let mut seen = HashSet::new();
+    for (_, _, name, player) in analysis
+        .handle_scopes
+        .iter()
+        .filter(|(f, span, _, _)| *f == file && span.contains(offset))
+    {
+        if seen.insert(name.clone()) {
+            out.push(Completion {
+                detail: Some(if *player { "player" } else { "entity" }.into()),
+                documentation: Some(format!(
+                    "The {} this loop runs as. Read its data and attributes with `{name}.health`, \
+                     `{name}.max_health`, and so on; assign attributes with `{name}.scale = 2.0;`.",
+                    if *player { "player" } else { "entity" }
+                )),
+                ..Completion::plain(name, CompletionKind::Variable)
+            });
+        }
+    }
+    if handle_at(analysis, file, offset, "Player") == Some(true) && !seen.contains("Player") {
+        out.push(Completion {
+            detail: Some("the executing player".into()),
+            documentation: Some(PLAYER_DOC.into()),
+            ..Completion::plain("Player", CompletionKind::State)
+        });
+    }
+    out
+}
+
+fn property_completion(handle: &str, property: crate::properties::Property) -> Completion {
+    Completion {
+        detail: Some(format!(
+            "{}{}",
+            property.ty.name(),
+            if property.writable() {
+                ""
+            } else {
+                " (read-only)"
+            }
+        )),
+        documentation: Some(property.describe(handle)),
+        ..Completion::plain(&property.name, CompletionKind::Field)
+    }
+}
+
+/// Locals visible at `offset`, inner declarations first. Falls back to a
+/// lexical scan of the enclosing function when it does not parse yet.
+fn local_completions(analysis: &Analysis, file: FileId, offset: usize) -> Vec<Completion> {
+    let mut seen = HashSet::new();
+    let mut locals: Vec<&(FileId, Span, DefId)> = analysis
+        .local_scopes
+        .iter()
+        .filter(|(f, span, _)| *f == file && span.contains(offset))
+        .collect();
+    locals.sort_by_key(|(_, _, def)| std::cmp::Reverse(def.0));
+    let mut out: Vec<Completion> = locals
+        .into_iter()
+        .filter_map(|(_, _, def)| {
+            let name = analysis.def(*def).name.clone();
+            seen.insert(name.clone())
+                .then(|| def_completion(analysis, &name, *def))
+        })
+        .collect();
+    if !out.is_empty() {
+        return out;
+    }
+    let text = &analysis.package.files[file.0].text[..offset];
+    let Some(start) = text.rfind("fn ") else {
+        return out;
+    };
+    let function = &text[start..];
+    let words: Vec<&str> = function
+        .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == ':'))
+        .filter(|w| !w.is_empty())
+        .collect();
+    let mut names = Vec::new();
+    // Parameters: `name:` inside the signature.
+    if let Some(open) = function.find('(')
+        && let Some(close) = function[open..].find(')')
+    {
+        for param in function[open + 1..open + close].split(',') {
+            if let Some((name, _)) = param.split_once(':') {
+                names.push(name.trim().to_string());
+            }
+        }
+    }
+    for (i, word) in words.iter().enumerate() {
+        if *word == "let" {
+            let next = if words.get(i + 1) == Some(&"mut") {
+                words.get(i + 2)
+            } else {
+                words.get(i + 1)
+            };
+            if let Some(name) = next {
+                names.push(name.trim_end_matches(':').to_string());
+            }
+        }
+    }
+    for name in names.into_iter().rev() {
+        if !name.is_empty() && seen.insert(name.clone()) {
+            out.push(Completion::plain(&name, CompletionKind::Variable));
+        }
+    }
+    out
+}
+
+fn attribute_completions(inner: bool, target: crate::position::AttrTarget) -> Vec<Completion> {
+    use crate::position::AttrTarget;
+    let names: &[&str] = if inner {
+        &["pack"]
+    } else {
+        match target {
+            AttrTarget::Function => &["tick", "load", "on", "tag", "player", "test"],
+            AttrTarget::ExternFunction => &["player"],
+            AttrTarget::Field => &["clamp"],
+            AttrTarget::Other => &[],
+        }
+    };
+    crate::builtins::ATTRIBUTES
+        .iter()
+        .filter(|(name, _, _)| names.contains(name))
+        .map(|(label, signature, doc)| Completion {
+            detail: Some((*signature).into()),
+            documentation: Some((*doc).into()),
+            ..Completion::plain(label, CompletionKind::Attribute)
+        })
+        .collect()
+}
+
+fn attribute_arg_completions(
+    analysis: &Analysis,
+    attr: &str,
+    key: Option<&str>,
+) -> Vec<Completion> {
+    match (attr, key) {
+        ("on", None) => crate::builtins::EVENTS
+            .iter()
+            .map(|(label, set, doc)| Completion {
+                documentation: Some((*doc).into()),
+                // `kill` works bare or filtered; the bare form is offered.
+                insert: set.filter(|_| *label != "kill").map(|set| match set {
+                    "Advancement" => format!("{label} = ${{1:Milestone}}"),
+                    _ => format!("{label} = {set}::${{1}}"),
+                }),
+                snippet: set.is_some() && *label != "kill",
+                ..Completion::plain(label, CompletionKind::Attribute)
+            })
+            .collect(),
+        ("on", Some(key)) => crate::builtins::EVENTS
+            .iter()
+            .find(|(label, _, _)| *label == key)
+            .and_then(|(_, set, _)| *set)
+            .and_then(crate::vanilla::registry)
+            .map(|r| registry_completions(analysis, r, true))
+            .unwrap_or_default(),
+        ("pack", None) => [
+            (
+                "namespace",
+                "namespace = \"${1:my_pack}\"",
+                "Namespace of every generated resource.",
+            ),
+            (
+                "minecraft",
+                "minecraft = \"${1:26.2}\"",
+                "Exact Minecraft target version.",
+            ),
+            (
+                "description",
+                "description = \"${1}\"",
+                "Pack description shown in the pack list.",
+            ),
+        ]
+        .into_iter()
+        .map(|(label, insert, doc)| Completion {
+            documentation: Some(doc.into()),
+            insert: Some(insert.into()),
+            snippet: true,
+            ..Completion::plain(label, CompletionKind::Field)
+        })
+        .collect(),
+        ("clamp", None) => vec![Completion::snippet(
+            "min..=max",
+            "inclusive range",
+            "${1:0}..=${2:100}",
+        )],
+        ("tag", None) => vec![Completion::snippet(
+            "\"namespace:name\"",
+            "function tag",
+            "\"${1:minecraft}:${2:tick}\"",
+        )],
+        _ => Vec::new(),
+    }
+}
+
+fn interpolation_completions(
+    analysis: &Analysis,
+    file: FileId,
+    offset: usize,
+    module: ModuleId,
+) -> Vec<Completion> {
+    let mut out: Vec<Completion> = std::iter::once(Completion {
+        documentation: Some("The executing player's name.".into()),
+        ..Completion::plain("player", CompletionKind::Keyword)
+    })
+    .chain(
+        crate::builtins::STYLES
+            .iter()
+            .map(|style| Completion::plain(style, CompletionKind::Attribute)),
+    )
+    .collect();
+    out.extend(local_completions(analysis, file, offset));
+    for (name, def) in scope_names(analysis, module) {
+        if let DefInfo::State { fields, .. } = &analysis.def(def).info {
+            for field in fields {
+                let field_name = &analysis.def(*field).name;
+                out.push(Completion {
+                    detail: Some("live score".into()),
+                    ..Completion::plain(&format!("{name}.{field_name}"), CompletionKind::Field)
+                });
+            }
+        }
+    }
+    out
+}
+
+/// The phases of a flow's enum field, such as `Idle` and `Fighting`.
+fn flow_phases(analysis: &Analysis, module: ModuleId, field: &str) -> Vec<Completion> {
+    let Some((state, field)) = field.rsplit_once('.') else {
+        return Vec::new();
+    };
+    let names: Vec<&str> = state.split("::").collect();
+    let Some(Target::Def(state)) = resolve_names(analysis, module, &names) else {
+        return Vec::new();
+    };
+    let DefInfo::State { fields, .. } = &analysis.def(state).info else {
+        return Vec::new();
+    };
+    let Some(field) = fields
+        .iter()
+        .find(|f| analysis.def(**f).name == field.trim())
+    else {
+        return Vec::new();
+    };
+    let DefInfo::Field {
+        ty: crate::analysis::Ty::Enum(enum_def),
+        ..
+    } = analysis.def(*field).info
+    else {
+        return Vec::new();
+    };
+    let DefInfo::Enum { variants, .. } = &analysis.def(enum_def).info else {
+        return Vec::new();
+    };
+    variants
+        .iter()
+        .map(|v| def_completion(analysis, &analysis.def(*v).name, *v))
+        .collect()
+}
+
+fn builtin_completion(b: &crate::builtins::Builtin) -> Completion {
+    Completion {
+        label: match b.kind {
+            crate::builtins::BuiltinKind::Macro => format!("{}!", b.name),
+            _ => b.name.to_string(),
+        },
+        kind: match b.kind {
+            crate::builtins::BuiltinKind::Expression => CompletionKind::Function,
+            _ => CompletionKind::Snippet,
+        },
+        detail: Some(b.summary.into()),
+        documentation: Some(crate::builtins::describe(b)),
+        insert: Some(b.snippet.into()),
+        snippet: true,
+    }
+}
+
+fn translation_completion() -> Completion {
+    Completion::snippet(
+        "Text::translate",
+        "a client-localized text component",
+        "Text::translate(\"${1:item.minecraft.paper}\")",
+    )
+}
+
+/// Field names, or values for the field being written, inside a data body.
+fn data_completions(
+    analysis: &Analysis,
+    module: ModuleId,
+    keyword: &str,
+    tag_type: Option<&'static str>,
+    line: &str,
+    used: &[String],
+) -> Vec<Completion> {
+    use crate::builtins::{self, FieldKind};
+    // The field whose value is being typed: `name:` earlier on this line.
+    let field = line
+        .rfind(':')
+        .filter(|colon| !line[colon + 1..].contains(':') || line[colon + 1..].contains("::"))
+        .and_then(|colon| {
+            let before = line[..colon].trim_end();
+            let start = before
+                .rfind(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+                .map(|i| i + 1)
+                .unwrap_or(0);
+            builtins::data_fields(keyword).find(|f| f.name == &before[start..])
+        });
+    let declared = |kind: DefKind| -> Vec<Completion> {
+        scope_names(analysis, module)
+            .into_iter()
+            .filter(|(_, def)| analysis.def(*def).kind == kind)
+            .map(|(name, def)| def_completion(analysis, &name, def))
+            .collect()
+    };
+    let registry = |name: &str| {
+        crate::vanilla::registry(name)
+            .map(|r| registry_completions(analysis, r, true))
+            .unwrap_or_default()
+    };
+    let Some(field) = field else {
+        let used = |name: &str| used.iter().any(|u| u == name);
+        let recipe_type = builtins::RECIPE_TYPES.iter().find(|t| used(t)).copied();
+        return builtins::data_fields(keyword)
+            .filter(|f| !used(f.name))
+            .filter(|f| keyword != "recipe" || builtins::recipe_accepts_field(recipe_type, f.name))
+            .filter(|f| {
+                if keyword != "dimension" {
+                    return true;
+                }
+                match f.name {
+                    "layers" | "structures" => {
+                        !used("noise_settings") && !used("biomes") && !used("biome_source")
+                    }
+                    "noise_settings" => !used("layers") && !used("structures"),
+                    "biomes" => {
+                        !used("layers")
+                            && !used("structures")
+                            && !used("biome")
+                            && !used("biome_source")
+                    }
+                    "biome_source" => {
+                        !used("layers") && !used("structures") && !used("biome") && !used("biomes")
+                    }
+                    "biome_scale" => used("biomes"),
+                    "biome" => !used("biomes") && !used("biome_source"),
+                    _ => true,
+                }
+            })
+            .map(|f| Completion {
+                detail: Some(f.doc.split(". ").next().unwrap_or(f.doc).to_string()),
+                documentation: Some(f.doc.into()),
+                insert: Some(format!("{}: {},", f.name, f.snippet)),
+                snippet: true,
+                ..Completion::plain(f.name, CompletionKind::Field)
+            })
+            .collect();
+    };
+    match field.value {
+        FieldKind::Item => {
+            let mut out = registry("Item");
+            if field.name == "result" {
+                out.extend(declared(DefKind::CustomItem));
+            }
+            out
+        }
+        FieldKind::LootItems => registry("Item"),
+        FieldKind::Enchantments => registry("Enchantment"),
+        FieldKind::Ingredient | FieldKind::Ingredients | FieldKind::Key => {
+            let mut out = registry("Item");
+            out.extend(
+                scope_names(analysis, module)
+                    .into_iter()
+                    .filter(|(_, def)| {
+                        matches!(
+                            analysis.def(*def).info,
+                            DefInfo::Data {
+                                tag_type: Some("Item"),
+                                ..
+                            }
+                        )
+                    })
+                    .map(|(name, def)| def_completion(analysis, &name, def)),
+            );
+            out
+        }
+        FieldKind::TagValues => {
+            let ty = tag_type.unwrap_or("Item");
+            let mut out = registry(ty);
+            out.extend(
+                scope_names(analysis, module)
+                    .into_iter()
+                    .filter(|(_, def)| {
+                        matches!(&analysis.def(*def).info, DefInfo::Data { tag_type: Some(t), .. } if *t == ty)
+                    })
+                    .map(|(name, def)| def_completion(analysis, &name, def)),
+            );
+            out
+        }
+        FieldKind::Text | FieldKind::TextList => vec![translation_completion()],
+        FieldKind::SceneParts | FieldKind::SceneKeyframes => Vec::new(),
+        FieldKind::JobStep => scope_names(analysis, module)
+            .into_iter()
+            .filter(|(_, def)| {
+                let Some(signature) = analysis.function_types.get(def) else {
+                    return false;
+                };
+                let [parameter] = signature.parameters.as_slice() else {
+                    return false;
+                };
+                signature.returns.is_none()
+                    && matches!(
+                        analysis.def(*parameter).info,
+                        DefInfo::Local { ty: Ty::Number, .. }
+                    )
+            })
+            .map(|(name, def)| def_completion(analysis, &name, def))
+            .collect(),
+        FieldKind::Callback => scope_names(analysis, module)
+            .into_iter()
+            .filter(|(_, def)| {
+                matches!(
+                    analysis.def(*def).kind,
+                    DefKind::Function | DefKind::ExternFunction
+                )
+            })
+            .map(|(name, def)| def_completion(analysis, &name, def))
+            .collect(),
+        FieldKind::ProjectileRef => scope_names(analysis, module)
+            .into_iter()
+            .filter(|(_, def)| analysis.def(*def).kind == DefKind::Projectile)
+            .map(|(name, def)| def_completion(analysis, &name, def))
+            .collect(),
+        FieldKind::ProgressionRef => scope_names(analysis, module)
+            .into_iter()
+            .filter(|(_, def)| analysis.def(*def).kind == DefKind::Progression)
+            .map(|(name, def)| def_completion(analysis, &name, def))
+            .collect(),
+        FieldKind::Registry("Biome") => {
+            let mut out = registry("Biome");
+            out.extend(
+                scope_names(analysis, module)
+                    .into_iter()
+                    .filter(|(_, def)| analysis.def(*def).kind == DefKind::Biome)
+                    .map(|(name, def)| def_completion(analysis, &name, def)),
+            );
+            out
+        }
+        FieldKind::Registry("DimensionType") => {
+            let mut out = registry("DimensionType");
+            out.extend(declared(DefKind::DimensionType));
+            out
+        }
+        FieldKind::Registry(name) => registry(name),
+        FieldKind::Bool => vec![
+            Completion::plain("true", CompletionKind::Keyword),
+            Completion::plain("false", CompletionKind::Keyword),
+        ],
+        _ => Vec::new(),
+    }
+}
+
+fn item_snippets(after_pub: bool) -> Vec<Completion> {
+    let mut all = vec![
+        Completion::snippet(
+            "struct",
+            "a copyable value type",
+            "struct ${1:Point} {\n    ${2:x}: ${3:number},\n    $0\n}",
+        ),
+        Completion::snippet(
+            "trait",
+            "a method contract for generic code",
+            "trait ${1:Named} {\n    fn ${2:name}(&self) -> ${3:string};\n}",
+        ),
+        Completion::snippet(
+            "impl",
+            "associated functions and methods",
+            "impl ${1:Type} {\n    $0\n}",
+        ),
+        Completion::snippet("fn", "function", "fn ${1:name}() {\n    $0\n}"),
+        Completion::snippet(
+            "fn ->",
+            "function returning a value",
+            "fn ${1:name}(${2:value}: number) -> number {\n    return ${3:value};\n}",
+        ),
+        Completion::snippet(
+            "tick fn",
+            "function run every tick",
+            "#[tick]\nfn ${1:name}() {\n    $0\n}",
+        ),
+        Completion::snippet(
+            "event fn",
+            "function run on a player event",
+            "#[on(${1:death})]\nfn ${2:name}() {\n    $0\n}",
+        ),
+        Completion::snippet(
+            "player state",
+            "per-player State",
+            "player state ${1:Name} {\n    ${2:field}: number = ${3:0},\n}",
+        ),
+        Completion::snippet(
+            "global state",
+            "server-wide State",
+            "global state ${1:Name} {\n    ${2:field}: number = ${3:0},\n}",
+        ),
+        Completion::snippet(
+            "entity state",
+            "State attached to individual entities",
+            "entity state ${1:Name} {\n    ${2:field}: number = ${3:0},\n}",
+        ),
+        Completion::snippet(
+            "enum",
+            "phases stored in State",
+            "enum ${1:Name} {\n    ${2:First},\n    ${3:Second},\n}",
+        ),
+        Completion::snippet(
+            "flow",
+            "state machine",
+            "flow ${1:Name} on ${2:State}.${3:field} {\n    ${4:From} -> ${5:To};\n}",
+        ),
+        Completion::snippet("const", "constant", "const ${1:NAME}: number = ${2:0};"),
+        Completion::snippet("event", "custom event", "event ${1:Name};"),
+        Completion::snippet(
+            "bossbar",
+            "bar at the top of the screen",
+            "bossbar ${1:Name} {\n    title: \"${2:Title}\",\n    color: BossBarColor::${3:Red},\n}",
+        ),
+        Completion::snippet(
+            "loot",
+            "loot table",
+            "loot ${1:Name} {\n    items: [Item::${2:Diamond}],\n}",
+        ),
+        Completion::snippet(
+            "progression",
+            "ordered player objectives",
+            "progression ${1:Quest} { progress: ${2:Journal}.${3:stage}, objectives: [{ reward: ${4:award} }] }",
+        ),
+        Completion::snippet(
+            "combat",
+            "canonical State health rules",
+            "combat ${1:Vitality} { health: ${2:Stats}.${3:health}, max: ${4:20} }",
+        ),
+        Completion::snippet(
+            "ability",
+            "checked player activation",
+            "ability ${1:CastSpark} { ticks: ${2:24}, projectile: ${3:Spark} }",
+        ),
+        Completion::snippet(
+            "scene",
+            "player-owned native displays",
+            r#"scene ${1:Beacon} { ticks: ${2:80}, parts: [{ name: "${3:base}", block: Block::${4:GoldBlock} }] }"#,
+        ),
+        Completion::snippet(
+            "job",
+            "player-owned indexed work",
+            "job ${1:GatherSupplies} { ticks: ${2:100}, count: ${3:12}, step: ${4:work_step} }",
+        ),
+        Completion::snippet(
+            "session",
+            "player-owned progression controller",
+            "session ${1:Run} { progression: ${2:Quest}, ticks: ${3:400} }",
+        ),
+        Completion::snippet(
+            "projectile",
+            "player-owned projectile",
+            r#"projectile ${1:Spark} { ticks: ${2:20}, speed: ${3:1.5}, damage: ${4:2}, target: Entity::${5:Zombie} }"#,
+        ),
+        Completion::snippet(
+            "menu",
+            "native player menu",
+            r#"menu ${1:Supplies} { title: "${2:Supplies}", ticks: ${3:200}, choices: [{ label: "${4:Take rations}", action: ${5:take_rations} }] }"#,
+        ),
+        Completion::snippet(
+            "hud",
+            "player-owned presentation",
+            r#"hud ${1:Status} { ticks: ${2:100}, actionbar: "${3:Ready}" }"#,
+        ),
+        Completion::snippet(
+            "archetype",
+            "entity composed from State",
+            r#"archetype ${1:Guard} { entity: Entity::${2:ArmorStand}, components: [${3:GuardState}] }"#,
+        ),
+        Completion::snippet(
+            "vfx",
+            "ordered spatial particle and sound cues",
+            r#"vfx ${1:Flourish} { cues: [{ particle: Particle::${2:Heart}, count: ${3:5} }] }"#,
+        ),
+        Completion::snippet(
+            "status_effect",
+            "timed status with lifecycle callbacks",
+            r#"status_effect ${1:Guard} { ticks: ${2:60}, start: ${3:guard_started}, stop: ${4:guard_stopped} }"#,
+        ),
+        Completion::snippet(
+            "roster",
+            "bounded online arena membership",
+            r#"roster ${1:Arena} { member: ${2:Players.generation}, role: ${3:Players.role}, capacity: ${4:8} }"#,
+        ),
+        Completion::snippet(
+            "encounter",
+            "a priority controller with timed child attacks",
+            "encounter ${1:Challenge} { ticks: ${2:200}, attacks: [{ ticks: ${3:20}, start: ${4:attack} }] }",
+        ),
+        Completion::snippet(
+            "checkpoint",
+            "save and restore selected player State",
+            "checkpoint ${1:Snapshot} { valid: ${2:Saved.valid}, fields: [{ live: ${3:Live.score}, saved: ${4:Saved.score} }] }",
+        ),
+        Completion::snippet(
+            "inventory_transfer",
+            "checked inventory move",
+            "inventory_transfer ${1:MoveRations} { from: ${2:0}, to: ${3:9} }",
+        ),
+        Completion::snippet(
+            "configured_feature",
+            "what to generate in a biome",
+            r#"configured_feature ${1:Decoration} { simple_block: { block: Block::${2:MossBlock} } }"#,
+        ),
+        Completion::snippet(
+            "placed_feature",
+            "ordered rules for terrain feature placement",
+            r#"placed_feature ${1:Surface} { feature: ${2:Decoration}, placement: [{ count: ${3:6} }, in_square, { heightmap: world_surface_wg }, biome_filter] }"#,
+        ),
+        Completion::snippet(
+            "ore_feature",
+            "Native ore veins with biome-restricted placement.",
+            r#"ore_feature ${1:Vein} { size: ${2:8}, count: ${3:4}, min_y: ${4:-32}, max_y: ${5:32}, targets: [{ replace: Block::${6:Stone}, block: Block::${7:IronOre} }] }"#,
+        ),
+        Completion::snippet(
+            "template_pool",
+            "weighted NBT template pool",
+            r#"template_pool ${1:Pool} { pieces: [{ template: ${2:Marker}, weight: ${3:1} }] }"#,
+        ),
+        Completion::snippet(
+            "jigsaw_structure",
+            "natural generation from a template pool",
+            r#"jigsaw_structure ${1:Workshop} { start_pool: ${2:Pool}, biomes: [Biome::${3:Plains}], surface: true }"#,
+        ),
+        Completion::snippet(
+            "structure_set",
+            "native weighted structure placement",
+            r#"structure_set ${1:Set} { structures: [{ structure: "minecraft:${2:village_plains}" }], random_spread: { spacing: ${3:34}, separation: ${4:8}, salt: ${5:1} } }"#,
+        ),
+        Completion::snippet(
+            "structure_template",
+            "native structure template",
+            r#"structure_template ${1:Workshop} { source: "${2:structures/workshop.nbt}" }"#,
+        ),
+        Completion::snippet(
+            "biome",
+            "custom biome",
+            r##"biome ${1:Grove} { temperature: ${2:0.7}, water_color: "#${3:3f76e4}" }"##,
+        ),
+        Completion::snippet(
+            "dimension_type",
+            "dimension environmental rules",
+            "dimension_type ${1:WorkshopRules} { min_y: ${2:-64}, height: ${3:384} }",
+        ),
+        Completion::snippet(
+            "dimension",
+            "flat dimension",
+            "dimension ${1:Workshop} { layers: [{ block: Block::${2:Bedrock}, height: ${3:1} }] }",
+        ),
+        Completion::snippet(
+            "dialog",
+            "native notice dialog",
+            "dialog ${1:Notice} { title: \"${2:Notice}\", body: [\"${3:Text}\"] }",
+        ),
+        Completion::snippet(
+            "advancement",
+            "native advancement",
+            "advancement ${1:Milestone} { criteria: { ${2:collect}: { inventory_item: Item::${3:Diamond} } } }",
+        ),
+        Completion::snippet(
+            "predicate",
+            "world predicate",
+            "predicate ${1:Rule} { block: Block::${2:Stone} }",
+        ),
+        Completion::snippet(
+            "damage_type",
+            "damage type",
+            r#"damage_type ${1:Spikes} { message_id: "${2:spikes}" }"#,
+        ),
+        Completion::snippet(
+            "item",
+            "custom item",
+            "item ${1:Name} {\n    base: Item::${2:DiamondSword},\n    name: \"${3:Name}\",\n}",
+        ),
+        Completion::snippet(
+            "recipe shaped",
+            "crafting-table recipe",
+            "recipe ${1:Name} {\n    shaped: [\"${2:AAA}\", \"${3: B }\", \"${4: B }\"],\n    key: { A: Item::${5:Diamond}, B: Item::${6:Stick} },\n    result: Item::${7:DiamondPickaxe},\n}",
+        ),
+        Completion::snippet(
+            "recipe shapeless",
+            "shapeless recipe",
+            "recipe ${1:Name} {\n    shapeless: [Item::${2:Poppy}],\n    result: Item::${3:RedDye},\n}",
+        ),
+        Completion::snippet(
+            "recipe smelting",
+            "furnace recipe",
+            "recipe ${1:Name} {\n    smelting: Item::${2:RawIron},\n    result: Item::${3:IronIngot},\n    experience: ${4:0.7},\n}",
+        ),
+        Completion::snippet(
+            "tag",
+            "group of items, blocks, or entities",
+            "tag ${1:Name}: ${2:Item} { values: [${3}] }",
+        ),
+        Completion::snippet("mod", "module", "mod ${1:name};"),
+        Completion::snippet("use", "import", "use ${1:crate}::${2:item};"),
+        Completion::snippet(
+            "extern fn",
+            "function from another pack",
+            "extern \"${1:namespace:path}\" fn ${2:name}();",
+        ),
+        Completion::plain("pub", CompletionKind::Keyword),
+    ];
+    if after_pub {
+        // Attributes come before `pub`, and `pub` cannot repeat.
+        all.retain(|c| !matches!(c.label.as_str(), "tick fn" | "event fn" | "pub" | "impl"));
+    }
+    all
+}
+
+/// Parameter help for the call being typed at `offset`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SignatureHelp {
+    /// Full signature label, such as `give_item(item: Item, count?: number)`.
+    pub label: String,
+    /// Byte ranges of each parameter within `label`.
+    pub params: Vec<(usize, usize, String)>,
+    /// Index of the parameter being typed.
+    pub active: usize,
+    /// Markdown documentation for the callee.
+    pub documentation: Option<String>,
+}
+
+fn without_type_applications(text: &str) -> String {
+    let mut output = String::new();
+    let mut depth = 0usize;
+    for character in text.chars() {
+        match character {
+            '<' => {
+                if depth == 0 && output.ends_with("::") {
+                    output.truncate(output.len() - 2);
+                }
+                depth += 1;
+            }
+            '>' if depth > 0 => depth -= 1,
+            _ if depth == 0 => output.push(character),
+            _ => {}
+        }
+    }
+    output
+}
+
+fn signature_parameters(text: &str) -> Vec<&str> {
+    let mut depth = 0usize;
+    let mut start = 0;
+    let mut parameters = Vec::new();
+    for (index, character) in text.char_indices() {
+        match character {
+            '<' | '[' | '(' => depth += 1,
+            '>' | ']' | ')' => depth = depth.saturating_sub(1),
+            ',' if depth == 0 => {
+                parameters.push(text[start..index].trim());
+                start = index + 1;
+            }
+            _ => {}
+        }
+    }
+    parameters.push(text[start..].trim());
+    parameters
+}
+
+/// Signature help for a builtin, macro, or function call around `offset`.
+pub fn signature_help(analysis: &Analysis, file: FileId, offset: usize) -> Option<SignatureHelp> {
+    use crate::builtins::{self, BuiltinKind, ParamKind};
+    let text = &analysis.package.files[file.0].text;
+    let offset = offset.min(text.len());
+    let bytes = text.as_bytes();
+    // Walk back to the unmatched `(`, counting top-level commas.
+    let mut depth = 0i32;
+    let mut commas = Vec::new();
+    let mut in_string = false;
+    let mut open = None;
+    let mut i = offset;
+    while i > 0 {
+        i -= 1;
+        let c = bytes[i];
+        if c == b'"' && (i == 0 || bytes[i - 1] != b'\\') {
+            in_string = !in_string;
+            continue;
+        }
+        if in_string {
+            continue;
+        }
+        match c {
+            b')' => depth += 1,
+            b'(' if depth == 0 => {
+                open = Some(i);
+                break;
+            }
+            b'(' => depth -= 1,
+            b',' if depth == 0 => commas.push(i),
+            b';' | b'{' | b'}' if depth == 0 => return None,
+            _ => {}
+        }
+    }
+    let open = open?;
+    let mut name_end = open;
+    let is_macro = name_end > 0 && bytes[name_end - 1] == b'!';
+    if is_macro {
+        name_end -= 1;
+    }
+    let name_start = value_token_start(&text[..name_end]);
+    let name_source = &text[name_start..name_end];
+    let name_without_applications = without_type_applications(name_source);
+    let name = name_without_applications.as_str();
+    let current_arg_start = commas.first().map(|c| c + 1).unwrap_or(open + 1);
+    let current = text[current_arg_start..offset].trim_start();
+    let named = current
+        .split_once('=')
+        .filter(|(key, rest)| {
+            !rest.starts_with('=')
+                && key
+                    .trim()
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '_')
+        })
+        .map(|(key, _)| key.trim().to_string());
+
+    let mut label = String::new();
+    let mut params = Vec::new();
+    let documentation;
+    let mut push = |label: &mut String, text: String, name: String| {
+        if !params.is_empty() {
+            label.push_str(", ");
+        }
+        let start = label.len();
+        label.push_str(&text);
+        params.push((start, label.len(), name));
+    };
+    let module = analysis
+        .package
+        .module_at(file, offset)
+        .unwrap_or(ModuleId(0));
+    let kinds = if is_macro {
+        vec![BuiltinKind::Macro]
+    } else {
+        vec![
+            BuiltinKind::Statement,
+            BuiltinKind::Expression,
+            BuiltinKind::Condition,
+        ]
+    };
+    let string_builtin = name.rsplit_once('.').and_then(|(receiver, method)| {
+        (value_type(analysis, file, offset, receiver) == Some(Ty::String))
+            .then(|| builtins::string_method(method))
+            .flatten()
+    });
+    let scalar_builtin = name.rsplit_once('.').and_then(|(receiver, method)| {
+        matches!(
+            value_type(analysis, file, offset, receiver),
+            Some(Ty::Number | Ty::Float | Ty::Bool | Ty::Enum(_))
+        )
+        .then(|| builtins::value_method(method))
+        .flatten()
+    });
+    let list_builtin = name.rsplit_once('.').and_then(|(receiver, method)| {
+        matches!(
+            value_type(analysis, file, offset, receiver),
+            Some(Ty::List(_))
+        )
+        .then(|| builtins::list_method(method))
+        .flatten()
+    });
+    let array_builtin = name.rsplit_once('.').and_then(|(receiver, method)| {
+        let owner = value_owner(analysis, file, offset, receiver)?;
+        matches!(analysis.def(owner).info, DefInfo::Array { .. })
+            .then(|| builtins::array_method(method))
+            .flatten()
+    });
+    let builtin = string_builtin
+        .or(scalar_builtin)
+        .or(list_builtin)
+        .or(array_builtin)
+        .or_else(|| {
+            (!scope_names(analysis, module).iter().any(|(n, _)| n == name))
+                .then(|| kinds.iter().find_map(|kind| builtins::find(name, *kind)))
+                .flatten()
+        });
+    let callable = match value_type(analysis, file, offset, name) {
+        Some(Ty::Callable(def)) => Some(&analysis.def(def).info),
+        _ => None,
+    };
+    if let Some(DefInfo::Callable {
+        context,
+        parameters,
+        returns,
+    }) = callable
+    {
+        label.push_str(name);
+        label.push('(');
+        for (index, ty) in parameters.iter().enumerate() {
+            let name = format!("arg{}", index + 1);
+            push(
+                &mut label,
+                format!("{name}: {}", ty_name(analysis, *ty)),
+                name,
+            );
+        }
+        label.push(')');
+        if let Some(ty) = returns {
+            label.push_str(&format!(" -> {}", ty_name(analysis, *ty)));
+        }
+        documentation = Some(match context {
+            Context::Server => "Call a function or closure from any execution context.".into(),
+            Context::Player => "Invoke this callback as a player.".into(),
+            Context::Entity => "Invoke this callback as an entity or player.".into(),
+        });
+    } else if let Some(builtin) = builtin {
+        label.push_str(
+            builtin
+                .name
+                .strip_prefix("array.")
+                .or_else(|| builtin.name.strip_prefix("string."))
+                .or_else(|| builtin.name.strip_prefix("scalar."))
+                .or_else(|| builtin.name.strip_prefix("vec."))
+                .unwrap_or(builtin.name),
+        );
+        if is_macro {
+            label.push('!');
+        }
+        label.push('(');
+        for param in builtin.params {
+            let kind = match param.kind {
+                ParamKind::Registry(registry) => registry,
+                ParamKind::Format => "text",
+                ParamKind::Text => "string",
+                ParamKind::Int => "number",
+                ParamKind::Number => "number",
+                ParamKind::Bool => "bool",
+                ParamKind::Function => "fn",
+                ParamKind::Range => "range",
+                ParamKind::EntityState => "EntityState",
+                ParamKind::QueryScore => "State.field",
+                ParamKind::NbtCompound => "Nbt",
+                ParamKind::Timer => "timer",
+                ParamKind::Position => "Position",
+                ParamKind::BossBar => "BossBar",
+                ParamKind::Loot => "Loot",
+                ParamKind::Predicate => "Predicate",
+                ParamKind::Advancement => "Advancement",
+                ParamKind::Dialog => "Dialog",
+                ParamKind::StructureTemplate => "StructureTemplate",
+                ParamKind::InventoryTransfer => "InventoryTransfer",
+                ParamKind::Checkpoint => "Checkpoint",
+                ParamKind::Encounter => "Encounter",
+                ParamKind::Roster => "Roster",
+                ParamKind::StatusEffect => "StatusEffect",
+                ParamKind::Vfx => "Vfx",
+                ParamKind::Archetype => "Archetype",
+                ParamKind::RosterRole => "role",
+                ParamKind::Hud => "Hud",
+                ParamKind::Menu => "Menu",
+                ParamKind::Projectile => "Projectile",
+                ParamKind::Progression => "Progression",
+                ParamKind::Scene => "Scene",
+                ParamKind::Job => "Job",
+                ParamKind::Session => "Session",
+                ParamKind::Ability => "Ability",
+                ParamKind::Combat => "Combat",
+                ParamKind::EntityRef => "EntityRef",
+                ParamKind::Value => "T",
+            };
+            let rendered = if param.required {
+                format!("{}: {kind}", param.name)
+            } else {
+                format!("{}?: {kind}", param.name)
+            };
+            push(&mut label, rendered, param.name.to_string());
+        }
+        label.push(')');
+        documentation = Some(builtins::describe(builtin));
+    } else {
+        let resolved = analysis
+            .references
+            .iter()
+            .filter(|reference| {
+                reference.file == file
+                    && reference.span.start >= name_start
+                    && reference.span.end <= name_end
+                    && analysis.def(reference.def).kind == DefKind::Function
+            })
+            .max_by_key(|reference| reference.span.start)
+            .map(|reference| reference.def);
+        let def = if let Some(def) = resolved {
+            def
+        } else if let Some((receiver, method)) = name.rsplit_once('.') {
+            let owner = value_owner(analysis, file, offset, receiver)?;
+            analysis
+                .defs
+                .iter()
+                .enumerate()
+                .find(|(_, def)| {
+                    def.parent == Some(owner) && def.name == method && def.kind == DefKind::Function
+                })
+                .map(|(id, _)| DefId(id))?
+        } else {
+            let Target::Def(def) =
+                resolve_names(analysis, module, &name.split("::").collect::<Vec<_>>())?
+            else {
+                return None;
+            };
+            def
+        };
+        let d = analysis.def(def);
+        let DefInfo::Function { signature, .. } = &d.info else {
+            return None;
+        };
+        label.push_str(&d.name);
+        label.push('(');
+        if let Some(function) = analysis.function_types.get(&def) {
+            for parameter in &function.parameters {
+                let parameter = analysis.def(*parameter);
+                if name.contains('.') && parameter.name == "self" {
+                    continue;
+                }
+                let DefInfo::Local { ty, .. } = parameter.info else {
+                    continue;
+                };
+                push(
+                    &mut label,
+                    format!("{}: {}", parameter.name, ty_name(analysis, ty)),
+                    parameter.name.clone(),
+                );
+            }
+            label.push(')');
+            if let Some(ty) = function.returns {
+                label.push_str(&format!(" -> {}", ty_name(analysis, ty)));
+            }
+        } else {
+            let inner = signature
+                .split_once('(')
+                .and_then(|(_, rest)| rest.split_once(')'))
+                .map(|(inner, _)| inner)
+                .unwrap_or("");
+            for param in signature_parameters(inner)
+                .into_iter()
+                .filter(|p| !p.is_empty())
+                .filter(|p| {
+                    !name.contains('.')
+                        || !(p.starts_with("self:")
+                            || p.starts_with("mut self:")
+                            || *p == "&self"
+                            || *p == "&mut self")
+                })
+            {
+                let param_name = param.split(':').next().unwrap_or(param).to_string();
+                push(&mut label, param.to_string(), param_name);
+            }
+            label.push(')');
+            if let Some((_, ret)) = signature.split_once(") ") {
+                label.push(' ');
+                label.push_str(ret);
+            }
+        }
+        documentation = Some(describe(analysis, def));
+    }
+    let active = named
+        .and_then(|key| params.iter().position(|(_, _, n)| *n == key))
+        .unwrap_or(commas.len());
+    Some(SignatureHelp {
+        label,
+        params,
+        active,
+        documentation,
+    })
+}
+
+fn is_ancestor(analysis: &Analysis, ancestor: ModuleId, module: ModuleId) -> bool {
+    let mut cursor = Some(module);
+    while let Some(m) = cursor {
+        if m == ancestor {
+            return true;
+        }
+        cursor = analysis.package.module(m).parent;
+    }
+    false
+}
+
+/// One outline entry.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Symbol {
+    /// Name.
+    pub name: String,
+    /// Short detail, such as a signature.
+    pub detail: Option<String>,
+    /// Definition kind.
+    pub kind: DefKind,
+    /// Whole declaration.
+    pub span: Span,
+    /// Declared name.
+    pub selection: Span,
+    /// Nested entries: fields, variants, and inline module items.
+    pub children: Vec<Symbol>,
+}
+
+/// Hierarchical outline for a file.
+pub fn document_symbols(analysis: &Analysis, file: FileId) -> Vec<Symbol> {
+    let Some(top) = analysis
+        .package
+        .modules
+        .iter()
+        .position(|m| m.file == file)
+        .map(ModuleId)
+    else {
+        return Vec::new();
+    };
+    module_symbols(analysis, file, top)
+}
+
+fn module_symbols(analysis: &Analysis, file: FileId, module: ModuleId) -> Vec<Symbol> {
+    let mut symbols = module_def_symbols(analysis, file, module);
+    for item in &analysis.package.module(module).items {
+        let crate::ast::ItemKind::Impl(implementation) = &item.kind else {
+            continue;
+        };
+        let children = implementation
+            .methods
+            .iter()
+            .filter_map(|method| {
+                let name = method.name()?;
+                let def = analysis.defs.iter().find(|def| {
+                    def.file == file && def.name_span == name.span && def.kind == DefKind::Function
+                })?;
+                Some(Symbol {
+                    name: def.name.clone(),
+                    detail: None,
+                    kind: def.kind,
+                    span: method.span,
+                    selection: def.name_span,
+                    children: Vec::new(),
+                })
+            })
+            .collect();
+        symbols.push(Symbol {
+            name: format!("impl {}", implementation.target.display()),
+            detail: None,
+            kind: DefKind::Struct,
+            span: item.span,
+            selection: implementation.target.span,
+            children,
+        });
+    }
+    symbols.sort_by_key(|symbol| symbol.span.start);
+    symbols
+}
+
+fn module_def_symbols(analysis: &Analysis, file: FileId, module: ModuleId) -> Vec<Symbol> {
+    analysis
+        .defs
+        .iter()
+        .enumerate()
+        .filter(|(index, d)| {
+            !analysis.origins.contains_key(&DefId(*index))
+                && d.module == module
+                && d.parent.is_none()
+                && d.file == file
+                && d.kind != DefKind::Local
+        })
+        .map(|(_, d)| {
+            let children = match &d.info {
+                DefInfo::State { fields: list, .. }
+                | DefInfo::Struct { fields: list }
+                | DefInfo::Enum { variants: list, .. } => list
+                    .iter()
+                    .map(|child| {
+                        let c = analysis.def(*child);
+                        Symbol {
+                            name: c.name.clone(),
+                            detail: None,
+                            kind: c.kind,
+                            span: c.span,
+                            selection: c.name_span,
+                            children: Vec::new(),
+                        }
+                    })
+                    .collect(),
+                DefInfo::Module {
+                    target: Some(target),
+                } if analysis.package.module(*target).file == file => {
+                    module_symbols(analysis, file, *target)
+                }
+                _ => Vec::new(),
+            };
+            let detail = match &d.info {
+                DefInfo::Function { context, .. } => Some(context.name().to_string()),
+                DefInfo::State { scope, .. } => Some(
+                    match scope {
+                        Scope::Player => "player",
+                        Scope::Global => "global",
+                        Scope::Entity => "entity",
+                    }
+                    .to_string(),
+                ),
+                DefInfo::Const { value: Some(v), .. } => Some(v.to_string()),
+                _ => None,
+            };
+            Symbol {
+                name: d.name.clone(),
+                detail,
+                kind: d.kind,
+                span: d.span,
+                selection: d.name_span,
+                children,
+            }
+        })
+        .collect()
+}
+
+/// An inline annotation rendered by the editor.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InlayHint {
+    /// Byte offset the hint is attached after.
+    pub offset: usize,
+    /// Hint text.
+    pub label: String,
+    /// Markdown tooltip.
+    pub tooltip: Option<String>,
+}
+
+/// Inferred execution context after each function signature.
+pub fn inlay_hints(analysis: &Analysis, file: FileId) -> Vec<InlayHint> {
+    let text = &analysis.package.files[file.0].text;
+    analysis
+        .defs
+        .iter()
+        .filter(|d| d.file == file)
+        .filter_map(|d| {
+            let DefInfo::Function {
+                context,
+                player_reason,
+                ..
+            } = &d.info
+            else {
+                return None;
+            };
+            let after = text.get(d.name_span.end..)?;
+            let close = after.find(')')?;
+            Some(InlayHint {
+                offset: d.name_span.end + close + 1,
+                label: format!(": {}", context.name()),
+                tooltip: Some(match (context, player_reason) {
+                    (Context::Player, Some(reason)) => {
+                        format!("Runs as a player because it {reason}.")
+                    }
+                    (Context::Player, None) => "Runs as a player.".into(),
+                    (Context::Entity, Some(reason)) => {
+                        format!("Runs as an entity because it {reason}.")
+                    }
+                    (Context::Entity, None) => "Runs as an entity.".into(),
+                    (Context::Server, _) => "Runs on the server; callable from anywhere.".into(),
+                }),
+            })
+        })
+        .collect()
+}

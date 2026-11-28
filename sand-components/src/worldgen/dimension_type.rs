@@ -6,6 +6,8 @@
 
 use std::collections::BTreeMap;
 
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::component::DatapackComponent;
@@ -52,7 +54,8 @@ const TYPED_FIELDS: &[&str] = &[
     variant_fields(Constant = ["A single light level."], Uniform(max_inclusive = "`max_inclusive` provides the max inclusive when a uniformly sampled inclusive light-level range.", min_inclusive = "`min_inclusive` provides the min inclusive when a uniformly sampled inclusive light-level range.")),
 )]
 /// The sky-light range in which monsters may spawn.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum MonsterSpawnLightLevel {
     /// A single light level.
     Constant(#[doc = "A single light level."] u8),
@@ -134,8 +137,13 @@ impl MonsterSpawnLightLevel {
 /// assert_eq!(ty.component_dir(), "dimension_type");
 /// assert_eq!(ty.to_json()["effects"], "minecraft:overworld");
 /// ```
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct DimensionType {
+    #[serde(rename = "id")]
+    #[schemars(with = "String")]
     location: ResourceLocation,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     fixed_time: Option<i64>,
     has_skylight: bool,
     has_ceiling: bool,
@@ -147,7 +155,10 @@ pub struct DimensionType {
     min_y: i32,
     height: u32,
     logical_height: u32,
+    #[serde(deserialize_with = "deserialize_infiniburn")]
+    #[schemars(with = "String")]
     infiniburn: TagId<BlockId>,
+    #[schemars(with = "String")]
     effects: ResourceLocation,
     ambient_light: f32,
     piglin_safe: bool,
@@ -155,7 +166,16 @@ pub struct DimensionType {
     has_ender_dragon_fight: bool,
     monster_spawn_light_level: MonsterSpawnLightLevel,
     monster_spawn_block_light_limit: u8,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     raw_fields: BTreeMap<String, RawJson>,
+}
+
+fn deserialize_infiniburn<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<TagId<BlockId>, D::Error> {
+    String::deserialize(deserializer)?
+        .parse()
+        .map_err(serde::de::Error::custom)
 }
 
 impl DimensionType {

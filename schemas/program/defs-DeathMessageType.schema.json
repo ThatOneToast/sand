@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Controls the format of the death message for this damage type.",
+  "enum": [
+    "default",
+    "fall_variants",
+    "intentional_game_design"
+  ],
+  "type": "string"
+}

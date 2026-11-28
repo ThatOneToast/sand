@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Custom health rules backed by the executing player's State.",
+  "properties": {
+    "critical": {
+      "anyOf": [
+        {
+          "$ref": "defs-CombatCritical.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional conditional critical-hit multiplier."
+    },
+    "defeat": {
+      "anyOf": [
+        {
+          "$ref": "defs-FunctionReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional callback when a hit reaches zero health."
+    },
+    "healed": {
+      "anyOf": [
+        {
+          "$ref": "defs-FunctionReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional callback after accepted healing."
+    },
+    "health": {
+      "$ref": "defs-FieldReference.schema.json",
+      "description": "Canonical number holding authoritative health."
+    },
+    "hit": {
+      "anyOf": [
+        {
+          "$ref": "defs-FunctionReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional callback after a committed hit."
+    },
+    "id": {
+      "description": "Identity used to apply this policy.",
+      "type": "string"
+    },
+    "immunity": {
+      "anyOf": [
+        {
+          "$ref": "defs-StateCooldown.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional timer started by committed damage."
+    },
+    "max": {
+      "description": "Positive maximum health.",
+      "format": "double",
+      "type": "number"
+    },
+    "resistance": {
+      "description": "Optional mitigation fraction.",
+      "format": "double",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "shield": {
+      "anyOf": [
+        {
+          "$ref": "defs-FieldReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional shield used before health."
+    }
+  },
+  "required": [
+    "id",
+    "health",
+    "max"
+  ],
+  "type": "object"
+}

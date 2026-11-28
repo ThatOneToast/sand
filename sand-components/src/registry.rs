@@ -217,6 +217,11 @@ registry_id! {
 }
 
 registry_id! {
+    /// Typed Minecraft placed-feature identifier for biome generation steps.
+    PlacedFeatureId
+}
+
+registry_id! {
     /// Typed Minecraft configured-carver identifier (e.g. `minecraft:cave` or
     /// `mymod:arcane_cave`).
     ///
@@ -585,6 +590,14 @@ impl<T> fmt::Display for TagId<T> {
 impl<T> Serialize for TagId<T> {
     fn serialize<S: Serializer>(&self, s: S) -> std::result::Result<S::Ok, S::Error> {
         self.rl.serialize(s)
+    }
+}
+
+impl<'de, T> serde::Deserialize<'de> for TagId<T> {
+    fn deserialize<D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> std::result::Result<Self, D::Error> {
+        ResourceLocation::deserialize(deserializer).map(Self::custom)
     }
 }
 

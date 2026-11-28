@@ -1,0 +1,255 @@
+// The Sand language grammar.
+//
+// Sand source follows Rust's surface syntax: items, attributes, doc comments,
+// modules, `use` paths, blocks and statements. The grammar is deliberately
+// recovering: a malformed item or statement becomes a `bad_item`/`bad_stmt`
+// node instead of failing the whole file, so the editor tooling keeps a
+// complete outline while the author types. The parser re-parses each bad node
+// strictly to report the precise expectation.
+
+WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
+COMMENT    = _{ block_comment | line_comment }
+line_comment  = _{ "//" ~ !("/" ~ !"/") ~ !"!" ~ (!"\n" ~ ANY)* }
+block_comment = _{ "/*" ~ (block_comment | !"*/" ~ ANY)* ~ "*/" }
+
+outer_doc = @{ "///" ~ !"/" ~ (!"\n" ~ ANY)* }
+inner_doc = @{ "//!" ~ (!"\n" ~ ANY)* }
+
+// ── Lexical ─────────────────────────────────────────────────────────────────
+
+ident_char = _{ ASCII_ALPHANUMERIC | "_" }
+keyword = @{
+    ( "trait" | "impl" | "fn" | "pub" | "mod" | "use" | "const" | "enum" | "state" | "flow"
+    | "if" | "else" | "for" | "in" | "extern" | "as" | "let" | "return"
+    | "while" | "loop" | "match" | "struct" | "true" | "false" | "mut" | "continue"
+    | "break" | "emit" | "move" ) ~ !ident_char
+}
+ident = @{ !keyword ~ (ASCII_ALPHA | "_") ~ ident_char* }
+int   = @{ ASCII_DIGIT ~ (ASCII_DIGIT | "_")* }
+float = @{ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
+bool_lit = @{ ("true" | "false") ~ !ident_char }
+string = ${ "\"" ~ string_inner ~ "\"" }
+string_inner = @{ (!("\"" | "\\" | "\n") ~ ANY | "\\" ~ ANY)* }
+
+path_segment = _{ ident | crate_kw | super_kw | self_kw }
+crate_kw = @{ "crate" ~ !ident_char }
+super_kw = @{ "super" ~ !ident_char }
+self_kw  = @{ "self" ~ !ident_char }
+path = { path_segment ~ turbofish? ~ ("::" ~ path_segment ~ turbofish?)* }
+turbofish = { "::" ~ type_arguments }
+type_arguments = { "<" ~ ty ~ ("," ~ ty)* ~ ","? ~ ">" }
+generic_params = { "<" ~ ident ~ ("," ~ ident)* ~ ","? ~ ">" }
+
+// Whole-word keyword tokens; the AST builder skips them.
+kw_struct = @{ "struct" ~ !ident_char }
+kw_move = @{ "move" ~ !ident_char }
+kw_trait = @{ "trait" ~ !ident_char }
+kw_impl = @{ "impl" ~ !ident_char }
+kw_fn = @{ "fn" ~ !ident_char }
+kw_mod = @{ "mod" ~ !ident_char }
+kw_use = @{ "use" ~ !ident_char }
+kw_const = @{ "const" ~ !ident_char }
+kw_enum = @{ "enum" ~ !ident_char }
+kw_state = @{ "state" ~ !ident_char }
+kw_flow = @{ "flow" ~ !ident_char }
+kw_event = @{ "event" ~ !ident_char }
+kw_extern = @{ "extern" ~ !ident_char }
+kw_if = @{ "if" ~ !ident_char }
+kw_else = @{ "else" ~ !ident_char }
+kw_for = @{ "for" ~ !ident_char }
+kw_in = @{ "in" ~ !ident_char }
+kw_as = @{ "as" ~ !ident_char }
+kw_on = @{ "on" ~ !ident_char }
+kw_let = @{ "let" ~ !ident_char }
+kw_mut = @{ "mut" ~ !ident_char }
+kw_return = @{ "return" ~ !ident_char }
+kw_continue = @{ "continue" ~ !ident_char }
+kw_break = @{ "break" ~ !ident_char }
+kw_emit = @{ "emit" ~ !ident_char }
+kw_loop = @{ "loop" ~ !ident_char }
+kw_match = @{ "match" ~ !ident_char }
+kw_while = @{ "while" ~ !ident_char }
+kw_every = @{ "every" ~ !ident_char }
+kw_priority = @{ "priority" ~ !ident_char }
+
+// ── File structure ──────────────────────────────────────────────────────────
+
+file = { SOI ~ (inner_doc | inner_attr)* ~ (item | bad_item)* ~ EOI }
+
+inner_attr = { "#" ~ "!" ~ "[" ~ attr_body ~ "]" }
+attr       = { "#" ~ "[" ~ attr_body ~ "]" }
+attr_body  = { path ~ attr_args? }
+attr_args  = { "(" ~ (attr_arg ~ ("," ~ attr_arg)* ~ ","?)? ~ ")" }
+attr_arg   = { (ident ~ "=" ~ attr_value) | attr_value }
+attr_value = { string | range | expr }
+
+vis = @{ "pub" ~ !ident_char }
+
+item = { (outer_doc | attr)* ~ vis? ~ item_kind }
+item_kind = _{
+    mod_item | use_item | const_item | enum_item | state_item | struct_item | trait_item | impl_item
+  | flow_item | extern_fn | fn_item | event_item | data_item
+}
+
+// Custom events: `event Payday(amount: number);`.
+event_item = { kw_event ~ ident ~ ("(" ~ params? ~ ")")? ~ ";" }
+
+// Data resources: `item Name { field: value, ... }` and
+// `tag Name: Item { ... }`. The kind words are contextual, so they remain
+// usable as ordinary names elsewhere.
+data_item   = { data_kind ~ ident ~ (":" ~ ident)? ~ data_object }
+data_kind   = @{ ("item" | "recipe" | "tag" | "bossbar" | "loot" | "damage_type" | "predicate" | "advancement" | "dialog" | "dimension_type" | "dimension" | "biome" | "structure_template" | "structure_set" | "jigsaw_structure" | "template_pool" | "ore_feature" | "configured_feature" | "placed_feature" | "inventory_transfer" | "checkpoint" | "encounter" | "roster" | "status_effect" | "vfx" | "archetype" | "hud" | "menu" | "projectile" | "progression" | "session" | "ability" | "combat" | "job" | "scene") ~ !ident_char }
+data_object = { "{" ~ (data_field ~ ("," ~ data_field)* ~ ","?)? ~ "}" }
+data_field  = { (ident | string) ~ ":" ~ data_value }
+data_value  = { data_array | data_object | expr }
+data_array  = { "[" ~ (data_value ~ ("," ~ data_value)* ~ ","?)? ~ "]" }
+
+// Recovery: skip to the next line that starts with something item-shaped.
+bad_item  = @{ (!("\n" ~ item_head) ~ ANY)+ }
+item_head = _{
+    "#" | "///"
+  | (( "struct" | "impl" | "pub" | "fn" | "mod" | "use" | "const" | "enum" | "player" | "global" | "entity"
+     | "flow" | "extern" | "item" | "recipe" | "tag" | "event" | "bossbar" | "loot" | "damage_type" | "predicate" | "advancement" | "dialog" | "dimension_type" | "dimension" | "biome" | "structure_template" | "structure_set" | "jigsaw_structure" | "template_pool" | "ore_feature" | "configured_feature" | "placed_feature" | "inventory_transfer" | "checkpoint" | "encounter" | "roster" | "status_effect" | "vfx" | "archetype" | "hud" | "menu" | "projectile" | "progression" | "session" | "ability" | "combat" | "job" | "scene" ) ~ !ident_char)
+}
+
+mod_item   = { kw_mod ~ ident ~ (";" | mod_body) }
+mod_body   = { "{" ~ (item | bad_item_inline)* ~ "}" }
+bad_item_inline = @{ !"}" ~ (!("\n" ~ (WHITESPACE)* ~ (item_head | "}")) ~ ANY)+ }
+
+use_item   = { kw_use ~ use_tree ~ ";" }
+use_tree   = { path ~ (("::" ~ use_group) | (kw_as ~ ident))? }
+use_group  = { "{" ~ (use_tree ~ ("," ~ use_tree)* ~ ","?)? ~ "}" }
+
+const_item = { kw_const ~ ident ~ ":" ~ ty ~ "=" ~ expr ~ ";" }
+
+enum_item  = { kw_enum ~ ident ~ generic_params? ~ "{" ~ (variant ~ ("," ~ variant)* ~ ","?)? ~ "}" }
+variant    = { outer_doc* ~ ident ~ variant_payload? ~ ("=" ~ expr)? }
+variant_payload = { "(" ~ ty ~ ("," ~ ty)* ~ ","? ~ ")" }
+
+struct_item = { kw_struct ~ ident ~ generic_params? ~ "{" ~ (field ~ ("," ~ field)* ~ ","?)? ~ "}" }
+trait_item = { kw_trait ~ ident ~ "{" ~ trait_method* ~ "}" }
+trait_method = { kw_fn ~ ident ~ "(" ~ fn_params? ~ ")" ~ ret_ty? ~ (";" | block) }
+impl_contract = { path ~ kw_for }
+impl_item = { kw_impl ~ generic_params? ~ impl_contract? ~ path ~ type_arguments? ~ "{" ~ item* ~ "}" }
+
+state_item = { scope ~ kw_state ~ ident ~ "{" ~ (field ~ ("," ~ field)* ~ ","?)? ~ "}" }
+scope      = @{ ("player" | "global" | "entity") ~ !ident_char }
+field      = { (outer_doc | attr)* ~ vis? ~ ident ~ ":" ~ ty ~ ("=" ~ expr)? }
+ty         = { function_ty | array_ty | applied_ty | path }
+callable_executor = @{ ("player" | "entity") ~ !ident_char }
+function_ty = { callable_executor? ~ kw_fn ~ "(" ~ (ty ~ ("," ~ ty)* ~ ","?)? ~ ")" ~ ret_ty? }
+applied_ty = { path ~ "<" ~ ty ~ ("," ~ ty)* ~ ","? ~ ">" }
+array_ty = { "[" ~ ty ~ ";" ~ (int | path) ~ "]" }
+
+extern_fn  = { kw_extern ~ string ~ kw_fn ~ ident ~ "(" ~ ")" ~ ";" }
+fn_generic_params = { "<" ~ fn_generic_param ~ ("," ~ fn_generic_param)* ~ ","? ~ ">" }
+fn_generic_param = { ident ~ (":" ~ path ~ ("+" ~ path)*)? }
+fn_item    = { kw_fn ~ ident ~ fn_generic_params? ~ "(" ~ fn_params? ~ ")" ~ ret_ty? ~ block }
+fn_params = { (receiver ~ ("," ~ params)? ~ ","?) | params }
+receiver = { (("&" ~ kw_mut?) | kw_mut)? ~ self_kw }
+params     = { param ~ ("," ~ param)* ~ ","? }
+param      = { mut_kw? ~ ident ~ ":" ~ ty }
+ret_ty     = { "->" ~ ty }
+
+flow_item  = { kw_flow ~ ident ~ kw_on ~ place ~ "{" ~ (transition | hook | bad_stmt)* ~ "}" }
+transition = { expr ~ "->" ~ expr ~ (kw_if ~ cond)? ~ (kw_priority ~ expr)? ~ ";" }
+hook       = { hook_phase ~ expr ~ (kw_every ~ expr)? ~ (("=>" ~ path ~ ";") | block) }
+hook_phase = @{ ("enter" | "exit" | "tick") ~ !ident_char }
+
+// ── Statements ──────────────────────────────────────────────────────────────
+
+block = { "{" ~ (stmt | bad_stmt)* ~ "}" }
+
+stmt = { outer_doc* ~ (destructure_stmt | let_stmt | return_stmt | continue_stmt | break_stmt | emit_stmt | while_stmt | loop_stmt | match_stmt | if_stmt | for_stmt | macro_stmt | assign_stmt | call_stmt) }
+// Recovery: skip the rest of the line (or up to `;`) without crossing `}`.
+bad_stmt = @{ (!(";" | "\n" | "}") ~ ANY)+ ~ ";"? }
+
+destructure_stmt = { kw_let ~ (record_pattern | array_pattern | ignore_pattern) ~ (":" ~ ty)? ~ "=" ~ (value_expr | expr) ~ ";" }
+value_pattern = { record_pattern | array_pattern | ignore_pattern | binding_pattern }
+record_pattern = { path ~ "{" ~ (pattern_field ~ ("," ~ pattern_field)* ~ ("," ~ pattern_rest)? ~ ","? | pattern_rest)? ~ "}" }
+pattern_field = { ident ~ (":" ~ value_pattern)? }
+pattern_rest = { ".." }
+array_pattern = { "[" ~ (value_pattern ~ ("," ~ value_pattern)* ~ ","?)? ~ "]" }
+ignore_pattern = { "_" ~ !ident_char }
+binding_pattern = { mut_kw? ~ ident }
+let_stmt      = { kw_let ~ mut_kw? ~ ident ~ (":" ~ ty)? ~ ("=" ~ (value_expr | expr))? ~ ";" }
+// A boolean-valued condition used as a value: `let ok = a > b;`.
+value_expr    = { !";" ~ !(expr ~ ";") ~ cond }
+mut_kw        = { kw_mut }
+return_stmt   = { kw_return ~ (value_expr | expr)? ~ ";" }
+continue_stmt = { kw_continue ~ ";" }
+break_stmt    = { kw_break ~ ";" }
+emit_stmt     = { kw_emit ~ path ~ ("(" ~ args? ~ ")")? ~ ";" }
+loop_stmt     = { kw_loop ~ block }
+match_stmt    = { kw_match ~ expr ~ "{" ~ match_arm* ~ "}" }
+match_arm     = { match_pattern ~ match_guard? ~ "=>" ~ block ~ ","? }
+match_expr = { kw_match ~ expr ~ "{" ~ match_value_arm ~ ("," ~ match_value_arm)* ~ ","? ~ "}" }
+match_value_arm = { match_pattern ~ match_guard? ~ "=>" ~ record_value }
+match_guard = { kw_if ~ cond }
+match_pattern = { match_binding | match_wildcard | match_variant | (expr ~ ("|" ~ !"|" ~ expr)*) }
+match_variant = { path ~ "(" ~ value_pattern ~ ("," ~ value_pattern)* ~ ","? ~ ")" }
+match_binding = { kw_let ~ value_pattern }
+match_wildcard = @{ "_" ~ !ident_char }
+while_stmt    = { kw_while ~ cond ~ block }
+if_stmt     = { kw_if ~ cond ~ block ~ (kw_else ~ (if_stmt | block))? }
+for_stmt    = { kw_for ~ ident ~ kw_in ~ (count_range | expr) ~ block }
+count_range = { ("(" ~ range ~ ")" ~ reverse_range? ~ range_step?) | range }
+reverse_range = { "." ~ "rev" ~ "(" ~ ")" }
+range_step = { "." ~ "step_by" ~ "(" ~ expr ~ ")" }
+macro_stmt  = { ident ~ "!" ~ "(" ~ args? ~ ")" ~ ";" }
+assign_stmt = { expr ~ assign_op ~ (value_expr | expr) ~ ";" }
+assign_op   = @{ "+=" | "-=" | "*=" | "/=" | "%=" | ("=" ~ !"=") }
+call_stmt   = { expr ~ ";" }
+args        = { arg ~ ("," ~ arg)* ~ ","? }
+arg         = { (ident ~ "=" ~ !"=" ~ arg_value) | arg_value }
+arg_value   = { range | arg_condition | expr }
+arg_condition = { !(expr ~ ("," | ")")) ~ cond }
+place       = { path ~ ("." ~ ident ~ !("(" | "::" ~ "<"))+ }
+
+// ── Conditions ──────────────────────────────────────────────────────────────
+
+cond       = { cond_and ~ ("||" ~ cond_and)* }
+cond_and   = { cond_unary ~ ("&&" ~ cond_unary)* }
+cond_unary = { not_op* ~ cond_atom }
+not_op     = @{ "!" ~ !"=" }
+cond_atom  = _{ ("(" ~ cond ~ ")" ~ !("." | "[" | cmp_op | infix | kw_as | kw_in)) | comparison | in_range | cond_call | cond_expr }
+cond_expr = { expr }
+cond_call  = { path ~ "(" ~ args? ~ ")" }
+comparison = { expr ~ cmp_op ~ expr }
+cmp_op     = { "==" | "!=" | "<=" | ">=" | "<" | ">" }
+in_range   = { expr ~ kw_in ~ range }
+range      = { expr? ~ range_op ~ expr? }
+range_op   = { "..=" | ".." }
+
+// ── Expressions ─────────────────────────────────────────────────────────────
+
+expr    = { prefix* ~ primary ~ postfix* ~ (infix ~ prefix* ~ primary ~ postfix*)* }
+prefix  = _{ neg }
+neg     = { "-" }
+postfix = _{ cast | method_postfix | field_postfix | index_postfix }
+index_postfix = { "[" ~ expr ~ "]" }
+method_postfix = { "." ~ ident ~ turbofish? ~ "(" ~ args? ~ ")" }
+field_postfix = { "." ~ ident }
+cast    = { kw_as ~ ty }
+infix   = _{ add | sub | mul | div | rem }
+add     = @{ "+" ~ !"=" }
+sub     = @{ "-" ~ !("=" | ">") }
+mul     = @{ "*" ~ !"=" }
+div     = @{ "/" ~ !"=" }
+rem     = @{ "%" ~ !"=" }
+group = { "(" ~ ((expr ~ &")") | cond) ~ ")" }
+record_literal = { path ~ "{" ~ record_field ~ ("," ~ record_field)* ~ ","? ~ "}" }
+record_field = { ident ~ (":" ~ record_value)? }
+record_value = { (expr ~ &( "," | "}" )) | cond }
+array_expr = { "[" ~ (array_repeat | (array_value ~ ("," ~ array_value)* ~ ","?))? ~ "]" }
+array_repeat = { expr ~ ";" ~ (int | path) }
+array_value = { (expr ~ &( "," | "]" )) | cond }
+closure_expr = { kw_move ~ "|" ~ params? ~ "|" ~ ret_ty? ~ block }
+block_expr = { "{" ~ stmt* ~ record_value ~ "}" }
+primary = _{ closure_expr | match_expr | block_expr | array_expr | record_literal | group | float | int | bool_lit | string | call_expr | place | path }
+call_expr = { path ~ "(" ~ args? ~ ")" }
+
+// ── Strict entry points used to explain recovered nodes ─────────────────────
+
+item_only = { SOI ~ item ~ EOI }
+stmt_only = { SOI ~ (stmt | transition | hook) ~ EOI }

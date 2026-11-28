@@ -166,11 +166,29 @@ impl ResolvedServerProperties {
 }
 
 pub fn run(args: RunArgs) -> Result<()> {
+    // A Sand language project has `pack.sand` and no `sand.toml`.
+    if !Path::new("sand.toml").exists() && Path::new(sand_lang::ROOT_FILE).exists() {
+        return crate::lang_cmd::run_project(Path::new("."), args);
+    }
     run_internal(
         args,
         false,
         &mut None,
         &mut crate::dev::ManagedPack::default(),
+    )
+    .map(|_| ())
+}
+
+/// Launch the managed local server with a pack already built in `dist/`,
+/// without reading `sand.toml`. The current directory is the project root.
+pub(crate) fn launch_built(namespace: &str, mc_version: &str, args: RunArgs) -> Result<()> {
+    launch(
+        args,
+        None,
+        &mut None,
+        &mut crate::dev::ManagedPack::default(),
+        namespace,
+        &resolve_mc_version(mc_version),
     )
     .map(|_| ())
 }
@@ -198,6 +216,12 @@ fn run_internal(
     // ── 1. Read sand.toml ────────────────────────────────────────────────────
     let config_path = std::env::current_dir()?.join("sand.toml");
     if !config_path.exists() {
+        if Path::new(sand_lang::ROOT_FILE).exists() {
+            bail!(
+                "this is a Sand language project, which has no sand.toml — \
+                 use `sand lang run`, and `sand lang build` plus `/reload` after edits"
+            );
+        }
         bail!("sand.toml not found — run `sand run` from your project root");
     }
     let config: SandConfig = toml::from_str(&std::fs::read_to_string(&config_path)?)
@@ -221,7 +245,27 @@ fn run_internal(
     if preparation_cancelled(console) {
         return Ok(false);
     }
+    let namespace = config.pack.namespace.as_str().to_owned();
+    launch(
+        args,
+        dev_inputs.map(|inputs| (&config, inputs)),
+        console,
+        managed_pack,
+        &namespace,
+        &mc_version,
+    )
+}
 
+/// Prepare `dist/server/`, install the built pack, and run the server. Only
+/// `sand dev` passes `watch`; everything else here is project-format agnostic.
+fn launch(
+    args: RunArgs,
+    watch: Option<(&SandConfig, crate::dev::BuildInputs)>,
+    console: &mut Option<crate::console::process::ConsoleSession>,
+    managed_pack: &mut crate::dev::ManagedPack,
+    namespace: &str,
+    mc_version: &str,
+) -> Result<bool> {
     // ── 2b. Read any ServerConfig a sand.build.rs produced (issue #317) ─────
     // 🖥️ Server (host) only — never part of the datapack. Only present when
     // the project has a sand.build.rs whose SandBuild configured a
@@ -244,7 +288,7 @@ fn run_internal(
         "Checking".cyan().bold(),
         mc_version.yellow()
     );
-    let jar_path = sand_build::ensure_server_jar(&mc_version)
+    let jar_path = sand_build::ensure_server_jar(mc_version)
         .with_context(|| format!("failed to get server jar for Minecraft {mc_version}"))?;
     println!(
         "  {} {}",
@@ -330,19 +374,18 @@ fn run_internal(
         );
     }
 
-    let mut dev = if watch {
-        Some(crate::dev::Session::new(
-            &config,
+    let watching = watch.is_some();
+    let mut dev = match watch {
+        Some((config, inputs)) => Some(crate::dev::Session::new(
+            config,
             &args.profile,
             &props_path,
-            dev_inputs.expect("dev inputs captured before building"),
-        )?)
-    } else {
-        None
+            inputs,
+        )?),
+        None => None,
     };
 
     // ── 7. Sync datapack into world/datapacks/ ───────────────────────────────
-    let namespace = config.pack.namespace.as_str();
     let src = PathBuf::from("dist").join(namespace);
     let dest = server_dir.join("world").join("datapacks").join(namespace);
 
@@ -356,7 +399,7 @@ fn run_internal(
     // A failed prior namespace handoff must not be overwritten by this sync,
     // even in a fresh process or when switching from dev to ordinary run.
     crate::dev::ensure_handoffs_complete(dest.parent().expect("datapacks parent"))?;
-    let (sync, committed) = if watch {
+    let (sync, committed) = if watching {
         managed_pack
             .install(&src, &dest)
             .map(|installed| (installed.stats, Some(installed.identity)))
@@ -413,7 +456,7 @@ fn run_internal(
     let outcome = crate::console::process::run_server_with_dev(
         command,
         args.server_log,
-        &mc_version,
+        mc_version,
         dev.as_mut(),
         console,
     )?;

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Fixed pages for a custom written book, using portable rich text.",
+  "properties": {
+    "author": {
+      "description": "Book author shown by the native interface.",
+      "type": "string"
+    },
+    "pages": {
+      "description": "Ordered rich-text pages, up to 100.",
+      "items": {
+        "items": {
+          "$ref": "defs-TextPart.schema.json"
+        },
+        "type": "array"
+      },
+      "type": "array"
+    },
+    "title": {
+      "description": "Native title, limited to 32 UTF-16 code units.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "title",
+    "author",
+    "pages"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "How random-spread candidate chunks are chosen inside each spacing cell.\n\n# Context\nHow random-spread candidate chunks are chosen inside each spacing cell. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::SpreadType;\n```\nHow random-spread candidate chunks are chosen inside each spacing cell.",
+  "oneOf": [
+    {
+      "const": "linear",
+      "description": "Distributes candidate chunks with Minecraft's linear spread.\nDistributes candidate chunks with Minecraft's linear spread.",
+      "type": "string"
+    },
+    {
+      "const": "triangular",
+      "description": "Distributes candidate chunks with Minecraft's triangular spread.\nDistributes candidate chunks with Minecraft's triangular spread.",
+      "type": "string"
+    }
+  ]
+}

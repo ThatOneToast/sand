@@ -207,7 +207,7 @@ pub(crate) fn lifecycle(storage: &str) -> (String, String, String) {
 
 /// Gate the complete component transition, including its presence publication.
 pub(crate) fn guard(
-    fields: &[super::state::StateDataFieldDescriptor],
+    fields: &[super::state::StateDataFieldDescriptor<'_>],
     commands: Vec<String>,
 ) -> Vec<String> {
     let storages = fields

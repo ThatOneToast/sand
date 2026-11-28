@@ -89,10 +89,9 @@ def main(argv=None):
         h.send("execute in minecraft:the_nether run forceload add 0 0")
         h.load_test_chunk("minecraft:overworld")
         h.load_test_chunk("minecraft:the_nether")
-        h.send("fill 0 199 0 6 199 6 minecraft:stone")
-        h.send("execute in minecraft:the_nether run fill 0 99 0 6 99 6 minecraft:stone")
-        h.send("fill 0 200 0 6 204 6 minecraft:air")
-        h.send("execute in minecraft:the_nether run fill 0 100 0 6 104 6 minecraft:air")
+        # Keep natural fluids and falling blocks out of each landing area.
+        for dimension, floor in (("overworld", 199), ("the_nether", 99)):
+            h.send(f"execute in minecraft:{dimension} run fill 0 {floor} 0 6 {floor + 5} 6 minecraft:stone hollow")
         h.send("difficulty peaceful")
         with h.clients(players=("SandBeta",)):
             with h.clients(players=("SandAlpha",)):

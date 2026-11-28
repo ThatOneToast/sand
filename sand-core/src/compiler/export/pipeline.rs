@@ -2633,29 +2633,7 @@ pub(crate) fn try_export_components_impl(
     // ── Compiler-managed score constants / expression temporaries ───────────
     // Structured helper lowering can allocate numeric working objectives.
     // Finish every factory and dynamic helper before draining initialization.
-    let score_setup = crate::state::score::drain_internal_score_setup();
-    if !score_setup.is_empty() {
-        let path = "__sand_score_init";
-        runtime.generated_lifecycle(
-            format!("{namespace}:{path}"),
-            "load",
-            super::functions::resolve_origins(crate::function::take_score_origins(), namespace),
-        );
-        records.push(ComponentRecord {
-            namespace: namespace.to_string(),
-            dir: "function".to_string(),
-            path: path.to_string(),
-            ext: "mcfunction".to_string(),
-            content_type: "text".to_string(),
-            content: score_setup.join("\n"),
-        });
-        tag_map
-            .entry("minecraft:load".to_string())
-            .or_default()
-            // Lowering happens late, but these objectives must exist before
-            // any generated lifecycle function can execute numeric actions.
-            .insert(0, format!("{namespace}:{path}"));
-    }
+    super::functions::drain_score_setup(&mut records, namespace, &mut runtime, &mut tag_map);
 
     // ── FunctionTagDescriptors ────────────────────────────────────────────────
     // Append user-declared function tag entries after Sand-owned setup/dispatcher
@@ -2698,8 +2676,8 @@ pub(crate) fn try_export_components_impl(
         "BUG: unresolved __sand_local sentinel found in exported records"
     );
 
-    if ctx.is_some_and(|ctx| ctx.caps.is_at_least(26, 3, 0)) {
-        super::schema_26_3::lower(&mut records)?;
+    if let Some(ctx) = ctx {
+        super::lower_for_target(&mut records, ctx)?;
     }
     validate_unique_output_identities(&records)?;
     validate_gameplay_references(&records)?;

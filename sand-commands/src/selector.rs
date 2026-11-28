@@ -365,6 +365,29 @@ impl<K, A> Target<K, A> {
         self
     }
 
+    /// Require a player's completion status for an advancement or one criterion.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::command::Target::advancement",
+        module = "sand::command", kind = "method",
+        summary = "Filters players by advancement or criterion progress.",
+        context = "A whole-advancement requirement replaces criterion requirements for that advancement. Adding another criterion combines it with earlier criterion requirements.",
+        minecraft = "Renders the native Player selector advancements argument.",
+        use_when = ["Selecting players by their own advancement progress"],
+        avoid_when = ["Reading an unrelated scoreboard field"],
+        params(id = "Namespaced advancement identity.", criterion = "Optional criterion name belonging to the advancement.", complete = "Required completion status."),
+        returns = "The selector with the advancement filter.",
+        example = "use sand::command::Target; let selected = Target::all_players().advancement(\"demo:milestone\", None, true);",
+    )]
+    pub fn advancement(
+        mut self,
+        id: impl Into<String>,
+        criterion: Option<&str>,
+        complete: bool,
+    ) -> Self {
+        self.raw = self.raw.advancement(id, criterion, complete);
+        self
+    }
+
     /// Restricts candidates through a predicate component or canonical resource ID.
     ///
     /// Owned and borrowed components reference the resource without registering
@@ -1349,6 +1372,40 @@ impl fmt::Display for Selector {
 }
 
 impl Selector {
+    fn advancement(
+        mut self,
+        id: impl Into<String>,
+        criterion: Option<&str>,
+        complete: bool,
+    ) -> Self {
+        use std::collections::BTreeMap;
+        let index = self
+            .args
+            .iter()
+            .position(|arg| matches!(arg, SelectorArg::Advancements(_)))
+            .unwrap_or_else(|| {
+                self.args.push(SelectorArg::Advancements(BTreeMap::new()));
+                self.args.len() - 1
+            });
+        let SelectorArg::Advancements(filters) = &mut self.args[index] else {
+            unreachable!("index is an advancement argument");
+        };
+        let id = id.into();
+        let progress = match criterion {
+            Some(criterion) => {
+                let mut criteria = match filters.remove(&id) {
+                    Some(AdvancementMatch::Criteria(criteria)) => criteria,
+                    _ => BTreeMap::new(),
+                };
+                criteria.insert(criterion.to_owned(), complete);
+                AdvancementMatch::Criteria(criteria)
+            }
+            None => AdvancementMatch::Complete(complete),
+        };
+        filters.insert(id, progress);
+        self
+    }
+
     pub(crate) fn is_statically_single(&self) -> bool {
         if let Some(limit) = self.args.iter().find_map(|arg| match arg {
             SelectorArg::Limit(limit) => Some(*limit),
@@ -2110,6 +2167,22 @@ impl fmt::Display for GameMode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn advancement_builder_composes_named_criteria_and_whole_requirements() {
+        let selected = Target::self_()
+            .advancement("demo:quest", Some("find ore"), true)
+            .advancement("demo:quest", Some("win"), false)
+            .advancement("demo:badge", None, true);
+        assert_eq!(
+            selected.to_string(),
+            r#"@s[advancements={demo:badge=true,demo:quest={"find ore"=true,win=false}}]"#
+        );
+        assert_eq!(
+            selected.advancement("demo:quest", None, true).to_string(),
+            "@s[advancements={demo:badge=true,demo:quest=true}]"
+        );
+    }
 
     #[test]
     fn current_dimension_scope_composes_with_distance_and_cardinality() {

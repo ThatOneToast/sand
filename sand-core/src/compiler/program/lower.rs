@@ -1,22 +1,32 @@
 //! Typed gameplay lowering with local, deterministic helper allocation.
-use super::{diagnostic::Diagnostic, limits, model::*};
+mod continuations;
+mod data;
+mod migrations;
+mod server_waits;
+
+use super::{CommandSource, diagnostic::Diagnostic, limits, model::*};
 use crate::compiler::export::{
     functions, identities, lifecycle,
     records::{self, ComponentRecord},
     tags,
 };
 use crate::ir::{Cmd, NumericWrite};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+
+type LifecycleCommand = (String, usize, String);
+type PrivateObjectives = BTreeMap<String, (String, String)>;
 
 /// Portable resource bytes and the same runtime provenance used by Rust export.
 pub(super) struct LoweredProgram {
     pub(super) resources: BTreeMap<String, Vec<u8>>,
     pub(super) runtime_report: crate::compiler::runtime::RuntimeReport,
+    pub(super) wait_sites: Vec<super::WaitInspection>,
 }
 
 pub(super) fn lower(
     program: &Program,
     target: &crate::version::VersionProfile,
+    sources: Option<&mut BTreeMap<String, Vec<CommandSource>>>,
 ) -> Result<LoweredProgram, Vec<Diagnostic>> {
     let _registry =
         crate::function::ExportFunctionRegistryScope::enter_namespace(&program.pack.namespace);
@@ -90,6 +100,13 @@ pub(super) fn lower(
             )]
         },
     )?;
+    let mut dimensions: Vec<_> = program
+        .modules
+        .iter()
+        .flat_map(|module| &module.dimensions)
+        .map(|dimension| sand_components::DimensionId::custom(dimension.id().clone()))
+        .collect();
+    dimensions.sort_by_cached_key(ToString::to_string);
     let mut lower = Lower {
         namespace: program.pack.namespace.clone(),
         holders: states
@@ -109,13 +126,149 @@ pub(super) fn lower(
         helper_keys,
         runtime: crate::compiler::runtime::RuntimePlan::default(),
         records: Vec::new(),
+        sources,
+        continuations: Vec::new(),
+        server_waits: Vec::new(),
+        dimensions,
+        continuation_count: 0,
+        wait_cancellations: BTreeSet::new(),
+        wait_sites: Vec::new(),
         init,
         bytes: 0,
         profile: sand_commands::CommandProfile::new(target.resolved_name(), false),
+        constants: std::collections::BTreeSet::new(),
+        custom_items: BTreeMap::new(),
+        huds: BTreeMap::new(),
+        projectiles: BTreeMap::new(),
+        progressions: BTreeMap::new(),
+        scenes: BTreeMap::new(),
+        encounters: BTreeMap::new(),
+        status_effects: BTreeMap::new(),
+        archetypes: program
+            .modules
+            .iter()
+            .flat_map(|module| &module.archetypes)
+            .map(|archetype| (archetype.id.to_string(), archetype.entity.clone()))
+            .collect(),
+        jobs: BTreeMap::new(),
+        sessions: BTreeMap::new(),
+        abilities: BTreeMap::new(),
+        combats: BTreeMap::new(),
+        menus: BTreeMap::new(),
+        advancement_dispatchers: BTreeMap::new(),
+        flags: std::collections::BTreeSet::new(),
+        data_states: states
+            .iter()
+            .map(|state| (state.id.to_string(), (*state).clone()))
+            .collect(),
     };
+    lower.register_state_migrations(program, &mut automatic)?;
+    let migration_ids: BTreeSet<_> = states
+        .iter()
+        .flat_map(|state| &state.migrations)
+        .map(ToString::to_string)
+        .collect();
+    for progression in program
+        .modules
+        .iter()
+        .flat_map(|module| &module.progressions)
+    {
+        let state = states
+            .iter()
+            .find(|state| state.id == progression.progress.state)
+            .expect("validated progression State");
+        lower.progressions.insert(
+            progression.id.to_string(),
+            lower.progression_component(progression, state),
+        );
+    }
+    for job in program.modules.iter().flat_map(|module| &module.jobs) {
+        lower
+            .jobs
+            .insert(job.id.to_string(), lower.job_component(job));
+    }
+    for source in program
+        .modules
+        .iter()
+        .flat_map(|module| &module.status_effects)
+    {
+        lower
+            .status_effects
+            .insert(source.id.to_string(), lower.status_component(source));
+    }
+    for source in program.modules.iter().flat_map(|module| &module.encounters) {
+        lower
+            .encounters
+            .insert(source.id.to_string(), lower.encounter_component(source));
+    }
+    for session in program.modules.iter().flat_map(|module| &module.sessions) {
+        lower
+            .sessions
+            .insert(session.id.to_string(), lower.session_component(session));
+    }
+    for module in &program.modules {
+        for menu in &module.menus {
+            lower
+                .menus
+                .insert(menu.id.to_string(), lower.menu_component(menu));
+        }
+        for projectile in &module.projectiles {
+            lower.projectiles.insert(
+                projectile.id.to_string(),
+                lower.projectile_component(projectile),
+            );
+        }
+        for hud in &module.huds {
+            lower
+                .huds
+                .insert(hud.id.to_string(), lower.hud_component(hud));
+        }
+        for (index, item) in module.items.iter().enumerate() {
+            let custom = custom_item(item, &lower.holders);
+            if item.book.is_some() {
+                custom.validate().map_err(|error| {
+                    vec![Diagnostic::error(
+                        "SAND_PROGRAM_RESOURCE",
+                        &module.id.to_string(),
+                        &format!("/items/{index}/book"),
+                        error.to_string(),
+                    )]
+                })?;
+            }
+            lower.custom_items.insert(item.id.to_string(), custom);
+        }
+    }
+    for module in &program.modules {
+        for (index, scene) in module.scenes.iter().enumerate() {
+            let definition = lower.scene_component(scene).map_err(|message| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_RESOURCE",
+                    &module.id.to_string(),
+                    &format!("/scenes/{index}"),
+                    message,
+                )]
+            })?;
+            lower.scenes.insert(scene.id.to_string(), definition);
+        }
+    }
+    for ability in program.modules.iter().flat_map(|module| &module.abilities) {
+        lower.abilities.insert(
+            ability.id.to_string(),
+            lower.ability_component(ability, &states),
+        );
+    }
+    for combat in program.modules.iter().flat_map(|module| &module.combats) {
+        lower.combats.insert(
+            combat.id.to_string(),
+            lower.combat_component(combat, &states),
+        );
+    }
     let mut entries = BTreeMap::new();
     let mut load = Vec::new();
     let mut tick = Vec::new();
+    let mut archetype_objectives =
+        lower.register_archetypes(program, target, &mut load, &mut tick)?;
+    let mut lifecycle_sources = BTreeMap::new();
     let mut memberships = Vec::new();
     let mut modules: Vec<_> = program.modules.iter().collect();
     modules.sort_by_key(|module| module.id.to_string());
@@ -137,7 +290,9 @@ pub(super) fn lower(
                 &owner,
                 &format!("/functions/{index}"),
             )?;
-            entries.insert(function.id.to_string(), function.context);
+            if !migration_ids.contains(&function.id.to_string()) {
+                entries.insert(function.id.to_string(), function.context);
+            }
         }
         for (phase, body, output) in [
             ("load", &module.load, &mut load),
@@ -151,8 +306,12 @@ pub(super) fn lower(
                 &owner,
                 &format!("/{phase}"),
             )?;
+            if !body.sources.is_empty() {
+                lifecycle_sources.insert((phase, owner.clone()), body.sources);
+            }
             output.extend(
-                body.into_iter()
+                body.lines
+                    .into_iter()
                     .enumerate()
                     .map(|(index, line)| (owner.clone(), index, line)),
             );
@@ -166,6 +325,63 @@ pub(super) fn lower(
             memberships.push((tag_id, function));
         }
     }
+    let mut event_owner = format!("{}:__sand_program/events", program.pack.namespace);
+    while program
+        .modules
+        .iter()
+        .any(|module| module.id.to_string() == event_owner)
+    {
+        event_owner.push('_');
+    }
+    let mut event_load = Vec::new();
+    for (index, line) in lower
+        .events(program, &mut automatic)?
+        .into_iter()
+        .enumerate()
+    {
+        match line {
+            EventLine::Load(command) => event_load.push((event_owner.clone(), index, command)),
+            EventLine::Tick(command) => tick.push((event_owner.clone(), index, command)),
+        }
+    }
+    if !lower.constants.is_empty() {
+        let objective = constants_objective(&program.pack.namespace);
+        let declaration = format!("scoreboard objectives add {objective} dummy");
+        let constants = std::mem::take(&mut lower.constants)
+            .into_iter()
+            .map(|value| {
+                format!(
+                    "scoreboard players set {} {objective} {value}",
+                    constant_holder(value)
+                )
+            });
+        if states
+            .iter()
+            .any(|state| state.scope == "global" && !state.migrations.is_empty())
+        {
+            // Migration functions run during global initialization and may
+            // use constant operands even on the first load of a new pack.
+            automatic.load_commands.push(declaration);
+            automatic.provision_commands.extend(constants);
+        } else {
+            let first = event_load.len();
+            event_load.extend(
+                std::iter::once(declaration)
+                    .chain(constants)
+                    .enumerate()
+                    .map(|(index, line)| (event_owner.clone(), first + index, line)),
+            );
+        }
+    }
+    for module in &program.modules {
+        for bar in &module.boss_bars {
+            for line in lower.boss_bar_setup(bar) {
+                event_load.push((event_owner.clone(), event_load.len(), line));
+            }
+        }
+    }
+    // Objectives must exist before any module load body reads them.
+    load.splice(0..0, event_load);
     let field_defaults: BTreeMap<_, _> = states
         .iter()
         .flat_map(|state| {
@@ -196,7 +412,234 @@ pub(super) fn lower(
                 .unwrap_or(("", ""));
             vec![Diagnostic::error("SAND_PROGRAM_FLOW", module, ptr, message)]
         })?;
-    lifecycle::validate_private_objectives(&automatic, &load, &flow_plan.private_objectives)
+    let caps = target.caps();
+    let ctx = crate::compiler::export::ExportCtx {
+        caps: &caps,
+        requested_version: target.resolved_name(),
+        is_fallback: target.is_fallback(),
+    };
+    lower.register_continuations(&ctx, &mut automatic, &mut load, &mut tick)?;
+    for module in &program.modules {
+        use crate::registration::IntoDatapack;
+        let module_id = module.id.to_string();
+        for (index, menu) in module.menus.iter().enumerate() {
+            lower.register_owned_runtime(
+                lower.menus[&menu.id.to_string()].clone().into_datapack(),
+                (
+                    &format!("menu {}", menu.id),
+                    &module_id,
+                    &format!("/menus/{index}"),
+                ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
+        for (index, progression) in module.progressions.iter().enumerate() {
+            lower.register_owned_runtime(
+                lower.progressions[&progression.id.to_string()]
+                    .clone()
+                    .into_datapack(),
+                (
+                    &format!("progression {}", progression.id),
+                    &module_id,
+                    &format!("/progressions/{index}"),
+                ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
+        for (index, ability) in module.abilities.iter().enumerate() {
+            lower.register_owned_runtime(
+                lower.abilities[&ability.id.to_string()]
+                    .clone()
+                    .into_datapack(),
+                (
+                    &format!("ability {}", ability.id),
+                    &module_id,
+                    &format!("/abilities/{index}"),
+                ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
+        for (index, scene) in module.scenes.iter().enumerate() {
+            lower.register_owned_runtime(
+                lower.scenes[&scene.id.to_string()].clone().into_datapack(),
+                (
+                    &format!("scene {}", scene.id),
+                    &module_id,
+                    &format!("/scenes/{index}"),
+                ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
+        for (index, job) in module.jobs.iter().enumerate() {
+            lower.register_owned_runtime(
+                lower.jobs[&job.id.to_string()].clone().into_datapack(),
+                (
+                    &format!("job {}", job.id),
+                    &module_id,
+                    &format!("/jobs/{index}"),
+                ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
+        for (index, session) in module.sessions.iter().enumerate() {
+            lower.register_owned_runtime(
+                lower.sessions[&session.id.to_string()]
+                    .clone()
+                    .registration(false),
+                (
+                    &format!("session {}", session.id),
+                    &module_id,
+                    &format!("/sessions/{index}"),
+                ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
+        for (index, projectile) in module.projectiles.iter().enumerate() {
+            lower.register_owned_runtime(
+                lower.projectiles[&projectile.id.to_string()]
+                    .clone()
+                    .into_datapack(),
+                (
+                    &format!("projectile {}", projectile.id),
+                    &module_id,
+                    &format!("/projectiles/{index}"),
+                ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
+        for (index, roster) in module.rosters.iter().enumerate() {
+            let registration =
+                crate::gameplay::roster::RosterPlan::portable(roster, &lower.data_states)
+                    .registration();
+            lower.register_owned_runtime(
+                registration,
+                (
+                    &format!("roster {}", roster.id),
+                    &module_id,
+                    &format!("/rosters/{index}"),
+                ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
+        for (index, status) in module.status_effects.iter().enumerate() {
+            lower.register_owned_runtime(
+                lower.status_effects[&status.id.to_string()]
+                    .clone()
+                    .into_datapack(),
+                (
+                    &format!("status effect {}", status.id),
+                    &module_id,
+                    &format!("/status_effects/{index}"),
+                ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
+        for (index, source) in module.encounters.iter().enumerate() {
+            let pointer = format!("/encounters/{index}");
+            let encounter = lower.encounters[&source.id.to_string()].clone();
+            for (index, attack) in encounter.attacks.into_iter().enumerate() {
+                lower.register_owned_runtime(
+                    attack.into_datapack(),
+                    (
+                        &format!("encounter {} attack {index}", source.id),
+                        &module_id,
+                        &format!("{pointer}/attacks/{index}"),
+                    ),
+                    &ctx,
+                    &mut load,
+                    &mut tick,
+                )?;
+            }
+            lower.register_owned_runtime(
+                encounter.controller.into_datapack(),
+                (&format!("encounter {}", source.id), &module_id, &pointer),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
+        for (index, checkpoint) in module.checkpoints.iter().enumerate() {
+            let pointer = format!("/checkpoints/{index}");
+            let registration = crate::gameplay::Checkpoint::portable(
+                checkpoint,
+                &lower.data_states,
+                checkpoint.before_restore.as_ref().map(reference_id),
+                checkpoint.after_restore.as_ref().map(reference_id),
+            )
+            .map_err(|error| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_CHECKPOINT",
+                    &module_id,
+                    &pointer,
+                    error.to_string(),
+                )]
+            })?;
+            lower.register_owned_runtime(
+                registration,
+                (
+                    &format!("checkpoint {}", checkpoint.id),
+                    &module_id,
+                    &pointer,
+                ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
+        for (index, hud) in module.huds.iter().enumerate() {
+            lower.register_owned_runtime(
+                lower.huds[&hud.id.to_string()].clone().into_datapack(),
+                (
+                    &format!("hud {}", hud.id),
+                    &module_id,
+                    &format!("/huds/{index}"),
+                ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
+        for (index, transfer) in module.inventory_transfers.iter().enumerate() {
+            lower.register_owned_runtime(
+                inventory_transfer(transfer).into_datapack(),
+                (
+                    &format!("inventory transfer {}", transfer.id),
+                    &module_id,
+                    &format!("/inventory_transfers/{index}"),
+                ),
+                &ctx,
+                &mut load,
+                &mut tick,
+            )?;
+        }
+    }
+    for (objective, (archetype, _)) in &archetype_objectives {
+        if let Some((owner, _)) = flow_plan.private_objectives.get(objective) {
+            return Err(error(format!(
+                "archetype `{archetype}` generated private objective `{objective}`, which collides with State flow `{owner}`"
+            )));
+        }
+    }
+    archetype_objectives.extend(flow_plan.private_objectives);
+    lifecycle::validate_private_objectives(&automatic, &load, &archetype_objectives)
         .map_err(error)?;
     for generated in flow_plan.functions {
         let (module, ptr) = &flow_locations[&generated.tracker_id];
@@ -229,6 +672,46 @@ pub(super) fn lower(
         flow_plan.global_tick_commands,
     )
     .map_err(|e| error(e.to_string()))?;
+    if let Some(sources) = lower.sources.as_deref_mut() {
+        for (phase, origins) in [
+            ("load", &lifecycle.load_owners),
+            ("tick", &lifecycle.tick_owners),
+        ] {
+            // Lifecycle assembly emits each module's single-line commands in
+            // order, following the framework's variable-length setup prefix.
+            for (module, commands) in origins
+                .chunk_by(|a, b| a.owner == b.owner)
+                .map(|commands| (&commands[0].owner, commands))
+            {
+                if let Some(ranges) = lifecycle_sources.remove(&(phase, module.clone())) {
+                    let offset = commands[0].first_line - 1;
+                    sources
+                        .entry(function_resource(&format!(
+                            "{}:__sand_lifecycle_{phase}",
+                            program.pack.namespace
+                        )))
+                        .or_default()
+                        .extend(ranges.into_iter().map(|(lines, pointer)| CommandSource {
+                            lines: (lines.start() + offset)..=(lines.end() + offset),
+                            module: module.clone(),
+                            pointer,
+                        }));
+                }
+            }
+        }
+        if lifecycle.player_initializer.is_some() {
+            for (id, _) in entries
+                .iter()
+                .filter(|(_, context)| **context == ExecutionContext::Player)
+            {
+                if let Some(locations) = sources.get_mut(&function_resource(id)) {
+                    for source in locations {
+                        source.lines = (source.lines.start() + 1)..=(source.lines.end() + 1);
+                    }
+                }
+            }
+        }
+    }
     lifecycle.attribute(&program.pack.namespace, &mut lower.runtime);
     if !lifecycle.load_owners.is_empty() {
         lower.runtime.lifecycle_owners.insert(
@@ -247,12 +730,6 @@ pub(super) fn lower(
         &entries,
         lifecycle.player_initializer.as_deref(),
     );
-    tags::assemble_tags(
-        &program.pack.namespace,
-        &mut lower.records,
-        tag_map,
-        memberships,
-    );
     functions::drain_generated_resources_into(
         &mut lower.records,
         &program.pack.namespace,
@@ -260,9 +737,258 @@ pub(super) fn lower(
         &mut lower.runtime,
     )
     .map_err(|e| error(e.to_string()))?;
+    functions::drain_score_setup(
+        &mut lower.records,
+        &program.pack.namespace,
+        &mut lower.runtime,
+        &mut tag_map,
+    );
+    tags::assemble_tags(
+        &program.pack.namespace,
+        &mut lower.records,
+        tag_map,
+        memberships,
+    );
     for record in &mut lower.records {
         record.content = functions::resolve_local_refs(&record.content, &program.pack.namespace);
     }
+    for module in &program.modules {
+        let owner = module.id.to_string();
+        for (index, recipe) in module.recipes.iter().enumerate() {
+            let fail = |message: String| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_RESOURCE",
+                    &owner,
+                    &format!("/recipes/{index}"),
+                    message,
+                )]
+            };
+            let component = recipe_component(recipe, &lower.custom_items).map_err(fail)?;
+            let record = records::component_to_record(component.as_ref(), Some(&ctx))
+                .map_err(|e| fail(e.to_string()))?;
+            lower.records.push(record);
+        }
+        for (index, template) in module.structure_templates.iter().enumerate() {
+            let record = records::component_to_record(template, Some(&ctx)).map_err(|error| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_RESOURCE",
+                    &owner,
+                    &format!("/structure_templates/{index}"),
+                    error.to_string(),
+                )]
+            })?;
+            lower.records.push(record);
+        }
+        for (index, pool) in module.template_pools.iter().enumerate() {
+            let record =
+                records::component_to_record(&pool.component(), Some(&ctx)).map_err(|error| {
+                    vec![Diagnostic::error(
+                        "SAND_PROGRAM_RESOURCE",
+                        &owner,
+                        &format!("/template_pools/{index}"),
+                        error.to_string(),
+                    )]
+                })?;
+            lower.records.push(record);
+        }
+        for (index, structure) in module.jigsaw_structures.iter().enumerate() {
+            let record = records::component_to_record(&structure.component(), Some(&ctx)).map_err(
+                |error| {
+                    vec![Diagnostic::error(
+                        "SAND_PROGRAM_RESOURCE",
+                        &owner,
+                        &format!("/jigsaw_structures/{index}"),
+                        error.to_string(),
+                    )]
+                },
+            )?;
+            lower.records.push(record);
+        }
+        for (index, structure_set) in module.structure_sets.iter().enumerate() {
+            let record =
+                records::component_to_record(structure_set, Some(&ctx)).map_err(|error| {
+                    vec![Diagnostic::error(
+                        "SAND_PROGRAM_RESOURCE",
+                        &owner,
+                        &format!("/structure_sets/{index}"),
+                        error.to_string(),
+                    )]
+                })?;
+            lower.records.push(record);
+        }
+        for (kind, index, feature) in module.terrain_features() {
+            let record = records::component_to_record(feature, Some(&ctx)).map_err(|error| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_RESOURCE",
+                    &owner,
+                    &format!("/{kind}/{index}"),
+                    error.to_string(),
+                )]
+            })?;
+            lower.records.push(record);
+        }
+        for (index, feature) in module.ore_features.iter().enumerate() {
+            let (configured, placed) = feature.components();
+            let components: [&dyn sand_components::component::DatapackComponent; 2] =
+                [&configured, &placed];
+            for component in components {
+                let record =
+                    records::component_to_record(component, Some(&ctx)).map_err(|error| {
+                        vec![Diagnostic::error(
+                            "SAND_PROGRAM_RESOURCE",
+                            &owner,
+                            &format!("/ore_features/{index}"),
+                            error.to_string(),
+                        )]
+                    })?;
+                lower.records.push(record);
+            }
+        }
+        for (index, biome) in module.biomes.iter().enumerate() {
+            let component = custom_biome_component(biome);
+            let record = records::component_to_record(&component, Some(&ctx)).map_err(|error| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_RESOURCE",
+                    &owner,
+                    &format!("/biomes/{index}"),
+                    error.to_string(),
+                )]
+            })?;
+            lower.records.push(record);
+        }
+        for (index, dimension_type) in module.dimension_types.iter().enumerate() {
+            let record =
+                records::component_to_record(dimension_type, Some(&ctx)).map_err(|error| {
+                    vec![Diagnostic::error(
+                        "SAND_PROGRAM_RESOURCE",
+                        &owner,
+                        &format!("/dimension_types/{index}"),
+                        error.to_string(),
+                    )]
+                })?;
+            lower.records.push(record);
+        }
+        for (index, dimension) in module.dimensions.iter().enumerate() {
+            let component = match dimension {
+                DimensionDefinition::Flat(dimension) => sand_components::Dimension::flat_generator(
+                    dimension.id.clone(),
+                    dimension.dimension_type.clone(),
+                    dimension.flat.clone(),
+                ),
+                DimensionDefinition::Noise(dimension) => {
+                    sand_components::Dimension::noise_generator(
+                        dimension.id.clone(),
+                        dimension.dimension_type.clone(),
+                        sand_components::NoiseGenerator::custom_settings(
+                            dimension.noise_settings.clone(),
+                        )
+                        .biome_source(dimension.biome_source.clone()),
+                    )
+                }
+            };
+            let record = records::component_to_record(&component, Some(&ctx)).map_err(|error| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_RESOURCE",
+                    &owner,
+                    &format!("/dimensions/{index}"),
+                    error.to_string(),
+                )]
+            })?;
+            lower.records.push(record);
+        }
+        for (index, dialog) in module.dialogs.iter().enumerate() {
+            let component = notice_dialog_component(dialog, &lower.holders);
+            let record = records::component_to_record(&component, Some(&ctx)).map_err(|error| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_RESOURCE",
+                    &owner,
+                    &format!("/dialogs/{index}"),
+                    error.to_string(),
+                )]
+            })?;
+            lower.records.push(record);
+        }
+        for (index, advancement) in module.advancements.iter().enumerate() {
+            let fail = |message| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_RESOURCE",
+                    &owner,
+                    &format!("/advancements/{index}"),
+                    message,
+                )]
+            };
+            let reward_function = lower
+                .advancement_dispatchers
+                .get(&advancement.id.to_string());
+            let component = advancement_component(advancement, &lower.holders, reward_function)
+                .map_err(fail)?;
+            let record = records::component_to_record(&component, Some(&ctx))
+                .map_err(|error| fail(error.to_string()))?;
+            lower.records.push(record);
+        }
+        for (index, predicate) in module.predicates.iter().enumerate() {
+            let fail = |message| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_RESOURCE",
+                    &owner,
+                    &format!("/predicates/{index}"),
+                    message,
+                )]
+            };
+            let component = world_predicate_component(predicate).map_err(fail)?;
+            let record = records::component_to_record(&component, Some(&ctx))
+                .map_err(|error| fail(error.to_string()))?;
+            lower.records.push(record);
+        }
+        for (index, damage_type) in module.damage_types.iter().enumerate() {
+            let record =
+                records::component_to_record(damage_type, Some(&ctx)).map_err(|error| {
+                    vec![Diagnostic::error(
+                        "SAND_PROGRAM_RESOURCE",
+                        &owner,
+                        &format!("/damage_types/{index}"),
+                        error.to_string(),
+                    )]
+                })?;
+            lower.records.push(record);
+        }
+        for (index, table) in module.loot_tables.iter().enumerate() {
+            let fail = |message: String| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_RESOURCE",
+                    &owner,
+                    &format!("/loot_tables/{index}"),
+                    message,
+                )]
+            };
+            let component = loot_table_component(table);
+            let record = records::component_to_record(&component, Some(&ctx))
+                .map_err(|e| fail(e.to_string()))?;
+            lower.records.push(record);
+        }
+        for (index, tag) in module.resource_tags.iter().enumerate() {
+            let fail = |message: String| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_RESOURCE",
+                    &owner,
+                    &format!("/resource_tags/{index}"),
+                    message,
+                )]
+            };
+            let component = tag_component(tag).map_err(fail)?;
+            let record = records::component_to_record(component.as_ref(), Some(&ctx))
+                .map_err(|e| fail(e.to_string()))?;
+            lower.records.push(record);
+        }
+    }
+    for flag in lower.flags.clone() {
+        let component = flag_predicate(&program.pack.namespace, flag).map_err(error)?;
+        let record = records::component_to_record(&component, Some(&ctx))
+            .map_err(|e| error(e.to_string()))?;
+        lower.records.push(record);
+    }
+    crate::compiler::export::lower_for_target(&mut lower.records, &ctx)
+        .map_err(|e| error(e.to_string()))?;
     records::validate_unique_output_identities(&lower.records).map_err(|e| error(e.to_string()))?;
     records::validate_objective_definitions(&lower.records).map_err(|e| error(e.to_string()))?;
     let mut output = BTreeMap::new();
@@ -276,18 +1002,28 @@ pub(super) fn lower(
     let runtime_report =
         crate::compiler::runtime::RuntimeReport::collect(&lower.records, &lower.runtime);
     for record in lower.records {
+        let content = if record.content_type == "copy" {
+            program
+                .structure_assets
+                .get(&record.content)
+                .cloned()
+                .ok_or_else(|| error(format!("missing structure asset `{}`", record.content)))?
+        } else {
+            record.content.into_bytes()
+        };
         insert_output(
             &mut output,
             format!(
                 "data/{}/{}/{}.{}",
                 record.namespace, record.dir, record.path, record.ext
             ),
-            record.content.into_bytes(),
+            content,
         )?;
     }
     Ok(LoweredProgram {
         resources: output,
         runtime_report,
+        wait_sites: lower.wait_sites,
     })
 }
 
@@ -438,26 +1174,883 @@ fn helper(namespace: &str, key: &str, path: &str, role: &str) -> String {
     // hash collisions independently of declaration order.
     format!("{namespace}:__sand_program/{key}/{path}/{role}")
 }
-struct Lower {
+/// The canonical Rust custom item for a portable declaration.
+fn custom_item(
+    item: &CustomItem,
+    holders: &BTreeMap<String, sand_commands::ScoreHolder>,
+) -> sand_components::CustomItem {
+    let mut custom = sand_components::CustomItem::new(&item.base).custom_data(item.id.to_string());
+    if !item.name.is_empty() {
+        custom = custom.custom_name(static_text_component(&item.name, holders));
+    }
+    if !item.lore.is_empty() {
+        custom = custom.lore(
+            item.lore
+                .iter()
+                .map(|line| static_text_component(line, holders))
+                .collect(),
+        );
+    }
+    if let Some(rarity) = item.rarity {
+        custom = custom.rarity(match rarity {
+            Rarity::Common => sand_components::ItemRarity::Common,
+            Rarity::Uncommon => sand_components::ItemRarity::Uncommon,
+            Rarity::Rare => sand_components::ItemRarity::Rare,
+            Rarity::Epic => sand_components::ItemRarity::Epic,
+        });
+    }
+    if let Some(glint) = item.glint {
+        custom = custom.enchantment_glint_override(glint);
+    }
+    if let Some(size) = item.max_stack {
+        custom = custom.max_stack_size(size);
+    }
+    if item.unbreakable {
+        custom = custom.unbreakable(true);
+    }
+    for (enchantment, level) in &item.enchantments {
+        custom = custom.enchantment(enchantment.clone(), *level);
+    }
+    if let Some(data) = item.custom_model_data {
+        custom = custom.custom_model_data(data);
+    }
+    if let Some(book) = &item.book {
+        let mut built = sand_components::WrittenBook::new(&book.title, &book.author);
+        for parts in &book.pages {
+            built = built.page(static_text_component(parts, holders));
+        }
+        custom = custom.component(sand_components::ItemComponent::WrittenBook(built));
+    }
+    custom
+}
+
+fn ingredient(id: &str) -> sand_components::recipe::Ingredient {
+    match id.strip_prefix('#') {
+        Some(tag) => sand_components::recipe::Ingredient::tag(tag),
+        None => sand_components::recipe::Ingredient::item(id),
+    }
+}
+
+fn recipe_output(
+    output: &RecipeOutput,
+    custom_items: &BTreeMap<String, sand_components::CustomItem>,
+) -> Result<sand_components::recipe::RecipeResult, String> {
+    match custom_items.get(&output.item) {
+        Some(custom) => {
+            sand_components::recipe::RecipeResult::from_custom_item(custom, output.count)
+                .map_err(|e| e.to_string())
+        }
+        None => Ok(sand_components::recipe::RecipeResult::new(
+            &output.item,
+            output.count,
+        )),
+    }
+}
+
+/// Build the typed recipe component that Rust authors would write.
+fn recipe_component(
+    recipe: &Recipe,
+    custom_items: &BTreeMap<String, sand_components::CustomItem>,
+) -> Result<Box<dyn sand_components::DatapackComponent>, String> {
+    use sand_components::recipe::*;
+    Ok(match recipe {
+        Recipe::Shaped {
+            id,
+            pattern,
+            key,
+            result,
+        } => {
+            let mut built = ShapedRecipe::new(id.clone()).pattern(pattern.iter().cloned());
+            for (symbol, item) in key {
+                let symbol = symbol.chars().next().expect("validated single character");
+                built = built.key(symbol, ingredient(item));
+            }
+            Box::new(built.result(recipe_output(result, custom_items)?))
+        }
+        Recipe::Shapeless {
+            id,
+            ingredients,
+            result,
+        } => {
+            let mut built = ShapelessRecipe::new(id.clone());
+            for item in ingredients {
+                built = built.ingredient(ingredient(item));
+            }
+            Box::new(built.result(recipe_output(result, custom_items)?))
+        }
+        Recipe::Smithing {
+            id,
+            template,
+            base,
+            addition,
+            result,
+        } => Box::new(
+            SmithingTransformRecipe::new(id.clone())
+                .template(ingredient(template))
+                .base(ingredient(base))
+                .addition(ingredient(addition))
+                .result(recipe_output(result, custom_items)?),
+        ),
+        Recipe::SmithingTrim {
+            id,
+            template,
+            base,
+            addition,
+            pattern,
+        } => Box::new(
+            SmithingTrimRecipe::new(id.clone(), pattern.clone())
+                .template(ingredient(template))
+                .base(ingredient(base))
+                .addition(ingredient(addition)),
+        ),
+        Recipe::Cooking {
+            id,
+            method,
+            ingredient: input,
+            result,
+            experience,
+            time,
+        } => {
+            let kind = match method {
+                CookingMethod::Smelting => CookingType::Smelting,
+                CookingMethod::Blasting => CookingType::Blasting,
+                CookingMethod::Smoking => CookingType::Smoking,
+                CookingMethod::Campfire => CookingType::CampfireCooking,
+            };
+            let mut built = CookingRecipe::new(id.clone(), kind)
+                .ingredient(ingredient(input))
+                .result(recipe_output(result, custom_items)?)
+                .experience(*experience);
+            if let Some(time) = time {
+                built = built.cooking_time(*time);
+            }
+            Box::new(built)
+        }
+        Recipe::Stonecutting {
+            id,
+            ingredient: input,
+            result,
+        } => Box::new(
+            StonecuttingRecipe::new(id.clone())
+                .ingredient(ingredient(input))
+                .result(recipe_output(result, custom_items)?)
+                .count(result.count),
+        ),
+    })
+}
+
+/// Build the typed registry tag that Rust authors would write.
+fn tag_component(tag: &ResourceTag) -> Result<Box<dyn sand_components::DatapackComponent>, String> {
+    use sand_components::{BlockId, EntityTypeId, ItemId, TagId, TypedTag};
+    fn build<T>(tag: &ResourceTag) -> Result<TypedTag<T>, String>
+    where
+        T: sand_components::TagRegistry + std::str::FromStr,
+        <T as std::str::FromStr>::Err: std::fmt::Display,
+    {
+        let location: TagId<T> = tag.id.to_string().parse().map_err(|e| format!("{e}"))?;
+        let mut built = TypedTag::new(location).replace(tag.replace);
+        for value in &tag.values {
+            built = match value.strip_prefix('#') {
+                Some(reference) => {
+                    let reference: TagId<T> = reference.parse().map_err(|e| format!("{e}"))?;
+                    built.tag_ref(reference)
+                }
+                None => built.entry(value.parse::<T>().map_err(|e| e.to_string())?),
+            };
+        }
+        Ok(built)
+    }
+    Ok(match tag.kind {
+        TagKind::Item => Box::new(build::<ItemId>(tag)?),
+        TagKind::Block => Box::new(build::<BlockId>(tag)?),
+        TagKind::EntityType => Box::new(build::<EntityTypeId>(tag)?),
+    })
+}
+
+/// Build the typed loot table that Rust authors would write.
+fn loot_table_component(table: &LootTable) -> sand_components::LootTable {
+    use sand_components::{LootCondition, LootEntry, LootFunction, LootPool};
+    let mut result = sand_components::LootTable::new(table.id.clone());
+    for source in &table.pools {
+        let mut pool = LootPool::new().rolls(source.rolls as i32);
+        if let Some(chance) = source.chance {
+            pool = pool.condition(LootCondition::RandomChance { chance });
+        }
+        if let Some(weather) = source.weather {
+            pool = pool.condition(LootCondition::WeatherCheck {
+                raining: Some(weather != Weather::Clear),
+                thundering: Some(weather == Weather::Thunder),
+            });
+        }
+        if let Some(predicate) = &source.predicate {
+            pool = pool.condition(LootCondition::Reference {
+                name: predicate.to_string(),
+            });
+        }
+        for item in &source.items {
+            let LootEntry::Item {
+                name,
+                quality,
+                conditions,
+                ..
+            } = LootEntry::item_raw(&item.item)
+            else {
+                unreachable!("item_raw builds an item entry");
+            };
+            pool = pool.entry(LootEntry::Item {
+                name,
+                weight: Some(item.weight as i32),
+                quality,
+                functions: if item.count > 1 {
+                    vec![LootFunction::SetCount {
+                        count: (item.count as i32).into(),
+                        add: false,
+                    }]
+                } else {
+                    Vec::new()
+                },
+                conditions,
+            });
+        }
+        result = result.pool(pool);
+    }
+    result
+}
+
+fn inventory_transfer(source: &InventoryTransferDefinition) -> crate::gameplay::InventoryTransfer {
+    let mut definition =
+        crate::gameplay::InventoryTransfer::new(source.id.clone(), source.from, source.to);
+    if let Some(amount) = source.amount {
+        definition = definition.amount(amount);
+    }
+    if let Some(callback) = &source.success {
+        let function = reference_id(callback);
+        definition = definition.on_success(move || Cmd::Function(function.clone()));
+    }
+    if let Some(callback) = &source.rejected {
+        let function = reference_id(callback);
+        definition = definition.on_rejected(move || Cmd::Function(function.clone()));
+    }
+    definition
+}
+
+fn custom_biome_component(source: &CustomBiome) -> sand_components::Biome {
+    use sand_components::{Biome, BiomeEffects};
+    let mut effects = BiomeEffects::new(
+        source.fog_color.unwrap_or(0xc0d8ff),
+        source.water_color.unwrap_or(0x3f76e4),
+        source.water_fog_color.unwrap_or(0x050533),
+        source.sky_color.unwrap_or(0x78a7ff),
+    );
+    if let Some(color) = source.grass_color {
+        effects = effects.grass_color(color);
+    }
+    if let Some(color) = source.foliage_color {
+        effects = effects.foliage_color(color);
+    }
+    let mut biome = Biome::new(source.id.clone(), effects);
+    if let Some(precipitation) = source.precipitation {
+        biome = biome.has_precipitation(precipitation);
+    }
+    if let Some(temperature) = source.temperature {
+        biome = biome.temperature(temperature);
+    }
+    if let Some(downfall) = source.downfall {
+        biome = biome.downfall(downfall);
+    }
+    if !source.spawners.is_empty() {
+        biome = biome.spawners(source.spawners.clone());
+    }
+    if !source.spawn_costs.is_empty() {
+        biome = biome.spawn_costs(source.spawn_costs.iter().map(|(entity, cost)| {
+            let id: sand_components::ResourceLocation = entity.parse().expect("validated entity");
+            (id.into(), *cost)
+        }));
+    }
+    for (step, features) in &source.features {
+        for feature in features {
+            biome = biome.feature(*step, feature.clone());
+        }
+    }
+    biome
+}
+
+fn notice_dialog_component(
+    source: &NoticeDialog,
+    holders: &BTreeMap<String, sand_commands::ScoreHolder>,
+) -> sand_components::Dialog {
+    use sand_components::{Dialog, DialogBody, DialogButton, DialogId};
+    let mut dialog = Dialog::notice(DialogId::custom(source.id.clone()))
+        .title(static_text_component(&source.title, holders));
+    for text in &source.body {
+        dialog = dialog.body(DialogBody::text(static_text_component(text, holders)));
+    }
+    let button = if source.button.is_empty() {
+        sand_commands::TextComponent::translate("gui.done")
+    } else {
+        static_text_component(&source.button, holders)
+    };
+    dialog.button(DialogButton::new(button))
+}
+
+fn advancement_component(
+    advancement: &Advancement,
+    holders: &BTreeMap<String, sand_commands::ScoreHolder>,
+    reward_function: Option<&sand_components::FunctionId>,
+) -> Result<sand_components::Advancement, String> {
+    use sand_components::{
+        AdvancementDisplay, AdvancementIcon, AdvancementRewards, AdvancementTrigger, Criterion,
+        EntityPredicate,
+    };
+    let mut built = sand_components::Advancement::new(advancement.id.clone());
+    if let Some(display) = &advancement.display {
+        let icon = display
+            .icon
+            .parse::<sand_components::ItemId>()
+            .map_err(|err| err.to_string())?;
+        let mut visible = AdvancementDisplay::new(
+            AdvancementIcon::new(icon),
+            static_text_component(&display.title, holders),
+            static_text_component(&display.description, holders),
+        );
+        if let Some(background) = &display.background {
+            visible = visible.background(background.clone());
+        }
+        built = built.display(visible);
+    }
+    for (name, criterion) in &advancement.criteria {
+        let trigger = match criterion {
+            AdvancementCriterion::InventoryItem { item } => {
+                let item = item
+                    .parse::<sand_components::ItemId>()
+                    .map_err(|err| err.to_string())?;
+                AdvancementTrigger::inventory_changed(vec![item])
+            }
+            AdvancementCriterion::ConsumeItem { item } => {
+                let item = item
+                    .parse::<sand_components::ItemId>()
+                    .map_err(|err| err.to_string())?;
+                AdvancementTrigger::ConsumeItem {
+                    item: Some(sand_components::ItemPredicate::id(item)),
+                }
+            }
+            AdvancementCriterion::InteractEntity { entity, item } => {
+                let entity = entity
+                    .parse::<sand_components::EntityTypeId>()
+                    .map_err(|error| error.to_string())?;
+                let item = item
+                    .as_ref()
+                    .map(|item| {
+                        item.parse::<sand_components::ItemId>()
+                            .map_err(|error| error.to_string())
+                    })
+                    .transpose()?;
+                AdvancementTrigger::PlayerInteractedWithEntity {
+                    item: item.map(sand_components::ItemPredicate::id),
+                    entity: Some(EntityPredicate::type_(entity)),
+                }
+            }
+            AdvancementCriterion::TameEntity { entity } => {
+                let entity = entity
+                    .parse::<sand_components::EntityTypeId>()
+                    .map_err(|error| error.to_string())?;
+                AdvancementTrigger::TamedAnimal {
+                    entity: Some(EntityPredicate::type_(entity)),
+                }
+            }
+            AdvancementCriterion::UseTotem { item } => {
+                let item = item
+                    .parse::<sand_components::ItemId>()
+                    .map_err(|error| error.to_string())?;
+                AdvancementTrigger::UsedTotem {
+                    item: Some(sand_components::ItemPredicate::id(item)),
+                }
+            }
+            AdvancementCriterion::ArriveDimension { dimension } => {
+                AdvancementTrigger::changed_dimension(None, Some(dimension.clone()))
+            }
+            AdvancementCriterion::PlaceBlock { block } => {
+                let block = block
+                    .parse::<sand_components::BlockId>()
+                    .map_err(|err| err.to_string())?;
+                AdvancementTrigger::placed_block(Some(block), None, None, None)
+            }
+            AdvancementCriterion::KillEntity { entity } => {
+                let entity = entity
+                    .parse::<sand_components::EntityTypeId>()
+                    .map_err(|err| err.to_string())?;
+                AdvancementTrigger::PlayerKilledEntity {
+                    entity: Some(EntityPredicate::type_(entity)),
+                    killing_blow: None,
+                }
+            }
+        };
+        built = built.criterion(name, Criterion::new(trigger));
+    }
+    let requirements = if advancement.require_any {
+        vec![advancement.criteria.keys().cloned().collect()]
+    } else {
+        advancement
+            .criteria
+            .keys()
+            .map(|name| vec![name.clone()])
+            .collect()
+    };
+    built = built.requirements(requirements);
+    if advancement.experience > 0 || reward_function.is_some() {
+        let mut rewards = AdvancementRewards::new().experience(advancement.experience);
+        if let Some(function) = reward_function {
+            rewards = rewards.function(function.clone());
+        }
+        built = built.rewards(rewards);
+    }
+    Ok(built)
+}
+
+fn world_predicate_component(
+    source: &WorldPredicate,
+) -> Result<sand_components::Predicate, String> {
+    use sand_components::{
+        BlockPredicate, LocationPredicate, Predicate, PredicateId, PredicateRoot, WeatherPredicate,
+    };
+    let mut terms = Vec::new();
+    if source.biome.is_some() || source.dimension.is_some() || source.block.is_some() {
+        let mut location = LocationPredicate::new();
+        if let Some(biome) = &source.biome {
+            location = location.biome(
+                biome
+                    .parse::<sand_components::BiomeId>()
+                    .map_err(|error| error.to_string())?,
+            );
+        }
+        if let Some(dimension) = &source.dimension {
+            location = location.dimension(sand_components::DimensionId::custom(dimension.clone()));
+        }
+        if let Some(block) = &source.block {
+            let block = block
+                .parse::<sand_components::BlockId>()
+                .map_err(|error| error.to_string())?;
+            location = location.block(BlockPredicate::new().blocks(vec![block]));
+        }
+        terms.push(PredicateRoot::location(location));
+    }
+    if let Some(weather) = source.weather {
+        terms.push(PredicateRoot::weather(
+            WeatherPredicate::new()
+                .raining(weather != Weather::Clear)
+                .thundering(weather == Weather::Thunder),
+        ));
+    }
+    if let Some(chance) = source.chance {
+        terms.push(PredicateRoot::random_chance(chance));
+    }
+    let root = if terms.len() == 1 {
+        terms.pop().expect("one predicate term")
+    } else {
+        PredicateRoot::all_of(terms)
+    };
+    Ok(Predicate::new(PredicateId::custom(source.id.clone()), root))
+}
+
+/// The generated predicate that tests one entity flag.
+fn flag_predicate(namespace: &str, flag: EntityFlag) -> Result<sand_components::Predicate, String> {
+    use sand_components::{
+        EntityFlags, EntityPredicate, EntityPredicateTarget, Predicate, PredicateRoot,
+    };
+    let flags = EntityFlags::new();
+    let flags = match flag {
+        EntityFlag::Sneaking => flags.sneaking(true),
+        EntityFlag::Sprinting => flags.sprinting(true),
+        EntityFlag::Swimming => flags.swimming(true),
+        EntityFlag::OnFire => flags.on_fire(true),
+    };
+    let location = flag_predicate_id(namespace, flag)
+        .parse()
+        .map_err(|e| format!("{e}"))?;
+    Ok(Predicate::new(
+        location,
+        PredicateRoot::entity_properties(
+            EntityPredicateTarget::This,
+            EntityPredicate::new().flags(flags),
+        ),
+    ))
+}
+
+fn flag_predicate_id(namespace: &str, flag: EntityFlag) -> String {
+    let name = match flag {
+        EntityFlag::Sneaking => "sneaking",
+        EntityFlag::Sprinting => "sprinting",
+        EntityFlag::Swimming => "swimming",
+        EntityFlag::OnFire => "on_fire",
+    };
+    format!("{namespace}:__sand_program/flag/{name}")
+}
+
+fn block_position(position: BlockPosition) -> sand_commands::BlockPos {
+    use sand_commands::{BlockPos, Coord};
+    match position {
+        BlockPosition::Absolute { x, y, z } => BlockPos::new(
+            Coord::Absolute(f64::from(x)),
+            Coord::Absolute(f64::from(y)),
+            Coord::Absolute(f64::from(z)),
+        ),
+        BlockPosition::Relative { x, y, z } => BlockPos::new(
+            Coord::Relative(f64::from(x)),
+            Coord::Relative(f64::from(y)),
+            Coord::Relative(f64::from(z)),
+        ),
+    }
+}
+
+/// The tag marking players who see a boss bar.
+fn boss_bar_tag(bar: &sand_components::ResourceLocation) -> String {
+    format!(
+        "sand.{}",
+        sand_commands::scoreboard::hash_objective_name(&format!("{bar}#viewer"))
+    )
+}
+
+fn constants_objective(namespace: &str) -> String {
+    sand_commands::ObjectiveName::logical(format!("{namespace}.__sand_program.constants"))
+        .as_str()
+        .to_owned()
+}
+
+fn constant_holder(value: i32) -> sand_commands::ScoreHolder {
+    sand_commands::ScoreHolder::fake(format!("#c{value}"))
+}
+
+/// One generated lifecycle line for portable player events.
+enum EventLine {
+    Load(String),
+    Tick(String),
+}
+
+fn static_text_component(
+    parts: &[TextPart],
+    holders: &BTreeMap<String, sand_commands::ScoreHolder>,
+) -> sand_commands::TextComponent {
+    text_component(parts, holders, "p", &mut |_, _| {
+        unreachable!("static text was validated before lowering")
+    })
+}
+
+fn text_component(
+    parts: &[TextPart],
+    holders: &BTreeMap<String, sand_commands::ScoreHolder>,
+    path: &str,
+    resolve_stored: &mut impl FnMut(&FieldReference, &str) -> sand_commands::TextComponent,
+) -> sand_commands::TextComponent {
+    use sand_commands::{ChatColor, TextComponent};
+    let styled = |mut component: TextComponent, style: &TextStyle| {
+        if let Some(color) = style.color {
+            component = component.color(match color {
+                TextColor::Black => ChatColor::Black,
+                TextColor::DarkBlue => ChatColor::DarkBlue,
+                TextColor::DarkGreen => ChatColor::DarkGreen,
+                TextColor::DarkAqua => ChatColor::DarkAqua,
+                TextColor::DarkRed => ChatColor::DarkRed,
+                TextColor::DarkPurple => ChatColor::DarkPurple,
+                TextColor::Gold => ChatColor::Gold,
+                TextColor::Gray => ChatColor::Gray,
+                TextColor::DarkGray => ChatColor::DarkGray,
+                TextColor::Blue => ChatColor::Blue,
+                TextColor::Green => ChatColor::Green,
+                TextColor::Aqua => ChatColor::Aqua,
+                TextColor::Red => ChatColor::Red,
+                TextColor::LightPurple => ChatColor::LightPurple,
+                TextColor::Yellow => ChatColor::Yellow,
+                TextColor::White => ChatColor::White,
+            });
+        }
+        // Parts are children of an unstyled root, so unset properties stay
+        // unset instead of being restated as `false`.
+        if style.bold {
+            component = component.bold(true);
+        }
+        if style.italic {
+            component = component.italic(true);
+        }
+        if style.underlined {
+            component = component.underlined(true);
+        }
+        component
+    };
+    let mut root = TextComponent::literal("");
+    for (index, part) in parts.iter().enumerate() {
+        let component = match part {
+            TextPart::Stored { value, style } => {
+                styled(resolve_stored(value, &format!("{path}{index}")), style)
+            }
+            TextPart::Translation {
+                key,
+                arguments,
+                style,
+            } => {
+                let with = arguments
+                    .iter()
+                    .enumerate()
+                    .map(|(argument, parts)| {
+                        text_component(
+                            parts,
+                            holders,
+                            &format!("{path}{index}_{argument}_"),
+                            resolve_stored,
+                        )
+                    })
+                    .collect();
+                styled(TextComponent::translate_with(key, with), style)
+            }
+            TextPart::Interactive {
+                content,
+                tooltip,
+                click,
+            } => {
+                let mut component = text_component(
+                    content,
+                    holders,
+                    &format!("{path}{index}_0_"),
+                    resolve_stored,
+                );
+                if !tooltip.is_empty() {
+                    let hover = text_component(
+                        tooltip,
+                        holders,
+                        &format!("{path}{index}_1_"),
+                        resolve_stored,
+                    );
+                    component = component.hover_text(hover);
+                }
+                if let Some(click) = click {
+                    component = component.with_click_event(click.clone());
+                }
+                component
+            }
+            TextPart::Text { text, style } => styled(TextComponent::literal(text.clone()), style),
+            TextPart::Score { score, style } => styled(
+                TextComponent::score(
+                    holders[&score.state.to_string()].to_string(),
+                    objective(score),
+                ),
+                style,
+            ),
+            TextPart::PlayerName { style } => styled(TextComponent::selector("@s"), style),
+        };
+        root = root.then(component);
+    }
+    root
+}
+
+/// Whether a body can end its enclosing function frame with `Return`.
+///
+/// `Players` bodies are their own frame: a return there ends one player's
+/// turn, so it does not propagate.
+fn returns(body: &[Operation]) -> bool {
+    body.iter().any(|operation| match &operation.action {
+        Action::Return => true,
+        Action::Branch {
+            then, otherwise, ..
+        } => returns(then) || returns(otherwise),
+        Action::While { body, .. } | Action::InDimension { body, .. } => returns(body),
+        _ => false,
+    })
+}
+
+/// Call a helper; when it can return early, propagate that return.
+///
+/// Helpers signal an early return by returning 1. `execute if function`
+/// succeeds only for a nonzero result, so a helper that finishes normally
+/// (with no result) lets the caller continue.
+fn call_helper(id: String, propagate: bool) -> Cmd {
+    if propagate {
+        Cmd::Execute {
+            operations: vec![sand_commands::ExecuteOp::If(
+                sand_commands::ConditionIr::Function(id),
+            )],
+            run: Box::new(Cmd::Return(1)),
+        }
+    } else {
+        Cmd::Function(id)
+    }
+}
+
+/// A canonical State objective, matching Rust's `state::objective_name`.
+fn state_objective(state: &str, suffix: &str) -> String {
+    sand_commands::ObjectiveName::logical(format!("{state}.{suffix}"))
+        .as_str()
+        .to_owned()
+}
+
+fn query_selector(
+    query: &EntityQuery,
+    states: &BTreeMap<String, State>,
+) -> Result<sand_commands::Selector, String> {
+    let mut selector = sand_commands::Selector::all_entities();
+    if let Some(entity_type) = &query.entity_type {
+        selector = selector.entity_type_raw(entity_type.clone());
+    }
+    if let Some(tag) = &query.tag {
+        selector = selector.tag(tag.clone());
+    }
+    if let Some(state) = &query.with_state {
+        selector = selector
+            .score_typed(
+                sand_commands::ObjectiveName::logical(format!("{state}.presence")),
+                sand_commands::ScoreRange::exact(states[&state.to_string()].revision as i32),
+            )
+            .map_err(|error| error.to_string())?;
+    }
+    if let Some(filter) = &query.score {
+        use sand_commands::ScoreRange;
+        let range = match (filter.min, filter.max) {
+            (Some(min), Some(max)) => ScoreRange::between(min, max),
+            (Some(min), None) => ScoreRange::at_least(min),
+            (None, Some(max)) => ScoreRange::at_most(max),
+            (None, None) => return Err("a query score filter requires a bound".into()),
+        };
+        selector = selector
+            .score_typed(
+                sand_commands::ObjectiveName::logical(format!(
+                    "{}.{}",
+                    filter.score.state, filter.score.field
+                )),
+                range,
+            )
+            .map_err(|error| error.to_string())?;
+    }
+    if let Some(nbt) = &query.nbt {
+        selector = selector.nbt_raw(nbt.to_string());
+    }
+    selector = match (query.min_distance, query.max_distance) {
+        (Some(min), Some(max)) => selector.distance_range(min, max),
+        (Some(min), None) => selector.distance_min(min),
+        (None, Some(max)) => selector.distance_max(max),
+        (None, None) => selector,
+    };
+    if let Some(sort) = query.sort {
+        selector = selector.sort(match sort {
+            EntitySort::Nearest => sand_commands::SortOrder::Nearest,
+            EntitySort::Furthest => sand_commands::SortOrder::Furthest,
+            EntitySort::Random => sand_commands::SortOrder::Random,
+            EntitySort::Arbitrary => sand_commands::SortOrder::Arbitrary,
+        });
+    }
+    if let Some(limit) = query.limit {
+        selector = selector.limit(limit as i32);
+    }
+    Ok(selector)
+}
+
+fn function_resource(id: &str) -> String {
+    let (namespace, path) = id.split_once(':').expect("validated/generated identity");
+    format!("data/{namespace}/function/{path}.mcfunction")
+}
+
+#[derive(Default)]
+struct CommandBody {
+    lines: Vec<String>,
+    sources: Vec<(std::ops::RangeInclusive<usize>, String)>,
+    /// Authored bodies carry precise ranges; generated bodies use their owner pointer.
+    authored: bool,
+}
+
+impl From<Vec<String>> for CommandBody {
+    fn from(lines: Vec<String>) -> Self {
+        Self {
+            lines,
+            ..Self::default()
+        }
+    }
+}
+
+impl CommandBody {
+    fn prepend_initializer(&mut self, id: &str) {
+        self.lines.insert(0, Cmd::Function(id.into()).render());
+        for (lines, _) in &mut self.sources {
+            *lines = (lines.start() + 1)..=(lines.end() + 1);
+        }
+    }
+
+    fn record(&mut self, first_line: usize, pointer: &str) {
+        if first_line <= self.lines.len() {
+            self.sources
+                .push((first_line..=self.lines.len(), pointer.into()));
+        }
+    }
+}
+
+#[derive(Clone)]
+struct PortableEncounter {
+    controller: crate::gameplay::Encounter,
+    attacks: Vec<crate::gameplay::Lifetime>,
+}
+
+struct Lower<'sources> {
     runtime: crate::compiler::runtime::RuntimePlan,
     namespace: String,
     holders: BTreeMap<String, sand_commands::ScoreHolder>,
     bounds: BTreeMap<String, (i32, i32)>,
     helper_keys: BTreeMap<String, String>,
     records: Vec<ComponentRecord>,
+    sources: Option<&'sources mut BTreeMap<String, Vec<CommandSource>>>,
+    continuations: Vec<continuations::Continuation>,
+    server_waits: Vec<server_waits::ServerWait>,
+    dimensions: Vec<sand_components::DimensionId>,
+    continuation_count: usize,
+    wait_cancellations: BTreeSet<(bool, Option<String>)>,
+    wait_sites: Vec<super::WaitInspection>,
     init: Option<String>,
     bytes: usize,
     profile: sand_commands::CommandProfile,
+    /// Constant operands materialised on the compiler-owned constant holder.
+    constants: std::collections::BTreeSet<i32>,
+    /// Declared custom items by id.
+    custom_items: BTreeMap<String, sand_components::CustomItem>,
+    huds: BTreeMap<String, crate::gameplay::Hud>,
+    projectiles: BTreeMap<String, crate::gameplay::Projectile>,
+    progressions: BTreeMap<String, crate::gameplay::Progression>,
+    scenes: BTreeMap<String, crate::gameplay::Scene>,
+    encounters: BTreeMap<String, PortableEncounter>,
+    status_effects: BTreeMap<String, crate::gameplay::StatusEffect>,
+    archetypes: BTreeMap<String, sand_components::EntityTypeId>,
+    jobs: BTreeMap<String, crate::gameplay::Job>,
+    sessions: BTreeMap<String, crate::gameplay::Session>,
+    abilities: BTreeMap<String, crate::gameplay::Ability>,
+    combats: BTreeMap<String, crate::gameplay::Combat>,
+    menus: BTreeMap<String, crate::gameplay::Menu>,
+    advancement_dispatchers: BTreeMap<String, sand_components::FunctionId>,
+    /// Entity flags tested anywhere; each gets one generated predicate.
+    flags: std::collections::BTreeSet<EntityFlag>,
+    /// Owned backing storage for canonical data-field descriptors.
+    data_states: BTreeMap<String, State>,
 }
-impl Lower {
+fn whole_amount(operand: &ScoreOperand) -> Amount {
+    match operand {
+        ScoreOperand::Value(value) => Amount::Value(*value as f64),
+        ScoreOperand::Field(score) => Amount::Field(ScaledField {
+            score: score.clone(),
+            scale: 1.0,
+        }),
+    }
+}
+
+struct NumericArgument<'a> {
+    name: &'a str,
+    value: &'a Amount,
+    integer: bool,
+    bounds: Option<(f64, f64)>,
+}
+
+impl Lower<'_> {
     fn function(
         &mut self,
         id: &str,
-        body: Vec<String>,
+        body: impl Into<CommandBody>,
         module: &str,
         ptr: &str,
     ) -> Result<(), Vec<Diagnostic>> {
-        let content = body.join("\n");
+        let mut body = body.into();
+        let content = body.lines.join("\n");
         if self.records.len() >= limits::RESOURCES
             || content.len() > limits::DOCUMENT_BYTES
             || self.bytes.saturating_add(content.len()) > limits::OUTPUT_BYTES
@@ -470,6 +2063,24 @@ impl Lower {
             )]);
         }
         self.bytes += content.len();
+        if let Some(sources) = self.sources.as_deref_mut() {
+            if !body.authored && !content.is_empty() {
+                body.sources.push((1..=content.lines().count(), ptr.into()));
+            }
+            if !body.sources.is_empty() {
+                sources.insert(
+                    function_resource(id),
+                    body.sources
+                        .into_iter()
+                        .map(|(lines, pointer)| CommandSource {
+                            lines,
+                            module: module.into(),
+                            pointer,
+                        })
+                        .collect(),
+                );
+            }
+        }
         self.runtime.own_function(id.to_owned(), module.to_owned());
         let (namespace, path) = id.split_once(':').expect("validated/generated identity");
         self.records.push(ComponentRecord {
@@ -482,6 +2093,1039 @@ impl Lower {
         });
         Ok(())
     }
+    /// Lower player observations and native advancement rewards to shared dispatchers.
+    /// A polled dispatcher consumes its observation before running its handlers.
+    fn events(
+        &mut self,
+        program: &Program,
+        automatic: &mut crate::state::registry::AutomaticLifecycle,
+    ) -> Result<Vec<EventLine>, Vec<Diagnostic>> {
+        struct Handler {
+            function: String,
+            owner: String,
+            when: Option<String>,
+        }
+        let mut groups: BTreeMap<String, (PlayerEvent, Vec<Handler>)> = BTreeMap::new();
+        let mut modules: Vec<_> = program.modules.iter().collect();
+        modules.sort_by_key(|module| module.id.to_string());
+        for module in modules {
+            for (index, hook) in module.events.iter().enumerate() {
+                groups
+                    .entry(hook.event.key())
+                    .or_insert_with(|| (hook.event.clone(), Vec::new()))
+                    .1
+                    .push(Handler {
+                        function: reference_id(&hook.function),
+                        owner: format!("{}#{index}", module.id),
+                        when: hook.when.as_ref().map(ToString::to_string),
+                    });
+            }
+        }
+        let mut lines = Vec::new();
+        let mut transitions = Vec::new();
+        for (key, (event, handlers)) in groups {
+            let base = format!("{}.__sand_event.{key}", self.namespace);
+            let dispatch = format!("{}:__sand_program/event/{key}", self.namespace);
+            if let PlayerEvent::AdvancementCompleted { advancement } = &event {
+                self.advancement_dispatchers.insert(
+                    advancement.to_string(),
+                    dispatch
+                        .parse()
+                        .expect("validated advancement dispatcher identity"),
+                );
+            }
+            let objective = sand_commands::ObjectiveName::logical(base.clone())
+                .as_str()
+                .to_owned();
+            let tag = format!(
+                "sand.{}",
+                sand_commands::scoreboard::hash_objective_name(&base)
+            );
+            let mut body = Vec::new();
+            if let Some(init) = &self.init {
+                body.push(Cmd::Function(init.clone()).render());
+            }
+            let criteria = event.criterion();
+            if let Some(criteria) = &criteria {
+                lines.push(EventLine::Load(format!(
+                    "scoreboard objectives add {objective} {criteria}"
+                )));
+                lines.push(EventLine::Tick(format!(
+                    "execute as @a[scores={{{objective}=1..}}] at @s run function {dispatch}"
+                )));
+                body.push(format!("scoreboard players reset @s {objective}"));
+            }
+            if let Some(transition) = event.transition() {
+                transitions.push(crate::transition::TransitionHandler {
+                    path: format!("__sand_program/event/{key}"),
+                    transition: transition.into(),
+                });
+            }
+            if matches!(event, PlayerEvent::Join | PlayerEvent::FirstJoin) {
+                // A persistent tag marks players already observed once; joins
+                // after that are seen through the leave_game statistic.
+                lines.push(EventLine::Tick(format!(
+                    "execute as @a[tag=!{tag}] at @s run function {dispatch}"
+                )));
+                body.push(format!("tag @s add {tag}"));
+            }
+            for handler in &handlers {
+                let call = Cmd::Function(handler.function.clone());
+                let command = match &handler.when {
+                    Some(predicate) => Cmd::Execute {
+                        operations: vec![sand_commands::ExecuteOp::If(
+                            sand_commands::ConditionIr::Predicate(predicate.clone()),
+                        )],
+                        run: Box::new(call),
+                    },
+                    None => call,
+                };
+                body.push(command.render());
+            }
+            let owner = handlers
+                .first()
+                .map(|handler| handler.owner.clone())
+                .unwrap_or_default();
+            self.function(&dispatch, body, &owner, "/events")?;
+        }
+        if !transitions.is_empty() {
+            self.register_event_transitions(&transitions, automatic)?;
+        }
+        Ok(lines)
+    }
+
+    fn register_event_transitions(
+        &mut self,
+        handlers: &[crate::transition::TransitionHandler],
+        automatic: &mut crate::state::registry::AutomaticLifecycle,
+    ) -> Result<(), Vec<Diagnostic>> {
+        use crate::compiler::export::predicates::{
+            player_state_predicate_json, sand_player_state_predicate,
+        };
+        use crate::transition::observation::ObservationSource;
+        let owner = format!("{}:__sand_program/events", self.namespace);
+        let mut predicates = BTreeMap::new();
+        for handler in handlers {
+            if let ObservationSource::Boolean(source) = &handler.transition.observation.source
+                && let crate::condition::ConditionKind::Raw(condition) = source.kind()
+                && let Some((path, flag)) = sand_player_state_predicate(condition)
+            {
+                predicates.insert(path, flag);
+            }
+        }
+        for (path, flag) in predicates {
+            self.records.push(ComponentRecord {
+                namespace: self.namespace.to_owned(),
+                dir: "predicate".into(),
+                path: path.into(),
+                ext: "json".into(),
+                content_type: "text".into(),
+                content: player_state_predicate_json(flag).to_string(),
+            });
+        }
+        let plan = crate::transition::resolve_transition_plan(&self.namespace, handlers).map_err(
+            |message| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_EVENT",
+                    &owner,
+                    "/events",
+                    message,
+                )]
+            },
+        )?;
+        lifecycle::validate_private_objectives(automatic, &[], &plan.private_objectives).map_err(
+            |message| {
+                vec![Diagnostic::error(
+                    "SAND_PROGRAM_EVENT",
+                    &owner,
+                    "/events",
+                    message,
+                )]
+            },
+        )?;
+        for generated in plan.functions {
+            let id = format!("{}:{}", self.namespace, generated.path);
+            self.function(&id, generated.commands, &owner, "/events")?;
+            self.runtime.generated_function(id, generated.origins);
+        }
+        automatic.private_objectives.extend(plan.private_objectives);
+        automatic.load_origins.insert(owner.clone());
+        automatic.tick_origins.insert(owner);
+        automatic.load_commands.extend(plan.load_commands);
+        automatic.global_init_commands.extend(plan.reload_commands);
+        automatic.player_tick_commands.extend(plan.tick_commands);
+        automatic
+            .global_tick_commands
+            .extend(plan.global_tick_commands);
+        Ok(())
+    }
+
+    fn register_owned_runtime(
+        &mut self,
+        registration: crate::registration::DatapackRegistration,
+        origin: (&str, &str, &str),
+        context: &crate::compiler::export::ExportCtx<'_>,
+        load: &mut Vec<LifecycleCommand>,
+        tick: &mut Vec<LifecycleCommand>,
+    ) -> Result<(), Vec<Diagnostic>> {
+        use crate::registration::LifecyclePhase;
+        let (owner, module, pointer) = origin;
+        let (components, lifecycle, tags) = registration.into_parts();
+        debug_assert!(
+            tags.is_empty(),
+            "owned runtime contributes lifecycle commands directly"
+        );
+        for component in components {
+            let record = records::component_to_record(component.as_ref(), Some(context)).map_err(
+                |error| {
+                    vec![Diagnostic::error(
+                        "SAND_PROGRAM_COMMAND",
+                        module,
+                        pointer,
+                        error.to_string(),
+                    )]
+                },
+            )?;
+            if record.dir == "function" {
+                self.runtime.own_function(
+                    format!("{}:{}", record.namespace, record.path),
+                    module.to_owned(),
+                );
+            }
+            self.records.push(record);
+        }
+        for (index, action) in lifecycle.into_iter().enumerate() {
+            let output = match action.phase() {
+                LifecyclePhase::Load => &mut *load,
+                LifecyclePhase::Tick => &mut *tick,
+            };
+            output.push((owner.to_owned(), index, action.command().into()));
+        }
+        Ok(())
+    }
+
+    fn menu_component(&self, menu: &MenuDefinition) -> crate::gameplay::Menu {
+        use crate::{condition::Condition, gameplay::Menu};
+        use sand_components::effect::Ticks;
+
+        let mut definition = Menu::new(
+            menu.id.clone(),
+            static_text_component(&menu.title, &self.holders),
+            Ticks::new(menu.ticks),
+        );
+        if let Some(size) = menu.page_size {
+            definition = definition.page_size(size as usize);
+        }
+        if let Some(score) = &menu.while_open {
+            definition = definition.while_open(self.flag_condition(score));
+        }
+        if let Some(start) = &menu.start {
+            definition = definition.encoded_start(menu.view_index(start).expect("validated view"));
+        }
+        for (index, (choices, _)) in menu.choice_lists().enumerate() {
+            if let Some(view) = index.checked_sub(1).and_then(|index| menu.views.get(index)) {
+                definition = definition.encoded_view(
+                    index as i32,
+                    static_text_component(&view.title, &self.holders),
+                );
+            }
+            for choice in choices {
+                let function = choice.action.as_ref().map(reference_id);
+                let next = choice
+                    .next
+                    .as_deref()
+                    .and_then(|name| menu.view_index(name));
+                let allowed = choice
+                    .when
+                    .as_ref()
+                    .map_or_else(|| Condition::all([]), |score| self.flag_condition(score));
+                definition = definition.encoded_choice(
+                    static_text_component(&choice.label, &self.holders),
+                    allowed,
+                    next,
+                    move || {
+                        crate::ir::Actions(function.iter().cloned().map(Cmd::Function).collect())
+                    },
+                );
+            }
+        }
+        definition
+    }
+
+    fn combat_component(
+        &self,
+        source: &CombatDefinition,
+        states: &[State],
+    ) -> crate::gameplay::Combat {
+        use crate::{entity::StatCurve, gameplay::Combat};
+        use sand_components::effect::Ticks;
+        let bind = |field: &FieldReference| Self::player_score(states, field);
+        let mut policy = Combat::owned(bind(&source.health), StatCurve::from(source.max));
+        if let Some(shield) = &source.shield {
+            policy = policy.owned_shield(bind(shield));
+        }
+        if let Some(resistance) = source.resistance {
+            policy = policy.resistance(resistance);
+        }
+        if let Some(immunity) = &source.immunity {
+            policy = policy.owned_immunity(bind(&immunity.timer), Ticks::new(immunity.ticks));
+        }
+        if let Some(critical) = &source.critical {
+            policy = policy.critical(self.flag_condition(&critical.when), critical.multiplier);
+        }
+        if let Some(hit) = &source.hit {
+            policy = policy.on_hit(Cmd::Function(reference_id(hit)));
+        }
+        if let Some(defeat) = &source.defeat {
+            policy = policy.on_defeat(Cmd::Function(reference_id(defeat)));
+        }
+        if let Some(healed) = &source.healed {
+            policy = policy.on_heal(Cmd::Function(reference_id(healed)));
+        }
+        policy
+    }
+
+    fn player_score(states: &[State], field: &FieldReference) -> crate::state::owned::PlayerScore {
+        states
+            .iter()
+            .find(|state| state.id == field.state)
+            .and_then(|state| crate::state::owned::PlayerScore::from_state(state, &field.field))
+            .expect("validated player score")
+    }
+
+    fn ability_component(
+        &self,
+        source: &AbilityDefinition,
+        states: &[State],
+    ) -> crate::gameplay::Ability {
+        use crate::{
+            entity::PlayerKind,
+            gameplay::{Ability, Lifetime},
+        };
+        use sand_components::effect::Ticks;
+        let bind = |field: &FieldReference| Self::player_score(states, field);
+        let mut lifetime = Lifetime::<PlayerKind>::new(source.id.clone(), Ticks::new(source.ticks))
+            .include_dimensions(self.dimensions.iter().cloned());
+        if let Some(start) = &source.start {
+            let function = reference_id(start);
+            lifetime = lifetime.on_start(move |context| {
+                context.owner_at_instance(Cmd::Function(function.clone()))
+            });
+        }
+        let mut ability = if let Some(projectile) = &source.projectile {
+            Ability::projectile(
+                self.projectiles[&projectile.to_string()]
+                    .clone()
+                    .with_lifetime(lifetime),
+            )
+        } else {
+            Ability::new(lifetime)
+        };
+        if let Some(cost) = &source.cost {
+            ability = ability.owned_cost(bind(&cost.balance), cost.amount);
+        }
+        if let Some(cooldown) = &source.cooldown {
+            ability = ability.owned_cooldown(bind(&cooldown.timer), Ticks::new(cooldown.ticks));
+        }
+        if let Some(guard) = &source.when {
+            ability = ability.when(self.flag_condition(guard));
+        }
+        ability
+    }
+
+    fn progression_component(
+        &self,
+        source: &ProgressionDefinition,
+        state: &State,
+    ) -> crate::gameplay::Progression {
+        use crate::{condition::Condition, gameplay::Progression};
+        let progress = crate::state::owned::PlayerScore::from_state(state, &source.progress.field)
+            .expect("validated player progression State");
+        let mut progression = Progression::owned(source.id.clone(), progress);
+        for objective in &source.objectives {
+            let guard = objective
+                .when
+                .as_ref()
+                .map_or_else(|| Condition::all([]), |score| self.flag_condition(score));
+            let function = objective.reward.as_ref().map(reference_id);
+            progression = progression.objective(
+                move |_| guard.clone(),
+                move |_| crate::ir::Actions(function.iter().cloned().map(Cmd::Function).collect()),
+            );
+        }
+        for branch in &source.branches {
+            let guard = self.flag_condition(&branch.when);
+            progression = progression.branch(branch.from as usize, branch.to as usize, move |_| {
+                guard.clone()
+            });
+        }
+        progression
+    }
+
+    fn scene_component(&self, scene: &SceneDefinition) -> Result<crate::gameplay::Scene, String> {
+        use crate::{
+            entity::PlayerKind,
+            gameplay::{Lifetime, Scene},
+        };
+        use sand_components::{IntoItemStack, effect::Ticks};
+
+        let lifetime = Lifetime::<PlayerKind>::new(scene.id.clone(), Ticks::new(scene.ticks))
+            .include_dimensions(self.dimensions.iter().cloned());
+        let mut definition = Scene::new(lifetime).follow_owner(scene.follow);
+        for part in &scene.parts {
+            definition = match &part.content {
+                SceneContent::Block { block } => {
+                    definition.part(&part.name, block.clone(), part.pose)
+                }
+                SceneContent::Item { item } => {
+                    let stack = if let Some(custom) = self.custom_items.get(item) {
+                        custom
+                            .try_into_item_stack()
+                            .map_err(|error| error.to_string())?
+                    } else {
+                        sand_components::ItemStack::new(item.parse().map_err(
+                            |error: sand_components::error::SandError| error.to_string(),
+                        )?)
+                    };
+                    definition.item(&part.name, stack, part.pose)
+                }
+                SceneContent::Text { text } => definition.text(
+                    &part.name,
+                    static_text_component(text, &self.holders),
+                    part.pose,
+                ),
+            };
+        }
+        for frame in &scene.keyframes {
+            definition = definition.keyframe(
+                &frame.part,
+                Ticks::new(frame.at),
+                Ticks::new(frame.duration),
+                frame.pose,
+            );
+        }
+        Ok(definition)
+    }
+
+    fn job_component(&self, job: &JobDefinition) -> crate::gameplay::Job {
+        use crate::{
+            IntoCommands,
+            entity::PlayerKind,
+            gameplay::{Job, Lifetime},
+        };
+        use sand_components::effect::Ticks;
+
+        let mut lifetime = Lifetime::<PlayerKind>::new(job.id.clone(), Ticks::new(job.ticks))
+            .include_dimensions(self.dimensions.iter().cloned());
+        if let Some(capacity) = job.capacity {
+            lifetime = lifetime.capacity(capacity);
+        }
+        let holder = self.holders[&job.index.state.to_string()].clone();
+        let objective = sand_commands::ObjectiveName::logical(format!(
+            "{}.{}",
+            job.index.state, job.index.field
+        ));
+        let step = reference_id(&job.step);
+        let mut definition = Job::new(lifetime, job.count, move |context, index| {
+            // The index is read from the task before resolving its player owner.
+            let mut actions = Cmd::NumericWrite(Box::new(NumericWrite {
+                value: index,
+                holder: holder.clone(),
+                objective: objective.clone(),
+                scale: 1,
+                fixed: crate::entity::FixedPoint::default(),
+                bounds: None,
+                dirty: Vec::new(),
+            }))
+            .into_commands();
+            actions.extend([context.owner(|_| Cmd::Function(step.clone()))]);
+            actions
+        })
+        .per_tick(job.per_tick.unwrap_or(1));
+        if let Some(callback) = &job.complete {
+            let callback = reference_id(callback);
+            definition = definition
+                .on_complete(move |context| context.owner(|_| Cmd::Function(callback.clone())));
+        }
+        definition
+    }
+
+    fn session_component(&self, source: &SessionDefinition) -> crate::gameplay::Session {
+        use crate::{
+            entity::PlayerKind,
+            gameplay::{Lifetime, Session},
+        };
+        use sand_components::effect::Ticks;
+        let lifetime = Lifetime::<PlayerKind>::new(source.id.clone(), Ticks::new(source.ticks))
+            .include_dimensions(self.dimensions.iter().cloned())
+            .every(Ticks::new(source.every.unwrap_or(1)));
+        Session::new(
+            lifetime,
+            self.progressions[&source.progression.to_string()].clone(),
+        )
+    }
+
+    fn register_archetypes(
+        &mut self,
+        program: &Program,
+        profile: &crate::version::VersionProfile,
+        load: &mut Vec<LifecycleCommand>,
+        tick: &mut Vec<LifecycleCommand>,
+    ) -> Result<PrivateObjectives, Vec<Diagnostic>> {
+        use crate::entity::archetype::{
+            ArchetypeComponent, ArchetypeDefinition, compile_definitions,
+        };
+        let mut owners = BTreeMap::new();
+        let mut definitions = Vec::new();
+        let callback = |function: &FunctionReference| {
+            reference_id(function)
+                .parse::<sand_components::FunctionId>()
+                .expect("validated function identity")
+        };
+        for module in &program.modules {
+            for (index, source) in module.archetypes.iter().enumerate() {
+                owners.insert(source.id.to_string(), (module.id.to_string(), index));
+                let components = source
+                    .components
+                    .iter()
+                    .map(|id| {
+                        let state = &self.data_states[&id.to_string()];
+                        ArchetypeComponent::owned(
+                            state_objective(&id.to_string(), "presence"),
+                            state.revision,
+                            self.entity_attachment_commands(state),
+                            Self::entity_detachment_commands(state),
+                        )
+                    })
+                    .collect();
+                definitions.push(ArchetypeDefinition::portable(
+                    source,
+                    source.initialize.as_ref().map(callback),
+                    source.cleanup.as_ref().map(callback),
+                    components,
+                ));
+            }
+        }
+        let compiled = compile_definitions(profile, definitions).map_err(|diagnostic| {
+            vec![Diagnostic::error(
+                "SAND_PROGRAM_ARCHETYPE",
+                "",
+                "/archetypes",
+                diagnostic.to_string(),
+            )]
+        })?;
+        let mut private = BTreeMap::new();
+        for archetype in compiled {
+            let id = &archetype.report.archetype;
+            let (owner, index) = &owners[id];
+            let ptr = format!("/archetypes/{index}");
+            for objective in &archetype.report.objectives {
+                if let Some((previous, _)) =
+                    private.insert(objective.clone(), (id.clone(), "archetype".into()))
+                {
+                    return Err(vec![Diagnostic::error(
+                        "SAND_PROGRAM_ARCHETYPE",
+                        owner,
+                        &ptr,
+                        format!(
+                            "archetype `{id}` shares private objective `{objective}` with `{previous}`"
+                        ),
+                    )]);
+                }
+            }
+            self.runtime.archetypes.push(archetype.report);
+            for record in archetype.records {
+                if record.dir == "function" && record.ext == "mcfunction" {
+                    self.function(
+                        &format!("{}:{}", record.namespace, record.path),
+                        record
+                            .content
+                            .lines()
+                            .map(str::to_owned)
+                            .collect::<Vec<_>>(),
+                        owner,
+                        &ptr,
+                    )?;
+                } else {
+                    self.records.push(record);
+                }
+            }
+            load.extend(
+                archetype
+                    .load_functions
+                    .into_iter()
+                    .map(|function| (owner.clone(), *index, format!("function {function}"))),
+            );
+            tick.extend(
+                archetype
+                    .tick_functions
+                    .into_iter()
+                    .map(|function| (owner.clone(), *index, format!("function {function}"))),
+            );
+        }
+        Ok(private)
+    }
+
+    fn status_component(&self, source: &StatusEffectDefinition) -> crate::gameplay::StatusEffect {
+        use crate::gameplay::{Lifetime, StatusEffect};
+        use sand_components::effect::Ticks;
+        let mut lifetime = Lifetime::new(source.id.clone(), Ticks::new(source.ticks))
+            .include_dimensions(self.dimensions.iter().cloned());
+        if let Some(start) = source.start.as_ref().map(reference_id) {
+            lifetime =
+                lifetime.on_start(move |context| context.owner(|_| Cmd::Function(start.clone())));
+        }
+        if let Some(tick) = source.tick.as_ref().map(reference_id) {
+            lifetime =
+                lifetime.on_tick(move |context| context.owner(|_| Cmd::Function(tick.clone())));
+        }
+        if let Some(stop) = source.stop.as_ref().map(reference_id) {
+            lifetime =
+                lifetime.on_stop(move |context| context.owner(|_| Cmd::Function(stop.clone())));
+        }
+        let status = StatusEffect::new(lifetime);
+        match source.stacks {
+            Some(stacks) => status.stacking(stacks),
+            None => status,
+        }
+    }
+
+    fn encounter_component(&self, source: &EncounterDefinition) -> PortableEncounter {
+        use crate::gameplay::{Encounter, Lifetime, identity};
+        use sand_components::effect::Ticks;
+
+        let lifetime = |id, ticks, stop: Option<&FunctionReference>| {
+            let mut lifetime = Lifetime::new(id, Ticks::new(ticks))
+                .include_dimensions(self.dimensions.iter().cloned());
+            if let Some(callback) = stop {
+                let callback = reference_id(callback);
+                lifetime = lifetime
+                    .on_stop(move |context| context.owner(|_| Cmd::Function(callback.clone())));
+            }
+            lifetime
+        };
+        let mut controller = Encounter::new(lifetime(
+            source.id.clone(),
+            source.ticks,
+            source.stop.as_ref(),
+        ));
+        if let Some(when) = &source.when {
+            let condition = self.flag_condition(when);
+            controller = controller.while_active(move |_| condition.clone());
+        }
+        let mut attacks = Vec::with_capacity(source.attacks.len());
+        for (index, source_attack) in source.attacks.iter().enumerate() {
+            let id = identity::resource(&source.id, &format!("attack_{index}"));
+            let callback = reference_id(&source_attack.start);
+            let attack = lifetime(id, source_attack.ticks, source_attack.stop.as_ref())
+                .on_start(move |context| context.owner(|_| Cmd::Function(callback.clone())));
+            let condition = source_attack.when.as_ref().map_or_else(
+                || crate::condition::Condition::all([]),
+                |when| self.flag_condition(when),
+            );
+            controller = controller.attack(move |_| condition.clone(), &attack);
+            attacks.push(attack);
+        }
+        PortableEncounter {
+            controller,
+            attacks,
+        }
+    }
+
+    fn flag_condition(&self, score: &FieldReference) -> crate::condition::Condition {
+        crate::condition::Condition::flag(
+            self.holders[&score.state.to_string()].to_string(),
+            objective(score),
+            true,
+        )
+    }
+
+    fn projectile_component(
+        &self,
+        projectile: &ProjectileDefinition,
+    ) -> crate::gameplay::Projectile {
+        use crate::{
+            entity::PlayerKind,
+            gameplay::{Lifetime, Projectile},
+        };
+        use sand_components::effect::Ticks;
+
+        let lifetime =
+            Lifetime::<PlayerKind>::new(projectile.id.clone(), Ticks::new(projectile.ticks))
+                .include_dimensions(self.dimensions.iter().cloned());
+        let mut definition = Projectile::new(lifetime);
+        if let Some(speed) = projectile.speed {
+            definition = definition.speed(speed);
+        }
+        if let Some(radius) = projectile.radius {
+            definition = definition.radius(radius);
+        }
+        if let Some(target) = &projectile.target {
+            definition = definition
+                .targets(sand_commands::Selector::all_entities().entity_type(target.clone()));
+        }
+        let hit = projectile.hit.as_ref().map(reference_id);
+        let damage = projectile.damage;
+        definition.on_hit(move |context| {
+            let mut actions = crate::ir::Actions::default();
+            if let Some(damage) = damage {
+                actions.extend([context.damage_target(damage, sand_commands::DamageKind::Generic)]);
+            }
+            if let Some(function) = &hit {
+                actions.extend([context.owner_at_instance(Cmd::Function(function.clone()))]);
+            }
+            actions
+        })
+    }
+
+    fn hud_component(&self, hud: &HudDefinition) -> crate::gameplay::Hud {
+        use crate::{
+            entity::{PlayerKind, StatCurve},
+            gameplay::{Hud, Lifetime},
+        };
+        use sand_components::effect::Ticks;
+
+        let lifetime = Lifetime::<PlayerKind>::new(hud.id.clone(), Ticks::new(hud.ticks))
+            .include_dimensions(self.dimensions.iter().cloned())
+            .every(Ticks::new(hud.every.unwrap_or(1)));
+        let mut definition = Hud::new(lifetime);
+        if !hud.actionbar.is_empty() {
+            definition = definition.actionbar(static_text_component(&hud.actionbar, &self.holders));
+        }
+        if let Some(bar) = &hud.bossbar {
+            let value = match &bar.value {
+                ScoreOperand::Value(value) => StatCurve::from(f64::from(*value)),
+                ScoreOperand::Field(field) => StatCurve::runtime_score(
+                    self.holders[&field.state.to_string()].clone(),
+                    sand_commands::ObjectiveName::logical(format!(
+                        "{}.{}",
+                        field.state, field.field
+                    )),
+                    1,
+                ),
+            };
+            definition = definition.bossbar(
+                static_text_component(&bar.title, &self.holders),
+                value,
+                bar.max,
+            );
+        }
+        definition
+    }
+
+    fn store_command_result(&self, score: &FieldReference, command: String) -> Cmd {
+        Cmd::Execute {
+            operations: vec![sand_commands::ExecuteOp::StoreResult(
+                sand_commands::ExecuteStoreTarget::Score {
+                    holder: self.holders[&score.state.to_string()].clone(),
+                    objective: objective(score),
+                },
+            )],
+            run: Box::new(Cmd::Raw(command)),
+        }
+    }
+
+    /// Commands that create a boss bar and refresh its display at load.
+    fn boss_bar_setup(&self, bar: &BossBar) -> Vec<String> {
+        let id = &bar.id;
+        let title = static_text_component(&bar.title, &self.holders);
+        let color = match bar.color {
+            BossBarColor::Blue => "blue",
+            BossBarColor::Green => "green",
+            BossBarColor::Pink => "pink",
+            BossBarColor::Purple => "purple",
+            BossBarColor::Red => "red",
+            BossBarColor::White => "white",
+            BossBarColor::Yellow => "yellow",
+        };
+        let style = match bar.style {
+            BossBarStyle::Progress => "progress",
+            BossBarStyle::Notched6 => "notched_6",
+            BossBarStyle::Notched10 => "notched_10",
+            BossBarStyle::Notched12 => "notched_12",
+            BossBarStyle::Notched20 => "notched_20",
+        };
+        let name = title.to_string();
+        vec![
+            format!("bossbar add {id} {name}"),
+            format!("bossbar set {id} name {name}"),
+            format!("bossbar set {id} color {color}"),
+            format!("bossbar set {id} style {style}"),
+            format!("bossbar set {id} max {}", bar.max),
+        ]
+    }
+
+    // Snapshot validated numeric fields into storage before expanding one
+    // command. Macro identifiers follow normal helper ownership/collision rules.
+    fn numeric_command(
+        &mut self,
+        scope: (&str, &str, &str, &str),
+        label: &str,
+        mut command: String,
+        arguments: &[NumericArgument<'_>],
+        strings: &[(&str, String)],
+    ) -> Result<Vec<Cmd>, Vec<Diagnostic>> {
+        let (owner, path, module, ptr) = scope;
+        let storage = format!("{}:sand.args", self.namespace);
+        let mut setup = Vec::new();
+        let mut guards = Vec::new();
+        for arg in arguments {
+            match arg.value {
+                Amount::Value(value) => {
+                    // Integer absolute x/z coordinates are block-centered by
+                    // Minecraft. Preserve exact numeric positions with a decimal.
+                    let rendered =
+                        if label == "teleport" && !command.contains('~') && value.fract() == 0.0 {
+                            format!("{value:.1}")
+                        } else {
+                            value.to_string()
+                        };
+                    command = command.replace(&format!("$({})", arg.name), &rendered)
+                }
+                Amount::Field(field) => {
+                    let holder = &self.holders[&field.score.state.to_string()];
+                    let objective = objective(&field.score);
+                    if let Some((min, max)) = arg.bounds {
+                        let lower = (min * field.scale).ceil();
+                        let upper = (max * field.scale).floor();
+                        if lower > i32::MAX as f64 || upper < i32::MIN as f64 || lower > upper {
+                            return Ok(Vec::new());
+                        }
+                        guards.push(format!(
+                            "if score {holder} {objective} matches {}..{}",
+                            lower.max(i32::MIN as f64) as i32,
+                            upper.min(i32::MAX as f64) as i32
+                        ));
+                    }
+                    setup.push(Cmd::Raw(format!("execute store result storage {storage} {} {} {} run scoreboard players get {holder} {objective}", arg.name, if arg.integer { "int" } else { "double" }, 1.0 / field.scale)));
+                }
+            }
+        }
+        if setup.is_empty() && strings.is_empty() {
+            return Ok(vec![Cmd::Raw(command)]);
+        }
+        for (name, value) in strings {
+            // Substitute whole static item arguments, not text containing user
+            // components inside a macro template. Expansion is not recursive.
+            setup.push(Cmd::Raw(format!(
+                "data modify storage {storage} {name} set value {}",
+                serde_json::to_string(value).expect("string serialization")
+            )));
+        }
+        let id = helper(&self.namespace, &self.helper_keys[owner], path, label);
+        self.function(&id, vec![format!("${command}")], module, ptr)?;
+        let call = format!("function {id} with storage {storage}");
+        setup.push(Cmd::Raw(if guards.is_empty() {
+            call
+        } else {
+            format!("execute {} run {call}", guards.join(" "))
+        }));
+        Ok(setup)
+    }
+
+    /// A custom item as a command item argument with its identity components.
+    fn item_argument(&self, item: &str) -> Result<String, String> {
+        let Some(custom) = self.custom_items.get(item) else {
+            return Ok(item.to_owned());
+        };
+        let predicate = custom.item_predicate().map_err(|e| e.to_string())?;
+        let lowered = sand_components::predicates::lower_item_predicate_for_command(&predicate)?;
+        let base = lowered
+            .items
+            .as_ref()
+            .and_then(|items| items.first())
+            .map(|id| id.to_string())
+            .unwrap_or_default();
+        Ok(format!("{base}[{}]", lowered.constraints.join(",")))
+    }
+
+    fn item_stack_argument(&self, item: &str) -> Result<String, String> {
+        match self.custom_items.get(item) {
+            Some(custom) => sand_components::IntoItemStack::try_into_item_stack(custom.clone())
+                .map(|stack| stack.to_string())
+                .map_err(|error| error.to_string()),
+            None => Ok(item.to_owned()),
+        }
+    }
+
+    fn frame_commands(&self, fields: &[FieldReference], push: bool) -> Vec<Cmd> {
+        if push {
+            let storage = frame_storage(&self.namespace);
+            let mut commands = vec![Cmd::Raw(format!(
+                "data modify storage {storage} stack append value {{}}"
+            ))];
+            for (index, field) in fields.iter().enumerate() {
+                if self.is_data_field(field) {
+                    commands.extend(
+                        self.copy_data_field(
+                            field,
+                            &storage,
+                            &format!("stack[-1].f{index}"),
+                            false,
+                        )
+                        .into_iter()
+                        .map(Cmd::Raw),
+                    );
+                    continue;
+                }
+                commands.push(Cmd::Execute {
+                    operations: vec![sand_commands::ExecuteOp::StoreResult(
+                        sand_commands::ExecuteStoreTarget::Nbt {
+                            target: sand_commands::DataTarget::Storage(storage.clone()),
+                            path: format!("stack[-1].f{index}"),
+                            kind: sand_commands::NbtStoreKind::Int,
+                            scale: 1.0,
+                        },
+                    )],
+                    run: Box::new(Cmd::Raw(format!(
+                        "scoreboard players get {} {}",
+                        self.holders[&field.state.to_string()],
+                        objective(field)
+                    ))),
+                });
+            }
+            commands
+        } else {
+            let storage = frame_storage(&self.namespace);
+            let mut commands = Vec::with_capacity(fields.len() + 1);
+            for (index, field) in fields.iter().enumerate() {
+                if self.is_data_field(field) {
+                    commands.extend(
+                        self.copy_data_field(field, &storage, &format!("stack[-1].f{index}"), true)
+                            .into_iter()
+                            .map(Cmd::Raw),
+                    );
+                    continue;
+                }
+                commands.push(Cmd::Execute {
+                    operations: vec![sand_commands::ExecuteOp::StoreResult(
+                        sand_commands::ExecuteStoreTarget::Score {
+                            holder: self.holders[&field.state.to_string()].clone(),
+                            objective: objective(field),
+                        },
+                    )],
+                    run: Box::new(Cmd::Raw(format!(
+                        "data get storage {storage} stack[-1].f{index}"
+                    ))),
+                });
+            }
+            commands.push(Cmd::Raw(format!("data remove storage {storage} stack[-1]")));
+            commands
+        }
+    }
+
+    fn block_data_address(address: &BlockDataAddress) -> sand_commands::NbtRef {
+        sand_commands::DataTarget::block(block_position(address.at)).path(address.path.as_str())
+    }
+
+    fn condition_test(
+        &mut self,
+        condition: &Condition,
+    ) -> Result<sand_commands::ConditionIr, String> {
+        Ok(match condition {
+            Condition::Exists(test) => {
+                sand_commands::ConditionIr::Entity(query_selector(&test.exists, &self.data_states)?)
+            }
+            Condition::Block(test) => sand_commands::ConditionIr::Block {
+                position: block_position(test.at),
+                block: test.block.clone(),
+            },
+            Condition::Biome(test) => sand_commands::ConditionIr::Biome {
+                position: block_position(test.at),
+                biome: test.biome.clone(),
+            },
+            Condition::Dimension(test) => {
+                sand_commands::ConditionIr::Dimension(test.dimension.to_string())
+            }
+            Condition::Holding(test) => sand_commands::ConditionIr::ItemsEntity {
+                target: sand_commands::Selector::self_(),
+                slot: crate::item::location::equipment_item_slot(test.slot.unwrap_or(
+                    if test.offhand {
+                        sand_components::EquipmentSlot::Offhand
+                    } else {
+                        sand_components::EquipmentSlot::Mainhand
+                    },
+                ))
+                .map_err(|error| error.to_string())?,
+                item: self.item_argument(&test.holding)?,
+            },
+            Condition::ProgressionCompleted {
+                progression_completed,
+            } => sand_commands::ConditionIr::Function(
+                crate::gameplay::identity::resource(progression_completed, "progression_completed")
+                    .to_string(),
+            ),
+            Condition::Advancement {
+                advancement,
+                criterion,
+            } => sand_commands::ConditionIr::Entity(
+                sand_commands::TargetArgument::into_target_selector(
+                    sand_commands::Target::self_().advancement(
+                        advancement.to_string(),
+                        criterion.as_deref(),
+                        true,
+                    ),
+                ),
+            ),
+            Condition::ArchetypeAttached { archetype_attached } => {
+                let kind = &self.archetypes[&archetype_attached.to_string()];
+                sand_commands::ConditionIr::Entity(
+                    crate::entity::archetype::concrete::select_entity(
+                        archetype_attached,
+                        kind,
+                        sand_commands::Selector::self_(),
+                    ),
+                )
+            }
+            Condition::RosterMatch {
+                roster_match,
+                role,
+                any_member,
+            } => sand_commands::ConditionIr::Function(crate::gameplay::roster::RosterPlan::query(
+                roster_match,
+                *role,
+                *any_member,
+            )),
+            Condition::Predicate { predicate } => {
+                sand_commands::ConditionIr::Predicate(predicate.to_string())
+            }
+            Condition::Flag(test) => {
+                self.flags.insert(test.flag);
+                sand_commands::ConditionIr::Predicate(flag_predicate_id(&self.namespace, test.flag))
+            }
+            Condition::Attached(test) => sand_commands::ConditionIr::ScoreMatches {
+                holder: sand_commands::ScoreHolder::self_(),
+                objective: state_objective(&test.attached.to_string(), "presence"),
+                range: {
+                    let revision = self.data_states[&test.attached.to_string()].revision;
+                    format!("{revision}..{revision}")
+                },
+            },
+            Condition::Range(range) => sand_commands::ConditionIr::ScoreMatches {
+                holder: self.holders[&range.score.state.to_string()].clone(),
+                objective: objective(&range.score),
+                range: format!(
+                    "{}..{}",
+                    range.min.unwrap_or(i32::MIN),
+                    range.max.unwrap_or(i32::MAX)
+                ),
+            },
+            Condition::Relation(relation) => sand_commands::ConditionIr::ScoreCompare {
+                left: self.holders[&relation.left.state.to_string()].clone(),
+                left_objective: objective(&relation.left),
+                op: match relation.relation {
+                    Relation::Lt => sand_commands::ScoreCmp::Lt,
+                    Relation::Le => sand_commands::ScoreCmp::Le,
+                    Relation::Eq => sand_commands::ScoreCmp::Eq,
+                    Relation::Ge => sand_commands::ScoreCmp::Ge,
+                    Relation::Gt => sand_commands::ScoreCmp::Gt,
+                },
+                right: self.holders[&relation.right.state.to_string()].clone(),
+                right_objective: objective(&relation.right),
+            },
+        })
+    }
+
     fn body(
         &mut self,
         body: &[Operation],
@@ -489,8 +3133,11 @@ impl Lower {
         path: &str,
         module: &str,
         ptr: &str,
-    ) -> Result<Vec<String>, Vec<Diagnostic>> {
-        let mut commands = Vec::new();
+    ) -> Result<CommandBody, Vec<Diagnostic>> {
+        let mut commands = CommandBody {
+            authored: true,
+            ..CommandBody::default()
+        };
         for (index, operation) in body.iter().enumerate() {
             let path = if path.is_empty() {
                 index.to_string()
@@ -560,7 +3207,7 @@ impl Lower {
                             &format!("{ptr}/action/body"),
                         )?;
                         if let Some(init) = &self.init {
-                            lines.insert(0, Cmd::Function(init.clone()).render());
+                            lines.prepend_initializer(init);
                         }
                         self.function(&id, lines, module, &ptr)?;
                         id
@@ -571,6 +3218,478 @@ impl Lower {
                         )],
                         run: Box::new(Cmd::Function(target)),
                     }]
+                }
+                Action::ScoreOperation {
+                    score,
+                    operator,
+                    operand,
+                } => {
+                    let holder = self.holders[&score.state.to_string()].clone();
+                    let target_objective = objective(score);
+                    let mut commands = Vec::new();
+                    let (source, source_objective) = match operand {
+                        ScoreOperand::Field(field) => (
+                            self.holders[&field.state.to_string()].clone(),
+                            objective(field),
+                        ),
+                        ScoreOperand::Value(value) => {
+                            self.constants.insert(*value);
+                            (
+                                constant_holder(*value),
+                                constants_objective(&self.namespace),
+                            )
+                        }
+                    };
+                    commands.push(Cmd::ScorePlayers(crate::ir::ScorePlayersOp::Operation {
+                        target: holder.to_string(),
+                        target_obj: target_objective.clone(),
+                        op: match operator {
+                            ScoreOperator::Set => crate::ir::ScoreOpKind::Assign,
+                            ScoreOperator::Add => crate::ir::ScoreOpKind::Add,
+                            ScoreOperator::Sub => crate::ir::ScoreOpKind::Sub,
+                            ScoreOperator::Mul => crate::ir::ScoreOpKind::Mul,
+                            ScoreOperator::Div => crate::ir::ScoreOpKind::Div,
+                            ScoreOperator::Mod => crate::ir::ScoreOpKind::Mod,
+                            ScoreOperator::Min => crate::ir::ScoreOpKind::Min,
+                            ScoreOperator::Max => crate::ir::ScoreOpKind::Max,
+                        },
+                        source: source.to_string(),
+                        source_obj: source_objective,
+                    }));
+                    if let Some(bounds) = self
+                        .bounds
+                        .get(&format!("{}.{}", score.state, score.field))
+                        .copied()
+                    {
+                        commands.extend(crate::ir::score_bounds(
+                            &holder,
+                            &target_objective,
+                            bounds,
+                        ));
+                    }
+                    commands
+                }
+                Action::ScoreRandom { score, min, max } => {
+                    let holder = self.holders[&score.state.to_string()].clone();
+                    let target_objective = objective(score);
+                    let mut commands = vec![Cmd::Execute {
+                        operations: vec![sand_commands::ExecuteOp::StoreResult(
+                            sand_commands::ExecuteStoreTarget::Score {
+                                holder: holder.clone(),
+                                objective: target_objective.clone(),
+                            },
+                        )],
+                        run: Box::new(Cmd::Raw(format!("random value {min}..{max}"))),
+                    }];
+                    if let Some(bounds) = self
+                        .bounds
+                        .get(&format!("{}.{}", score.state, score.field))
+                        .copied()
+                    {
+                        commands.extend(crate::ir::score_bounds(
+                            &holder,
+                            &target_objective,
+                            bounds,
+                        ));
+                    }
+                    commands
+                }
+                Action::Message {
+                    audience,
+                    channel,
+                    text,
+                } => {
+                    let target = match audience {
+                        Audience::Player => sand_commands::Selector::self_(),
+                        Audience::Everyone => sand_commands::Selector::all_players(),
+                    };
+                    let storage = format!("{}:__program_text", self.namespace);
+                    let mut staged = Vec::new();
+                    let mut cleanup = Vec::new();
+                    let component = text_component(text, &self.holders, "p", &mut |value, path| {
+                        let remove = format!("data remove storage {storage} {path}");
+                        staged.push(remove.clone());
+                        cleanup.push(remove);
+                        staged.extend(self.copy_data_field(value, &storage, path, false));
+                        sand_commands::TextComponent::nbt(
+                            sand_commands::DataTarget::storage(&storage).path(format!("{path}[]")),
+                            sand_commands::TextComponent::literal(""),
+                        )
+                    });
+                    let lines = match channel {
+                        MessageChannel::Chat => vec![crate::cmd::tellraw(target, component)],
+                        MessageChannel::Actionbar => {
+                            vec![sand_commands::Actionbar::show(target, component)]
+                        }
+                        MessageChannel::Title => sand_commands::Title::of(target)
+                            .title(component)
+                            .try_build()
+                            .map_err(|e| fail(e.to_string()))?,
+                        MessageChannel::Subtitle => sand_commands::Title::of(target)
+                            .subtitle(component)
+                            .try_build()
+                            .map_err(|e| fail(e.to_string()))?,
+                    };
+                    staged.extend(lines);
+                    staged.extend(cleanup);
+                    staged.into_iter().map(Cmd::Raw).collect()
+                }
+                Action::Dialog { dialog } => vec![Cmd::Raw(match dialog {
+                    Some(dialog) => crate::cmd::show_dialog(
+                        sand_commands::Target::self_(),
+                        sand_components::DialogId::custom(dialog.clone()),
+                    ),
+                    None => "dialog clear @s".into(),
+                })],
+                Action::Sound {
+                    sound,
+                    volume,
+                    pitch,
+                } => self.numeric_command(
+                    (owner, &path, module, &ptr),
+                    "sound",
+                    format!("playsound {sound} master @s ~ ~ ~ $(volume) $(pitch)"),
+                    &[
+                        NumericArgument {
+                            name: "volume",
+                            value: volume,
+                            integer: false,
+                            bounds: Some((0.0, f32::MAX as f64)),
+                        },
+                        NumericArgument {
+                            name: "pitch",
+                            value: pitch,
+                            integer: false,
+                            bounds: Some((0.0, 2.0)),
+                        },
+                    ],
+                    &[],
+                )?,
+                Action::PlayVfx { cues } => VfxCue::effect(owner, cues)
+                    .try_play()
+                    .map_err(|error| fail(error.to_string()))?
+                    .into_iter()
+                    .map(Cmd::Raw)
+                    .collect(),
+                Action::Particle {
+                    particle,
+                    count,
+                    spread,
+                    speed,
+                } => self.numeric_command(
+                    (owner, &path, module, &ptr),
+                    "particle",
+                    format!(
+                        "particle {particle} ~ ~1 ~ $(spread) $(spread) $(spread) $(speed) $(count)"
+                    ),
+                    &[
+                        NumericArgument {
+                            name: "spread",
+                            value: spread,
+                            integer: false,
+                            bounds: Some((0.0, 1000.0)),
+                        },
+                        NumericArgument {
+                            name: "speed",
+                            value: speed,
+                            integer: false,
+                            bounds: Some((0.0, 1000.0)),
+                        },
+                        NumericArgument {
+                            name: "count",
+                            value: &whole_amount(count),
+                            integer: true,
+                            bounds: Some((0.0, 100_000.0)),
+                        },
+                    ],
+                    &[],
+                )?,
+                Action::Effect {
+                    effect,
+                    seconds,
+                    amplifier,
+                    hide_particles,
+                } => vec![Cmd::Effect(
+                    sand_commands::EffectCommand::give_raw(
+                        sand_commands::Selector::self_(),
+                        effect.clone(),
+                    )
+                    .duration(match seconds {
+                        Some(seconds) => sand_commands::EffectDuration::Seconds(*seconds),
+                        None => sand_commands::EffectDuration::Infinite,
+                    })
+                    .amplifier(*amplifier)
+                    .particles(!hide_particles),
+                )],
+                Action::ClearEffect { effect } => vec![Cmd::Raw(match effect {
+                    Some(effect) => format!("effect clear @s {effect}"),
+                    None => "effect clear @s".to_owned(),
+                })],
+                Action::GiveItem { item, count } => {
+                    let item = self.item_stack_argument(item).map_err(fail)?;
+                    let count = whole_amount(count);
+                    let dynamic = matches!(count, Amount::Field(_));
+                    let strings = if dynamic {
+                        vec![("item", item.clone())]
+                    } else {
+                        Vec::new()
+                    };
+                    self.numeric_command(
+                        (owner, &path, module, &ptr),
+                        "give",
+                        format!(
+                            "give @s {} $(count)",
+                            if dynamic { "$(item)" } else { &item }
+                        ),
+                        &[NumericArgument {
+                            name: "count",
+                            value: &count,
+                            integer: true,
+                            bounds: Some((1.0, 6400.0)),
+                        }],
+                        &strings,
+                    )?
+                }
+                Action::SetEquipment { slot, item, count } => {
+                    use sand_commands::inventory::{
+                        ItemCommandLocation, ItemReplaceCommand, ItemReplaceSource,
+                    };
+
+                    let replace = ItemReplaceCommand {
+                        destination: ItemCommandLocation::Entity {
+                            target: sand_commands::Selector::self_(),
+                            slot: crate::item::location::equipment_item_slot(*slot)
+                                .map_err(|error| fail(error.to_string()))?,
+                        },
+                        source: match item {
+                            Some(item) => ItemReplaceSource::Stack {
+                                item: self.item_stack_argument(item).map_err(fail)?,
+                                count: *count,
+                            },
+                            None => ItemReplaceSource::Clear,
+                        },
+                    };
+                    vec![Cmd::Raw(
+                        sand_commands::RenderCommand::render(&replace, &self.profile)
+                            .map_err(|error| fail(error.to_string()))?,
+                    )]
+                }
+                Action::ClearItem { item, count } => {
+                    let inventory = sand_commands::Inventory::of(sand_commands::Selector::self_());
+                    // Custom items clear by their custom_data identity.
+                    let item = match item {
+                        Some(item) => Some(self.item_argument(item).map_err(fail)?),
+                        None => None,
+                    };
+                    match (item, count) {
+                        (Some(item), Some(ScoreOperand::Value(count))) => {
+                            vec![Cmd::Raw(inventory.clear_item_count(item, *count as u32))]
+                        }
+                        (Some(item), Some(count @ ScoreOperand::Field(_))) => {
+                            inventory
+                                .try_clear_item_count(&item, 0)
+                                .map_err(|error| fail(error.to_string()))?;
+                            self.numeric_command(
+                                (owner, &path, module, &ptr),
+                                "clear_item",
+                                "clear @s $(item) $(count)".to_owned(),
+                                &[NumericArgument {
+                                    name: "count",
+                                    value: &whole_amount(count),
+                                    integer: true,
+                                    bounds: Some((0.0, f64::from(i32::MAX))),
+                                }],
+                                &[("item", item)],
+                            )?
+                        }
+                        (Some(item), None) => vec![Cmd::Raw(inventory.clear_item(item))],
+                        (None, _) => vec![Cmd::Raw(inventory.clear_all())],
+                    }
+                }
+                Action::Menu { menu, open } => {
+                    let definition = &self.menus[&menu.to_string()];
+                    if *open {
+                        definition.open().0
+                    } else {
+                        definition.close().0
+                    }
+                }
+                Action::Combat {
+                    combat,
+                    amount,
+                    heal,
+                } => {
+                    use crate::entity::StatCurve;
+                    let policy = &self.combats[&combat.to_string()];
+                    let amount = match amount {
+                        Amount::Value(value) => StatCurve::from(*value),
+                        Amount::Field(field) => StatCurve::runtime_score(
+                            self.holders[&field.score.state.to_string()].clone(),
+                            sand_commands::ObjectiveName::logical(format!(
+                                "{}.{}",
+                                field.score.state, field.score.field
+                            )),
+                            field.scale as i32,
+                        ),
+                    };
+                    let actions = if *heal {
+                        policy.heal(amount)
+                    } else {
+                        policy.damage(amount)
+                    };
+                    let location = if let Some((_, phase)) = owner
+                        .strip_prefix("module/")
+                        .and_then(|owner| owner.rsplit_once('/'))
+                    {
+                        sand_components::ResourceLocation::new(
+                            &self.namespace,
+                            format!("__sand_lifecycle_{phase}"),
+                        )
+                    } else {
+                        owner.parse()
+                    }
+                    .expect("validated function identity");
+                    actions
+                        .lower(&location)
+                        .map_err(|error| fail(error.to_string()))?
+                        .into_iter()
+                        .map(Cmd::Raw)
+                        .collect()
+                }
+                Action::Ability { ability, command } => {
+                    let definition = &self.abilities[&ability.to_string()];
+                    match command {
+                        AbilityCommand::Activate => definition.activate().0,
+                        AbilityCommand::Cancel => definition.cancel().0,
+                        AbilityCommand::Diagnose => definition.diagnose().0,
+                    }
+                }
+                Action::Progression {
+                    progression,
+                    advance,
+                } => {
+                    let definition = &self.progressions[&progression.to_string()];
+                    if *advance {
+                        definition.advance().0
+                    } else {
+                        definition.reset().0
+                    }
+                }
+                Action::Scene { scene, show } => {
+                    let definition = &self.scenes[&scene.to_string()];
+                    if *show {
+                        definition.start().0
+                    } else {
+                        definition.cancel().0
+                    }
+                }
+                Action::Job { job, start } => {
+                    let definition = &self.jobs[&job.to_string()];
+                    if *start {
+                        definition.start().0
+                    } else {
+                        definition.cancel().0
+                    }
+                }
+                Action::Session { session, command } => {
+                    let definition = &self.sessions[&session.to_string()];
+                    match command {
+                        SessionCommand::Start => definition.start().0,
+                        SessionCommand::Restart => definition.restart().0,
+                        SessionCommand::Reset => definition.reset().0,
+                        SessionCommand::Cancel => definition.cancel().0,
+                    }
+                }
+                Action::Projectile { projectile, launch } => {
+                    let definition = &self.projectiles[&projectile.to_string()];
+                    if *launch {
+                        definition.launch().0
+                    } else {
+                        definition.cancel().0
+                    }
+                }
+                Action::Hud { hud, show } => {
+                    let definition = &self.huds[&hud.to_string()];
+                    if *show {
+                        definition.start().0
+                    } else {
+                        definition.cancel().0
+                    }
+                }
+                Action::Roster { roster, command } => {
+                    use crate::gameplay::roster::RosterPlan;
+                    match command {
+                        RosterCommand::Open => RosterPlan::call(roster, "open").0,
+                        RosterCommand::Close => RosterPlan::call(roster, "close").0,
+                        RosterCommand::Leave => RosterPlan::call(roster, "leave").0,
+                        RosterCommand::Join { role } => {
+                            RosterPlan::call(roster, &format!("join_{role}")).0
+                        }
+                        RosterCommand::Each { role, callback } => {
+                            RosterPlan::each(
+                                roster,
+                                *role,
+                                crate::IntoCommands::into_commands(Cmd::Function(reference_id(
+                                    callback,
+                                ))),
+                            )
+                            .0
+                        }
+                    }
+                }
+                Action::Archetype { archetype, command } => {
+                    use crate::entity::archetype::concrete;
+                    let kind = &self.archetypes[&archetype.to_string()];
+                    vec![match command {
+                        ArchetypeCommand::Spawn { at } => {
+                            let pos = block_position(*at);
+                            concrete::summon_entity(
+                                archetype,
+                                kind,
+                                sand_commands::Vec3::new(pos.x, pos.y, pos.z),
+                            )
+                        }
+                        ArchetypeCommand::Attach => concrete::attach_entity(archetype, kind),
+                        ArchetypeCommand::Release => concrete::detach_entity(archetype, kind),
+                    }]
+                }
+                Action::Status { status, apply } => {
+                    let status = &self.status_effects[&status.to_string()];
+                    if *apply {
+                        status.apply().0
+                    } else {
+                        status.remove().0
+                    }
+                }
+                Action::Encounter { encounter, start } => {
+                    let encounter = &self.encounters[&encounter.to_string()].controller;
+                    if *start {
+                        encounter.start().0
+                    } else {
+                        encounter.cancel().0
+                    }
+                }
+                Action::Checkpoint {
+                    checkpoint,
+                    command,
+                } => crate::gameplay::Checkpoint::invoke(checkpoint, *command).0,
+                Action::TransferInventory { transfer } => {
+                    crate::gameplay::InventoryTransfer::invoke(transfer).0
+                }
+                Action::CountItems { item, score } => {
+                    let inventory =
+                        sand_commands::Inventory::of(sand_commands::Target::current_player());
+                    let predicate = self.item_argument(item).map_err(fail)?;
+                    let command = inventory
+                        .try_clear_item_count(predicate, 0)
+                        .map_err(|error| fail(error.to_string()))?;
+                    vec![self.store_command_result(score, command)]
+                }
+                Action::Schedule { function, ticks } => {
+                    vec![Cmd::Raw(sand_commands::builtins::schedule_replace_raw(
+                        reference_id(function),
+                        format!("{ticks}t"),
+                    ))]
                 }
                 Action::Branch {
                     condition,
@@ -602,38 +3721,718 @@ impl Lower {
                     )?;
                     self.function(&yes, yes_body, module, &ptr)?;
                     self.function(&no, no_body, module, &ptr)?;
-                    let range = format!(
-                        "{}..{}",
-                        condition.min.unwrap_or(i32::MIN),
-                        condition.max.unwrap_or(i32::MAX)
-                    );
+                    let test = self.condition_test(condition).map_err(fail)?;
+                    let propagate = returns(then) || returns(otherwise);
                     let guard = Cmd::Execute {
-                        operations: vec![sand_commands::ExecuteOp::If(
-                            sand_commands::ConditionIr::ScoreMatches {
-                                holder: self.holders[&condition.score.state.to_string()].clone(),
-                                objective: objective(&condition.score),
-                                range,
-                            },
-                        )],
+                        operations: vec![sand_commands::ExecuteOp::If(test)],
                         run: Box::new(Cmd::ReturnRun(Box::new(Cmd::Function(yes)))),
+                    };
+                    // Without early returns the decision keeps its original
+                    // shape; with them, both outcomes forward the helper result.
+                    let otherwise_call = if propagate {
+                        Cmd::ReturnRun(Box::new(Cmd::Function(no)))
+                    } else {
+                        Cmd::Function(no)
                     };
                     self.function(
                         &decision,
-                        vec![guard.render(), Cmd::Function(no).render()],
+                        vec![guard.render(), otherwise_call.render()],
                         module,
                         &ptr,
                     )?;
-                    vec![Cmd::Function(decision)]
+                    vec![call_helper(decision, propagate)]
                 }
+                Action::Return => vec![Cmd::Return(1)],
+                Action::Entities { query, body } => {
+                    let id = helper(&self.namespace, &self.helper_keys[owner], &path, "entities");
+                    let lines = self.body(
+                        body,
+                        owner,
+                        &format!("{path}/entities"),
+                        module,
+                        &format!("{ptr}/action/body"),
+                    )?;
+                    self.function(&id, lines, module, &ptr)?;
+                    vec![Cmd::Execute {
+                        operations: vec![
+                            sand_commands::ExecuteOp::As(
+                                query_selector(query, &self.data_states).map_err(fail)?,
+                            ),
+                            sand_commands::ExecuteOp::At(sand_commands::Selector::self_()),
+                        ],
+                        run: Box::new(Cmd::Function(id)),
+                    }]
+                }
+                Action::Kill => vec![Cmd::Raw("kill @s".into())],
+                Action::Ride { vehicle: None } => vec![Cmd::Raw("ride @s dismount".into())],
+                Action::Ride {
+                    vehicle: Some(vehicle),
+                } => {
+                    let identity = crate::gameplay::identity::objective(
+                        &format!("{}:entities", self.namespace)
+                            .parse()
+                            .expect("valid scope"),
+                    )
+                    .map_err(|error| fail(error.to_string()))?;
+                    let selector = crate::gameplay::identity::non_player_selector(
+                        &identity.to_string(),
+                        "$(vehicle)",
+                    );
+                    let value = Amount::Field(ScaledField {
+                        score: vehicle.clone(),
+                        scale: 1.0,
+                    });
+                    self.numeric_command(
+                        (owner, &path, module, &ptr),
+                        "mount",
+                        format!("execute if entity {selector} run ride @s mount {selector}"),
+                        &[NumericArgument {
+                            name: "vehicle",
+                            value: &value,
+                            integer: true,
+                            bounds: Some((1.0, 2147483646.0)),
+                        }],
+                        &[],
+                    )?
+                }
+                Action::SetVelocity { x, y, z } => {
+                    let arguments =
+                        [("x", x), ("y", y), ("z", z)].map(|(name, value)| NumericArgument {
+                            name,
+                            value,
+                            integer: false,
+                            bounds: Some((-10.0, 10.0)),
+                        });
+                    self.numeric_command(
+                        (owner, &path, module, &ptr),
+                        "set_velocity",
+                        "execute if entity @s[type=!minecraft:player] run data modify entity @s Motion set value [$(x)d,$(y)d,$(z)d]".into(),
+                        &arguments,
+                        &[],
+                    )?
+                }
+                Action::Teleport { destination } => match destination {
+                    TeleportDestination::Position { x, y, z }
+                    | TeleportDestination::Offset { x, y, z } => {
+                        let relative = matches!(destination, TeleportDestination::Offset { .. });
+                        let dynamic = [x, y, z].iter().any(|v| matches!(v, Amount::Field(_)));
+                        // Macro doubles may render without a decimal suffix.
+                        // Relative coordinates never receive block centering;
+                        // anchor absolute runtime positions at the world's zero.
+                        let anchor = if dynamic && !relative {
+                            "execute positioned 0.0 0.0 0.0 run "
+                        } else {
+                            ""
+                        };
+                        let prefix = if relative || dynamic { "~" } else { "" };
+                        self.numeric_command(
+                            (owner, &path, module, &ptr),
+                            "teleport",
+                            format!("{anchor}tp @s {prefix}$(x) {prefix}$(y) {prefix}$(z)"),
+                            &[
+                                NumericArgument {
+                                    name: "x",
+                                    value: x,
+                                    integer: false,
+                                    bounds: None,
+                                },
+                                NumericArgument {
+                                    name: "y",
+                                    value: y,
+                                    integer: false,
+                                    bounds: None,
+                                },
+                                NumericArgument {
+                                    name: "z",
+                                    value: z,
+                                    integer: false,
+                                    bounds: None,
+                                },
+                            ],
+                            &[],
+                        )?
+                    }
+                    TeleportDestination::Entity { query } => {
+                        let mut query = query.clone();
+                        query.limit = Some(1);
+                        query.sort = query.sort.or(Some(EntitySort::Nearest));
+                        vec![Cmd::Raw(format!(
+                            "tp @s {}",
+                            query_selector(&query, &self.data_states).map_err(fail)?
+                        ))]
+                    }
+                },
+                // Mirrors Rust's `state_attach_commands` for entity State:
+                // keep existing values, default the rest, then mark present.
+                Action::AttachState { state } => {
+                    let id = state.to_string();
+                    self.entity_attachment_commands(&self.data_states[&id])
+                        .into_iter()
+                        .map(Cmd::Raw)
+                        .collect()
+                }
+                // Mirrors Rust's `state_detach_commands` with dirty tracking.
+                Action::DetachState { state } => {
+                    Self::entity_detachment_commands(&self.data_states[&state.to_string()])
+                        .into_iter()
+                        .map(Cmd::Raw)
+                        .collect()
+                }
+                Action::SetBlock { block, at } => {
+                    vec![Cmd::Raw(format!(
+                        "setblock {} {block}",
+                        block_position(*at)
+                    ))]
+                }
+                Action::FillBlocks { block, from, to } => vec![Cmd::Raw(format!(
+                    "fill {} {} {block}",
+                    block_position(*from),
+                    block_position(*to)
+                ))],
+                Action::CloneBlocks {
+                    from,
+                    to,
+                    destination,
+                    masked,
+                    filter,
+                    mode,
+                } => {
+                    let clone = sand_commands::CloneBlocks::new(
+                        block_position(*from),
+                        block_position(*to),
+                        block_position(*destination),
+                    )
+                    .clone_mode(*mode);
+                    let clone = match (masked, filter) {
+                        (_, Some(filter)) => clone.filtered(filter),
+                        (true, _) => clone.masked(),
+                        _ => clone,
+                    };
+                    let command = sand_commands::RenderCommand::render(&clone, &self.profile)
+                        .map_err(|error| fail(error.to_string()))?;
+                    vec![Cmd::Raw(command)]
+                }
+                Action::PlaceTemplate { template, at } => {
+                    let position = block_position(*at);
+                    #[cfg(not(sand_placeholder_codegen))]
+                    let command = crate::cmd::place_template(template.clone())
+                        .pos(position)
+                        .to_string();
+                    #[cfg(sand_placeholder_codegen)]
+                    let command = format!("place template {template} {position}");
+                    vec![Cmd::Raw(command)]
+                }
+
+                Action::InDimension { dimension, body } => {
+                    let id = helper(
+                        &self.namespace,
+                        &self.helper_keys[owner],
+                        &path,
+                        "in_dimension",
+                    );
+                    let lines = self.body(
+                        body,
+                        owner,
+                        &format!("{path}/dimension"),
+                        module,
+                        &format!("{ptr}/action/body"),
+                    )?;
+                    self.function(&id, lines, module, &ptr)?;
+                    vec![Cmd::Execute {
+                        operations: vec![sand_commands::ExecuteOp::In(dimension.to_string())],
+                        run: Box::new(call_helper(id, returns(body))),
+                    }]
+                }
+                Action::ReadEntityData { path, score } => {
+                    let command = sand_commands::Nbt::entity(sand_commands::Selector::self_())
+                        .typed_path::<i32>(sand_commands::NbtPath::new(path))
+                        .get()
+                        .try_render(&self.profile)
+                        .map_err(|error| fail(error.to_string()))?;
+                    vec![self.store_command_result(score, command)]
+                }
+                Action::ReadBlockData { target, score } => {
+                    let command = Self::block_data_address(target)
+                        .get()
+                        .try_render(&self.profile)
+                        .map_err(|error| fail(error.to_string()))?;
+                    vec![self.store_command_result(score, command)]
+                }
+                Action::WriteBlockData {
+                    value: Some(DataOperand::Reference { .. }),
+                    ..
+                } => self.data_operation(&operation.action, owner, &path, module, &ptr)?,
+                Action::WriteBlockData { target, value } => {
+                    let address = Self::block_data_address(target);
+                    match value {
+                        Some(DataOperand::Score {
+                            value: ScoreOperand::Field(score),
+                        }) => {
+                            // Check the same path with the typed writable data model.
+                            address
+                                .set(sand_commands::NbtValue::Int(0))
+                                .try_render(&self.profile)
+                                .map_err(|error| fail(error.to_string()))?;
+                            let holder = self.holders[&score.state.to_string()].clone();
+                            let objective = objective(score);
+                            vec![Cmd::Execute {
+                                operations: vec![
+                                    sand_commands::ExecuteOp::If(
+                                        sand_commands::ConditionIr::ScoreMatches {
+                                            holder: holder.clone(),
+                                            objective: objective.clone(),
+                                            range: "-2147483648..2147483647".into(),
+                                        },
+                                    ),
+                                    sand_commands::ExecuteOp::StoreResult(
+                                        sand_commands::ExecuteStoreTarget::Nbt {
+                                            target: sand_commands::DataTarget::block(
+                                                block_position(target.at),
+                                            ),
+                                            path: target.path.clone(),
+                                            kind: sand_commands::NbtStoreKind::Int,
+                                            scale: 1.0,
+                                        },
+                                    ),
+                                ],
+                                run: Box::new(Cmd::Raw(format!(
+                                    "scoreboard players get {holder} {objective}"
+                                ))),
+                            }]
+                        }
+                        other => {
+                            let command = match other {
+                                Some(DataOperand::Value { value }) => address.set(value.clone()),
+                                Some(DataOperand::Block { value }) => {
+                                    address.copy_from(&Self::block_data_address(value))
+                                }
+                                Some(DataOperand::Score {
+                                    value: ScoreOperand::Value(number),
+                                }) => address.set(sand_commands::NbtValue::Int(*number)),
+                                None => address.remove(),
+                                Some(
+                                    DataOperand::Score {
+                                        value: ScoreOperand::Field(_),
+                                    }
+                                    | DataOperand::Reference { .. },
+                                ) => unreachable!(),
+                            };
+                            vec![Cmd::Raw(
+                                command
+                                    .try_render(&self.profile)
+                                    .map_err(|error| fail(error.to_string()))?,
+                            )]
+                        }
+                    }
+                }
+                Action::AddExperience { amount, levels } => {
+                    let amount = match amount {
+                        ScoreOperand::Value(value) => Amount::Value(*value as f64),
+                        ScoreOperand::Field(score) => Amount::Field(ScaledField {
+                            score: score.clone(),
+                            scale: 1.0,
+                        }),
+                    };
+                    self.numeric_command(
+                        (owner, &path, module, &ptr),
+                        "experience",
+                        format!(
+                            "xp add @s $(amount) {}",
+                            if *levels { "levels" } else { "points" }
+                        ),
+                        &[NumericArgument {
+                            name: "amount",
+                            value: &amount,
+                            integer: true,
+                            bounds: None,
+                        }],
+                        &[],
+                    )?
+                }
+                Action::SetGameMode { mode } => vec![Cmd::Raw(format!(
+                    "gamemode {} @s",
+                    match mode {
+                        PlayerGameMode::Survival => "survival",
+                        PlayerGameMode::Creative => "creative",
+                        PlayerGameMode::Adventure => "adventure",
+                        PlayerGameMode::Spectator => "spectator",
+                    }
+                ))],
+                Action::SetTime { ticks } => vec![Cmd::Raw(format!("time set {ticks}"))],
+                Action::SetWeather { weather, seconds } => {
+                    let weather = match weather {
+                        Weather::Clear => "clear",
+                        Weather::Rain => "rain",
+                        Weather::Thunder => "thunder",
+                    };
+                    vec![Cmd::Raw(match seconds {
+                        Some(seconds) => format!("weather {weather} {seconds}s"),
+                        None => format!("weather {weather}"),
+                    })]
+                }
+                Action::BossBarAudience {
+                    bar,
+                    audience,
+                    visible,
+                } => {
+                    // `bossbar set players` replaces the viewer list, so a tag
+                    // remembers who sees the bar across individual changes.
+                    let tag = boss_bar_tag(bar);
+                    let targets = match audience {
+                        Audience::Player => "@s",
+                        Audience::Everyone => "@a",
+                    };
+                    let verb = if *visible { "add" } else { "remove" };
+                    vec![
+                        Cmd::Raw(format!("tag {targets} {verb} {tag}")),
+                        Cmd::Raw(format!("bossbar set {bar} players @a[tag={tag}]")),
+                    ]
+                }
+                Action::SetBossBar { bar, value, max } => {
+                    let property = if *max { "max" } else { "value" };
+                    vec![Cmd::Raw(match value {
+                        ScoreOperand::Value(value) => {
+                            format!("bossbar set {bar} {property} {value}")
+                        }
+                        ScoreOperand::Field(field) => format!(
+                            "execute store result bossbar {bar} {property} run scoreboard players get {} {}",
+                            self.holders[&field.state.to_string()],
+                            objective(field)
+                        ),
+                    })]
+                }
+                Action::GiveLoot { table } => {
+                    vec![Cmd::Raw(format!("loot give @s loot {table}"))]
+                }
+                Action::DropLoot { table } => {
+                    vec![Cmd::Raw(format!("loot spawn ~ ~ ~ loot {table}"))]
+                }
+                Action::DataModify { .. }
+                | Action::DataRemove { .. }
+                | Action::DataRead { .. }
+                | Action::DataEqual { .. } => {
+                    self.data_operation(&operation.action, owner, &path, module, &ptr)?
+                }
+                Action::PushFrame { fields } => self.frame_commands(fields, true),
+                Action::PopFrame { fields } => self.frame_commands(fields, false),
+                Action::Suspend {
+                    ticks,
+                    fields,
+                    body,
+                    group,
+                    server,
+                } => self.suspend(
+                    (owner, &path, module, &ptr),
+                    ticks,
+                    fields,
+                    body,
+                    group.as_deref(),
+                    *server,
+                    operation.origin.as_ref(),
+                )?,
+                Action::CancelWaits { group, server } => {
+                    self.wait_cancellations.insert((*server, group.clone()));
+                    vec![Cmd::Function(
+                        self.cancellation_function(*server, group.as_deref()),
+                    )]
+                }
+                Action::DataGet {
+                    score,
+                    value,
+                    scale,
+                } => vec![Cmd::Execute {
+                    operations: vec![sand_commands::ExecuteOp::StoreResult(
+                        sand_commands::ExecuteStoreTarget::Score {
+                            holder: self.holders[&score.state.to_string()].clone(),
+                            objective: objective(score),
+                        },
+                    )],
+                    run: Box::new(Cmd::Raw(format!(
+                        "data get entity @s {} {scale}",
+                        value.path()
+                    ))),
+                }],
+                Action::EntityTag { tag, add } => vec![Cmd::Raw(format!(
+                    "tag @s {} {tag}",
+                    if *add { "add" } else { "remove" }
+                ))],
+                Action::Summon { entity_type, tag } => vec![Cmd::Raw(match tag {
+                    Some(tag) => format!("summon {entity_type} ~ ~ ~ {{Tags:[\"{tag}\"]}}"),
+                    None => format!("summon {entity_type} ~ ~ ~"),
+                })],
+                Action::CaptureEntity { score, relation } => {
+                    let identity = crate::gameplay::identity::objective(
+                        &format!("{}:entities", self.namespace)
+                            .parse()
+                            .expect("valid scope"),
+                    )
+                    .map_err(|error| fail(error.to_string()))?;
+                    let id = helper(
+                        &self.namespace,
+                        &self.helper_keys[owner],
+                        &path,
+                        "capture_entity",
+                    );
+                    self.function(&id, vec![
+                        format!("execute if score @s {identity} matches 1.. run return run scoreboard players get @s {identity}"),
+                        format!("scoreboard players add #next {identity} 0"),
+                        format!("execute unless score #next {identity} matches 0..2147483645 run return 0"),
+                        format!("scoreboard players add #next {identity} 1"),
+                        format!("scoreboard players operation @s {identity} = #next {identity}"),
+                        format!("return run scoreboard players get @s {identity}"),
+                    ], module, &ptr)?;
+                    let holder = &self.holders[&score.state.to_string()];
+                    // Resolve the destination holder before traversal changes @s.
+                    let on = relation.map_or_else(String::new, |relation| {
+                        format!(" on {}", relation.keyword())
+                    });
+                    vec![
+                        Cmd::Raw(format!(
+                            "scoreboard players set {holder} {} 0",
+                            objective(score)
+                        )),
+                        Cmd::Raw(format!(
+                            "execute store result score {holder} {}{on} run function {id}",
+                            objective(score)
+                        )),
+                    ]
+                }
+                Action::WithEntity {
+                    reference,
+                    players,
+                    body,
+                } => {
+                    let identity = crate::gameplay::identity::objective(
+                        &format!("{}:entities", self.namespace)
+                            .parse()
+                            .expect("valid scope"),
+                    )
+                    .map_err(|error| fail(error.to_string()))?;
+                    let id = helper(
+                        &self.namespace,
+                        &self.helper_keys[owner],
+                        &path,
+                        "with_entity_body",
+                    );
+                    let mut lines = self.body(
+                        body,
+                        owner,
+                        &format!("{path}/with_entity"),
+                        module,
+                        &format!("{ptr}/action/body"),
+                    )?;
+                    if *players && let Some(init) = &self.init {
+                        lines.prepend_initializer(init);
+                    }
+                    self.function(&id, lines, module, &ptr)?;
+                    let selectors = crate::gameplay::identity::selectors(
+                        if *players { "player" } else { "entity" },
+                        &identity.to_string(),
+                        "$(reference)",
+                    );
+                    // Each selector is expanded before its callback runs. Use one
+                    // dispatch macro so recursive callbacks cannot change a later
+                    // selection through shared numeric argument storage.
+                    let dispatch = helper(
+                        &self.namespace,
+                        &self.helper_keys[owner],
+                        &path,
+                        "with_entity_dispatch",
+                    );
+                    let mut lines: Vec<_> = selectors
+                        .into_iter()
+                        .map(|selector| {
+                            format!("$execute as {selector} at @s run return run function {id}")
+                        })
+                        .collect();
+                    lines.push("return 0".into());
+                    self.function(&dispatch, lines, module, &ptr)?;
+                    let value = Amount::Field(ScaledField {
+                        score: reference.clone(),
+                        scale: 1.0,
+                    });
+                    self.numeric_command(
+                        (owner, &path, module, &ptr),
+                        "with_entity",
+                        format!("function {dispatch} {{reference:$(reference)}}"),
+                        &[NumericArgument {
+                            name: "reference",
+                            value: &value,
+                            integer: true,
+                            bounds: Some((1.0, 2147483646.0)),
+                        }],
+                        &[],
+                    )?
+                }
+                Action::Damage {
+                    amount,
+                    by,
+                    damage_type,
+                } => {
+                    let id = damage_type.as_ref().map(ToString::to_string);
+                    let reference;
+                    let mut arguments = vec![NumericArgument {
+                        name: "amount",
+                        value: amount,
+                        integer: false,
+                        bounds: Some((0.01, 1_000_000.0)),
+                    }];
+                    let command = if let Some(by) = by {
+                        let identity = crate::gameplay::identity::objective(
+                            &format!("{}:entities", self.namespace)
+                                .parse()
+                                .expect("valid scope"),
+                        )
+                        .map_err(|error| fail(error.to_string()))?;
+                        reference = Amount::Field(ScaledField {
+                            score: by.clone(),
+                            scale: 1.0,
+                        });
+                        arguments.push(NumericArgument {
+                            name: "attacker",
+                            value: &reference,
+                            integer: true,
+                            bounds: Some((1.0, 2147483646.0)),
+                        });
+                        let dispatch = helper(
+                            &self.namespace,
+                            &self.helper_keys[owner],
+                            &path,
+                            "damage_source",
+                        );
+                        let damage_type = id.as_deref().unwrap_or("minecraft:generic");
+                        let mut lines: Vec<_> = crate::gameplay::identity::selectors("entity", &identity.to_string(), "$(attacker)").into_iter().map(|selector| format!("$execute if entity {selector} run return run damage @s $(amount) {damage_type} by {selector}")).collect();
+                        lines.push("return 0".into());
+                        self.function(&dispatch, lines, module, &ptr)?;
+                        format!("function {dispatch} {{amount:$(amount),attacker:$(attacker)}}")
+                    } else {
+                        id.map_or_else(
+                            || "damage @s $(amount)".into(),
+                            |id| format!("damage @s $(amount) {id}"),
+                        )
+                    };
+                    self.numeric_command(
+                        (owner, &path, module, &ptr),
+                        "damage",
+                        command,
+                        &arguments,
+                        &[],
+                    )?
+                }
+                Action::CountEntities { score, query } => vec![Cmd::Raw(format!(
+                    "execute store result score {} {} if entity {}",
+                    self.holders[&score.state.to_string()],
+                    objective(score),
+                    query_selector(query, &self.data_states).map_err(fail)?
+                ))],
+                Action::While { condition, body } => {
+                    let looped = helper(&self.namespace, &self.helper_keys[owner], &path, "loop");
+                    let mut lines = self.body(
+                        body,
+                        owner,
+                        &format!("{path}/loop"),
+                        module,
+                        &format!("{ptr}/action/body"),
+                    )?;
+                    let test = self.condition_test(condition).map_err(fail)?;
+                    // Tail call: re-check the condition after each pass and
+                    // forward an early return from deeper passes.
+                    lines.lines.push(
+                        Cmd::Execute {
+                            operations: vec![sand_commands::ExecuteOp::If(test.clone())],
+                            run: Box::new(Cmd::ReturnRun(Box::new(Cmd::Function(looped.clone())))),
+                        }
+                        .render(),
+                    );
+                    if self.sources.is_some() {
+                        lines.record(lines.lines.len(), &ptr);
+                    }
+                    self.function(&looped, lines, module, &ptr)?;
+                    let mut operations = vec![sand_commands::ExecuteOp::If(test)];
+                    let run = if returns(body) {
+                        operations.push(sand_commands::ExecuteOp::If(
+                            sand_commands::ConditionIr::Function(looped),
+                        ));
+                        Cmd::Return(1)
+                    } else {
+                        Cmd::Function(looped)
+                    };
+                    vec![Cmd::Execute {
+                        operations,
+                        run: Box::new(run),
+                    }]
+                }
+                Action::AttributeGet {
+                    score,
+                    attribute,
+                    scale,
+                } => vec![Cmd::Execute {
+                    operations: vec![sand_commands::ExecuteOp::StoreResult(
+                        sand_commands::ExecuteStoreTarget::Score {
+                            holder: self.holders[&score.state.to_string()].clone(),
+                            objective: objective(score),
+                        },
+                    )],
+                    run: Box::new(Cmd::Raw(format!(
+                        "attribute @s {attribute} base get {scale}"
+                    ))),
+                }],
+                Action::AttributeSet { attribute, value } => match value {
+                    Amount::Value(value) => {
+                        vec![Cmd::Raw(format!(
+                            "attribute @s {attribute} base set {value}"
+                        ))]
+                    }
+                    Amount::Field(field) => {
+                        // Minecraft cannot read a score as a command argument;
+                        // copy it into storage and apply it through a macro.
+                        let storage = format!("{}:sand.args", self.namespace);
+                        let id = helper(
+                            &self.namespace,
+                            &self.helper_keys[owner],
+                            &path,
+                            "attribute",
+                        );
+                        self.function(
+                            &id,
+                            vec![format!("$attribute @s {attribute} base set $(value)")],
+                            module,
+                            &ptr,
+                        )?;
+                        vec![
+                            Cmd::Execute {
+                                operations: vec![sand_commands::ExecuteOp::Raw(format!(
+                                    "store result storage {storage} value double {}",
+                                    1.0 / field.scale
+                                ))],
+                                run: Box::new(Cmd::Raw(format!(
+                                    "scoreboard players get {} {}",
+                                    self.holders[&field.score.state.to_string()],
+                                    objective(&field.score)
+                                ))),
+                            },
+                            Cmd::Raw(format!("function {id} with storage {storage}")),
+                        ]
+                    }
+                },
             };
+            let first_line = commands.lines.len() + 1;
             for cmd in cmds {
                 let rendered = cmd.try_render().map_err(|e| fail(e.to_string()))?;
                 let rendered =
                     sand_commands::render::validate_standalone_line(&rendered, &self.profile)
                         .map_err(|e| fail(e.to_string()))?;
-                commands.push(rendered);
+                commands.lines.push(rendered);
+            }
+            if self.sources.is_some() {
+                commands.record(first_line, &ptr);
             }
         }
         Ok(commands)
     }
+}
+
+/// The command storage that holds saved call frames for recursive functions.
+fn frame_storage(namespace: &str) -> String {
+    format!("{namespace}:__sand_frames")
 }

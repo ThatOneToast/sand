@@ -508,7 +508,60 @@ fn repository_contract_sources_are_the_actual_authored_declarations() {
     }
     sources.sort();
     let declarations = contract_declarations_from_files(&sources).unwrap();
-    assert_eq!(declarations.len(), 4_991);
+    // CaptureEntity (+2), WithEntity (+4), and Damage::by (+1) extend
+    // the same enforced advanced vocabulary; no scope exemptions are added.
+    // Typed storage fields/projections/operands, canonical data operations,
+    // owned NBT text and the text constructor add 44 contracted source items.
+    // Related capture, source locations, mounting, waits, and world operations add 43 items.
+    // Named wait cancellation adds two fields to the portable actions.
+    assert_eq!(declarations.len(), 5_969);
+    for path in [
+        "sand::advanced::compiler::DataField",
+        "sand::advanced::compiler::DataReference",
+        "sand::advanced::compiler::DataProjection",
+        "sand::advanced::compiler::DataOperand",
+        "sand::advanced::compiler::DataModifyOperation",
+        "sand::advanced::compiler::Action::DataModify",
+        "sand::advanced::compiler::Action::DataRead",
+        "sand::advanced::compiler::Action::DataEqual",
+        "sand::advanced::compiler::Action::DataRemove",
+        "sand::advanced::compiler::Action::CaptureEntity::relation",
+        "sand::advanced::compiler::Action::Ride",
+        "sand::advanced::compiler::Action::Suspend",
+        "sand::advanced::compiler::Action::Suspend::group",
+        "sand::advanced::compiler::Action::Suspend::server",
+        "sand::advanced::compiler::Action::CancelWaits",
+        "sand::advanced::compiler::Action::CancelWaits::group",
+        "sand::advanced::compiler::Action::CancelWaits::server",
+        "sand::advanced::compiler::State::migrations",
+        "sand::advanced::compiler::Compiler::compile_with_command_sources",
+        "sand::advanced::compiler::TextPart::Stored",
+        "sand::text::TextComponent::nbt",
+    ] {
+        assert!(
+            declarations
+                .iter()
+                .any(|declaration| declaration.canonical_path == path),
+            "missing contract {path}"
+        );
+    }
+    for member in [
+        "CaptureEntity",
+        "CaptureEntity::score",
+        "WithEntity",
+        "WithEntity::reference",
+        "WithEntity::players",
+        "WithEntity::body",
+        "Damage::by",
+    ] {
+        let path = format!("sand::advanced::compiler::Action::{member}");
+        assert!(
+            declarations
+                .iter()
+                .any(|declaration| declaration.canonical_path == path),
+            "missing contract {path}"
+        );
+    }
     assert!(
         declarations
             .iter()

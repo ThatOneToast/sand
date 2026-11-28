@@ -1,0 +1,33 @@
+#![pack(namespace = "test_probe", minecraft = "26.2")]
+
+struct Point {
+    x: number,
+    name: string
+}
+
+fn add<T>(value: T) -> Vec<T> {
+    return [value];
+}
+
+global state Scores {
+    count: number
+}
+
+#[test]
+fn scalar_and_text() -> bool {
+    Scores.count = 5;
+    assert!(Scores.count + 2 == 7);
+    let text = "a" + "🌍";
+    assert!(text.len() == 2);
+    return true;
+}
+
+#[test]
+fn owned_packages() -> bool {
+    let point = Point { x: 3, name: "p" };
+    let mut points = add(point);
+    points[0].x = 7;
+    assert!(points[0].x == 7);
+    assert!(point.x == 3);
+    return true;
+}

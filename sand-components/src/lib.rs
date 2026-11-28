@@ -95,10 +95,10 @@ pub use registry::{
     AdvancementId, BiomeId, BlockId, ChickenVariantId, ConfiguredCarverId, ConfiguredFeatureId,
     CowVariantId, DamageTypeId, DensityFunctionId, DialogId, DimensionId, DimensionTypeId,
     EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, EquipmentModelId, FunctionId,
-    ItemId, LootTableId, NoiseId, NoiseSettingsId, ParticleId, PigVariantId, PotionRegistryId,
-    PredicateId, ProcessorListId, RandomSequenceId, RecipeId, SoundEventId, StatusEffectId,
-    StructureId, StructureSetId, StructureTemplateId, StructureTypeId, TagId, TemplatePoolId,
-    TradeSetId, VillagerTradeId,
+    ItemId, LootTableId, NoiseId, NoiseSettingsId, ParticleId, PigVariantId, PlacedFeatureId,
+    PotionRegistryId, PredicateId, ProcessorListId, RandomSequenceId, RecipeId, SoundEventId,
+    StatusEffectId, StructureId, StructureSetId, StructureTemplateId, StructureTypeId, TagId,
+    TemplatePoolId, TradeSetId, VillagerTradeId,
 };
 pub use resource_location::{PackNamespace, ResourceLocation};
 

@@ -1,0 +1,47 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+
+predicate Camp {
+    block: Block::Stone,
+    biome: Biome::Plains,
+    dimension: Dimension::Overworld,
+    chance: 1,
+}
+
+predicate Never { chance: 0 }
+
+loot Supplies {
+    pools: [
+        { when: Camp, items: [Item::Bread] },
+        { when: Never, items: [Item::Emerald] },
+    ],
+}
+
+global state Report { checks: number, failed: number }
+
+fn check(value: bool) {
+    Report.checks += 1;
+    if !value { Report.failed += 1; }
+}
+
+fn run() {
+    Report.checks = 0;
+    Report.failed = 0;
+    raw!("fillbiome 0 68 0 15 95 15 minecraft:plains");
+    raw!("execute positioned 8.0 80.0 8.0 run function language_probe:probe_camp");
+    if Report.checks == 5 && Report.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    else { raw!("say __SAND_LANGUAGE_FAILED__"); }
+}
+
+fn probe_camp() {
+    set_block(Block::Stone, offset(0, 0, 0));
+    check(predicate_matches(Camp));
+    check(!predicate_matches(Never));
+    drop_loot(Supplies);
+    check(any_entities(type = Entity::Item, distance = ..=2, nbt = Nbt { Item: Nbt { id: "minecraft:bread" } }));
+    check(!any_entities(type = Entity::Item, distance = ..=2, nbt = Nbt { Item: Nbt { id: "minecraft:emerald" } }));
+    for stack in entities(type = Entity::Item, distance = ..=2) {
+        kill();
+    }
+    set_block(Block::Air, offset(0, 0, 0));
+    check(!predicate_matches(Camp));
+}

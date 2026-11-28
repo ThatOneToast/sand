@@ -103,7 +103,7 @@ mod tests {
             json!({"id": "audit:result", "count": 2})
         );
 
-        let trim = SmithingTrimRecipe::new(id("trim"))
+        let trim = SmithingTrimRecipe::new(id("trim"), "minecraft:sentry".parse().unwrap())
             .template(Ingredient::item(
                 "minecraft:sentry_armor_trim_smithing_template",
             ))
@@ -388,7 +388,7 @@ mod tests {
                 .to_string()
                 .contains("template")
         );
-        let trim = SmithingTrimRecipe::new(id("trim_missing"))
+        let trim = SmithingTrimRecipe::new(id("trim_missing"), "minecraft:sentry".parse().unwrap())
             .template(Ingredient::item("minecraft:template"));
         assert!(trim.try_content().unwrap_err().to_string().contains("base"));
     }

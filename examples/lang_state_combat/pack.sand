@@ -1,0 +1,32 @@
+#![pack(namespace = "scout_combat", minecraft = "26.2", description = "A custom health training drill")]
+
+player state Vitals {
+    health: number = 20,
+    shield: number = 5,
+    immunity: timer,
+    critical: bool,
+}
+
+combat Training {
+    health: Vitals.health,
+    max: 20,
+    shield: Vitals.shield,
+    resistance: 0.25,
+    immunity: { timer: Vitals.immunity, ticks: 10 },
+    critical: { when: Vitals.critical, multiplier: 2 },
+    hit: show_hit,
+    defeat: show_defeat,
+    healed: show_healed,
+}
+
+fn show_hit() { actionbar!("Training health {Vitals.health}"); }
+fn show_defeat() { chat!("Training round ended."); }
+fn show_healed() { actionbar!("Recovered to {Vitals.health}"); }
+
+pub fn take_hit() { combat_damage(Training, 8); }
+pub fn heal() { combat_heal(Training, 5); }
+
+pub fn reset_drill() {
+    Vitals.health = 20;
+    Vitals.shield = 5;
+}

@@ -40,8 +40,16 @@ type LocationKind = &'static str;
 /// A validated player inventory slot index (`0..=35`, matching vanilla's
 /// `Inventory` list: `0..=8` hotbar, `9..=35` main inventory).
 #[sand_macros::api(registry = sand_api_contract, path = "sand::inventory::InventoryIndex", aliases = ["sand::item::InventoryIndex", "sand::item::location::InventoryIndex", "sand::prelude::InventoryIndex"], summary = "Validates a slot in a player's complete 36-slot inventory.", context = "This distinct type prevents a general player-inventory index from being confused with a hotbar-only or block-container index.", minecraft = "Maps to the Inventory[{Slot:N}] entity NBT entry used by vanilla inventory commands.", use_when = ["Addressing any numbered player inventory slot from 0 through 35"], avoid_when = ["Addressing only the hotbar or a block container"], example = "let slot = InventoryIndex::new(9)?;")]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[serde(transparent)]
 pub struct InventoryIndex(u8);
+
+impl<'de> serde::Deserialize<'de> for InventoryIndex {
+    fn deserialize<D: serde::Deserializer<'de>>(decoder: D) -> Result<Self, D::Error> {
+        let index = <u8 as serde::Deserialize>::deserialize(decoder)?;
+        Self::new(index).map_err(serde::de::Error::custom)
+    }
+}
 
 impl InventoryIndex {
     #[sand_macros::api(kind = "associated_const", registry = sand_api_contract, path = "sand::inventory::InventoryIndex::MAX", summary = "The highest valid player inventory index.", context = "It exposes the vanilla 36-slot range without repeating a magic number.", minecraft = "Matches the final Inventory list slot, index 35.", use_when = ["Validating generated UI or iteration bounds"], avoid_when = ["Representing a hotbar-only bound"], example = "assert_eq!(InventoryIndex::MAX, 35);")]
@@ -881,7 +889,7 @@ impl EntityInventorySlot {
     }
 }
 
-fn equipment_item_slot(slot: EquipmentSlot) -> Result<ItemSlot, ItemLocationError> {
+pub(crate) fn equipment_item_slot(slot: EquipmentSlot) -> Result<ItemSlot, ItemLocationError> {
     match slot {
         EquipmentSlot::Head => Ok(ItemSlot::Head),
         EquipmentSlot::Chest => Ok(ItemSlot::Chest),

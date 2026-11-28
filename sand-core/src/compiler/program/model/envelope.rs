@@ -1,8 +1,16 @@
 //! Owned portable envelope definitions.
-use super::{Function, Operation, State, TagMembership};
-use sand_components::ResourceLocation;
+use super::{
+    AbilityDefinition, Advancement, CheckpointDefinition, CombatDefinition, CustomBiome,
+    DimensionDefinition, EncounterDefinition, EntityArchetypeDefinition, EventHook, Function,
+    HudDefinition, InventoryTransferDefinition, JigsawStructure, JobDefinition, MenuDefinition,
+    NoticeDialog, Operation, OreFeatureDefinition, ProgressionDefinition, ProjectileDefinition,
+    RosterDefinition, SceneDefinition, SessionDefinition, State, StatusEffectDefinition,
+    TagMembership, TemplatePoolDefinition, WorldPredicate,
+};
+use sand_components::{DamageType, ResourceLocation, StructureTemplate};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 /// A complete compilation request with explicit protocol and target metadata.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -15,7 +23,7 @@ use serde::{Deserialize, Serialize};
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
  avoid_when = ["Ordinary Rust gameplay authoring is better served by the prelude"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- fields(format = "Protocol format discriminator, sand.program.", format_version = "Protocol revision, currently 1.", target = "ProgramTarget for this portable definition.", pack = "Pack for this portable definition.", requires = "Requires for this portable definition.", modules = "Modules for this portable definition."),
+ fields(format = "Protocol format discriminator, sand.program.", format_version = "Protocol revision, currently 1.", target = "ProgramTarget for this portable definition.", pack = "Pack for this portable definition.", requires = "Requires for this portable definition.", modules = "Modules for this portable definition.", structure_assets = "Gzip NBT bytes keyed by the source names in module structure templates. JSON represents each value as standard Base64."),
 )]
 pub struct Program<M = Module> {
     /// Must be `sand.program`.
@@ -31,6 +39,17 @@ pub struct Program<M = Module> {
     pub requires: Vec<String>,
     /// Flat module declarations. Resolved programs contain no paths.
     pub modules: Vec<M>,
+    /// Binary structure template assets, supplied explicitly by the host.
+    ///
+    /// Keys match the package-relative paths in structure template declarations.
+    /// JSON encodes each byte sequence as standard Base64.
+    #[serde(
+        default,
+        skip_serializing_if = "BTreeMap::is_empty",
+        with = "asset_encoding"
+    )]
+    #[schemars(with = "BTreeMap<String, String>")]
+    pub structure_assets: BTreeMap<String, Vec<u8>>,
 }
 
 /// A target supplied explicitly by the host, never inferred from environment.
@@ -87,7 +106,7 @@ pub struct Pack {
 )]
 pub enum ModuleSource {
     /// A module embedded in the envelope.
-    Embedded(Module),
+    Embedded(Box<Module>),
     /// A path resolved by an explicit host resolver.
     Path(String),
 }
@@ -103,7 +122,7 @@ pub enum ModuleSource {
  use_when = ["Integrating a language, DSL, or editor with Sand without Cargo per program"],
  avoid_when = ["Ordinary Rust gameplay authoring is better served by the prelude"],
  example = "let schema = sand::advanced::compiler::Compiler::schema();",
- fields(flows = "State machines bound to canonical player or global State fields.", id = "Id for this portable definition.", states = "States for this portable definition.", functions = "Functions for this portable definition.", load = "Load for this portable definition.", tick = "Tick for this portable definition.", tags = "Tags for this portable definition."),
+ fields(flows = "State machines bound to canonical player or global State fields.", id = "Id for this portable definition.", states = "States for this portable definition.", functions = "Functions for this portable definition.", load = "Load for this portable definition.", tick = "Tick for this portable definition.", tags = "Tags for this portable definition.", events = "Player event handlers, dispatched in declaration order.", items = "Custom items referred to by id.", recipes = "Crafting, cooking, and stonecutting recipes.", resource_tags = "Item, block, and entity-type tags.", loot_tables = "Loot tables.", boss_bars = "Boss bars, created at load.", damage_types = "Native damage type definitions.", predicates = "Reusable native world predicates.", advancements = "Native advancement resources.", dialogs = "Native notice dialog resources.", dimensions = "Native flat and noise dimension resources.", dimension_types = "Native environmental rules for dimensions.", biomes = "Native custom biome resources.", structure_templates = "Native structure template resources backed by Program::structure_assets.", structure_sets = "Native placement schedules for weighted structures.", ore_features = "Configured ore veins and biome-restricted placement.", configured_features = "Native block generation algorithms.", placed_features = "Ordered placement pipelines for configured features.", jigsaw_structures = "Native structures that expand from a jigsaw pool.", template_pools = "Weighted template choices for a jigsaw generator.", inventory_transfers = "Reusable inventory transfers between numbered player slots.", checkpoints = "Player-owned State checkpoint projections.", encounters = "Player-owned bounded priority encounters.", rosters = "Bounded online arena rosters.", status_effects = "Player-owned timed status effects.", archetypes = "Typed entities composed from entity State.", huds = "Reusable player-owned HUD definitions.", menus = "Player-owned native dialog menus.", projectiles = "Player-owned sampled projectile definitions.", progressions = "Player progression tracks.", sessions = "Owned progression session controllers.", abilities = "Player-owned activation definitions.", combats = "Custom health policies over player State.", jobs = "Player-owned bounded indexed jobs.", scenes = "Owned native display scenes."),
 )]
 pub struct Module {
     /// Explicit semantic identity, independent of source filename.
@@ -127,4 +146,174 @@ pub struct Module {
     /// Typed function-tag membership.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<TagMembership>,
+    /// Player event handlers, dispatched in declaration order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub events: Vec<EventHook>,
+    /// Custom items that operations and recipes refer to by id.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub items: Vec<super::CustomItem>,
+    /// Crafting, cooking, and stonecutting recipes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub recipes: Vec<super::Recipe>,
+    /// Item, block, and entity-type tags.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub resource_tags: Vec<super::ResourceTag>,
+    /// Loot tables.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub loot_tables: Vec<super::LootTable>,
+    /// Boss bars, created at load.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub boss_bars: Vec<super::BossBar>,
+    /// Native damage type definitions.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub damage_types: Vec<DamageType>,
+    /// Reusable native world predicates.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub predicates: Vec<WorldPredicate>,
+    /// Native advancements declared by this module.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub advancements: Vec<Advancement>,
+    /// Native notice dialogs declared by this module.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dialogs: Vec<NoticeDialog>,
+    /// Native dimensions declared by this module.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dimensions: Vec<DimensionDefinition>,
+    /// Native dimension type components, referenced by dimensions.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dimension_types: Vec<sand_components::DimensionType>,
+    /// Native custom biomes declared by this module.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub biomes: Vec<CustomBiome>,
+    /// Native templates whose bytes are supplied in the envelope.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub structure_templates: Vec<StructureTemplate>,
+    /// Native placements for weighted structures.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub structure_sets: Vec<sand_components::StructureSet>,
+    /// Configured ore veins and their biome-restricted placement.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ore_features: Vec<OreFeatureDefinition>,
+    /// Native block generation algorithms.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub configured_features: Vec<sand_components::ConfiguredFeature>,
+    /// Ordered placement pipelines for configured features.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub placed_features: Vec<sand_components::PlacedFeature>,
+    /// Native structures that expand from a jigsaw pool.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub jigsaw_structures: Vec<JigsawStructure>,
+    /// Weighted template choices for a jigsaw generator.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub template_pools: Vec<TemplatePoolDefinition>,
+    /// Named inventory transfer definitions owned by this module.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub inventory_transfers: Vec<InventoryTransferDefinition>,
+    /// Player-owned State checkpoint definitions.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub checkpoints: Vec<CheckpointDefinition>,
+    /// Player-owned priority encounter definitions.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub encounters: Vec<EncounterDefinition>,
+    /// Bounded online arena rosters.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rosters: Vec<RosterDefinition>,
+    /// Player-owned timed status effects.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub status_effects: Vec<StatusEffectDefinition>,
+    /// Typed entities composed from entity State.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub archetypes: Vec<EntityArchetypeDefinition>,
+    /// Named owner-scoped HUD definitions.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub huds: Vec<HudDefinition>,
+    /// Native menus with bounded sessions and ordered choices.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub menus: Vec<MenuDefinition>,
+    /// Projectiles launched and cancelled by the owning player.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub projectiles: Vec<ProjectileDefinition>,
+    /// Player progression tracks.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub progressions: Vec<ProgressionDefinition>,
+    /// Owned native display scenes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub scenes: Vec<SceneDefinition>,
+    /// Player-owned bounded indexed work.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub jobs: Vec<JobDefinition>,
+    /// Owned session controllers over named tracks.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sessions: Vec<SessionDefinition>,
+    /// Owned activations and their State-backed admission policies.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub abilities: Vec<AbilityDefinition>,
+    /// Named State combat policies.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub combats: Vec<CombatDefinition>,
+}
+
+impl Module {
+    pub(in crate::compiler::program) fn terrain_features(
+        &self,
+    ) -> impl Iterator<
+        Item = (
+            &'static str,
+            usize,
+            &dyn sand_components::component::DatapackComponent,
+        ),
+    > {
+        use sand_components::component::DatapackComponent;
+        self.configured_features
+            .iter()
+            .enumerate()
+            .map(|(index, feature)| {
+                (
+                    "configured_features",
+                    index,
+                    feature as &dyn DatapackComponent,
+                )
+            })
+            .chain(
+                self.placed_features
+                    .iter()
+                    .enumerate()
+                    .map(|(index, feature)| {
+                        ("placed_features", index, feature as &dyn DatapackComponent)
+                    }),
+            )
+    }
+}
+
+mod asset_encoding {
+    use super::BTreeMap;
+    use base64::{Engine, engine::general_purpose::STANDARD};
+    use serde::{Deserialize, Deserializer, Serializer, ser::SerializeMap};
+
+    pub(super) fn serialize<S: Serializer>(
+        assets: &BTreeMap<String, Vec<u8>>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(Some(assets.len()))?;
+        for (name, bytes) in assets {
+            map.serialize_entry(name, &STANDARD.encode(bytes))?;
+        }
+        map.end()
+    }
+
+    pub(super) fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<BTreeMap<String, Vec<u8>>, D::Error> {
+        BTreeMap::<String, String>::deserialize(deserializer)?
+            .into_iter()
+            .map(|(name, encoded)| {
+                let bytes = STANDARD.decode(encoded).map_err(|error| {
+                    serde::de::Error::custom(format!(
+                        "invalid Base64 for structure asset `{name}`: {error}"
+                    ))
+                })?;
+                Ok((name, bytes))
+            })
+            .collect()
+    }
 }

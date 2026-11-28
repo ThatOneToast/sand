@@ -1,0 +1,49 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+
+entity state Ride { vehicle: EntityRef }
+global state Report { checks: number, failed: number, driver: EntityRef, target: EntityRef }
+
+fn check(value: bool) {
+    Report.checks += 1;
+    if !value { Report.failed += 1; }
+}
+
+fn run() {
+    Report.checks = 0;
+    Report.failed = 0;
+    summon(Entity::Minecart, tag = "sand_ride_cart");
+    summon(Entity::Pig, tag = "sand_ride_driver");
+    summon(Entity::Pig, tag = "sand_ride_target");
+    for cart in entities(tag = "sand_ride_cart") { Report.target = entity_ref(); }
+    for driver in entities(tag = "sand_ride_driver") {
+        Report.driver = entity_ref();
+        mount(Report.target);
+        attach_state(Ride);
+        Ride.vehicle = entity_ref(relation = Relation::Vehicle);
+        check(Ride.vehicle == Report.target);
+        check(Ride.vehicle != Report.driver);
+        for vehicle in resolve_entity(Ride.vehicle) { add_tag("sand_ride_resolved"); }
+        let empty: EntityRef;
+        mount(empty);
+        check(entity_ref(Relation::Vehicle) == Ride.vehicle);
+    }
+    check(count_entities(tag = "sand_ride_resolved") == 1);
+    for target in entities(tag = "sand_ride_target") {
+        let empty: EntityRef;
+        check(entity_ref(Relation::Vehicle) == empty);
+        damage(1, by = Report.driver);
+        check(entity_ref(Relation::Attacker) == Report.driver);
+    }
+    for driver in entities(tag = "sand_ride_driver") {
+        dismount();
+        check(Ride.vehicle == Report.target);
+        Ride.vehicle = entity_ref(Relation::Vehicle);
+        let empty: EntityRef;
+        check(Ride.vehicle == empty);
+        kill();
+    }
+    for target in entities(tag = "sand_ride_target") { kill(); }
+    for cart in entities(tag = "sand_ride_cart") { kill(); }
+    if Report.checks == 8 && Report.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    else { raw!("say __SAND_LANGUAGE_FAILED__"); }
+}

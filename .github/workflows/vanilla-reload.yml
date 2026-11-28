@@ -14,6 +14,11 @@ on:
       - "scripts/mc_validation/local_rcon_server.py"
       - "scripts/mc_validation/rcon_client.py"
       - "sand-cli/**"
+      - "sand-lang/**"
+      - "sand-version/**"
+      - "sand-build/src/vanilla_catalog.rs"
+      - "scripts/validate_language.py"
+      - "scripts/validate_language_values.py"
       - "sand-core/src/**"
       - "sand-macros/src/**"
       - "sand/src/**"
@@ -178,6 +183,139 @@ jobs:
             --pack sand-vanilla-audit/dist/sand_audit \
             --jar "$SAND_SERVER_JAR" \
             --output "target/vanilla-reload/${{ matrix.version }}"
+
+      - name: Validate language arithmetic and runtime operands
+        if: matrix.version == '26.2'
+        run: |
+          cargo build -p sand-cli
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-control-flow"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/assignments.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-assignments"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/structs.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-structs"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/borrows.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-borrows"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/collections.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-collections"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/text.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-text"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/sequences.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-vectors"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/patterns.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-patterns"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/match_guards.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-match-guards"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/match_bindings.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-match-bindings"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/block_expressions.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-block-expressions"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/generics.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-generics"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/traits.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-traits"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/variants.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-variants"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/callables.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-callables"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/relations.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-relations"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/world_ops.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-world-ops"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --wait-for-result --load-dimension language_probe:workshop \
+            --fixture sand-lang/tests/fixtures/flat_dimensions.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-flat-dimensions"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --load-dimension language_probe:grove \
+            --fixture sand-lang/tests/fixtures/custom_biomes.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-custom-biomes"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/structure_templates.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-structure-templates"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/equipment.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-equipment"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/entity_filters.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-entity-filters"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --wait-for-result --fixture sand-lang/tests/fixtures/loot_pools.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-loot-pools"
+          source="target/vanilla-reload/${{ matrix.version }}/language-time-spatial-source"
+          mkdir -p "$source"
+          cp sand-lang/tests/fixtures/time_spatial.sand "$source/pack.sand"
+          target/debug/sand lang add time "$source"
+          target/debug/sand lang add spatial "$source"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture "$source/pack.sand" \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-time-spatial"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/damage_types.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-damage-types"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --wait-for-result --fixture sand-lang/tests/fixtures/entity_motion.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-entity-motion"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --wait-for-result --fixture sand-lang/tests/fixtures/composed_waits.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-composed-waits"
+          python3 scripts/validate_language.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --fixture sand-lang/tests/fixtures/world_predicates.sand \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-world-predicates"
+          mkdir -p "target/vanilla-reload/${{ matrix.version }}/language-authored-tests"
+          target/debug/sand lang test sand-lang/tests/fixtures/authored_tests.sand \
+            --accept-eula --jar "$SAND_SERVER_JAR" 2>&1 \
+            | tee "target/vanilla-reload/${{ matrix.version }}/language-authored-tests/results.log"
+          python3 scripts/validate_language_collections.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-collections-library"
+          python3 scripts/validate_language_values.py \
+            --binary target/debug/sand --jar "$SAND_SERVER_JAR" \
+            --output "target/vanilla-reload/${{ matrix.version }}/language-values"
 
       - name: Validate 26.3 compute execution
         if: matrix.version == '26.3'
@@ -429,6 +567,21 @@ jobs:
           retention-days: 14
           path: |
             target/vanilla-reload/${{ matrix.version }}/latest.log
+            target/vanilla-reload/${{ matrix.version }}/language-control-flow
+            target/vanilla-reload/${{ matrix.version }}/language-values
+            target/vanilla-reload/${{ matrix.version }}/language-assignments
+            target/vanilla-reload/${{ matrix.version }}/language-structs
+            target/vanilla-reload/${{ matrix.version }}/language-borrows
+            target/vanilla-reload/${{ matrix.version }}/language-collections
+            target/vanilla-reload/${{ matrix.version }}/language-text
+            target/vanilla-reload/${{ matrix.version }}/language-vectors
+            target/vanilla-reload/${{ matrix.version }}/language-collections-library
+            target/vanilla-reload/${{ matrix.version }}/language-traits
+            target/vanilla-reload/${{ matrix.version }}/language-variants
+            target/vanilla-reload/${{ matrix.version }}/language-callables
+            target/vanilla-reload/${{ matrix.version }}/language-relations
+            target/vanilla-reload/${{ matrix.version }}/language-world-ops
+            target/vanilla-reload/${{ matrix.version }}/language-authored-tests
             target/vanilla-reload/${{ matrix.version }}/world-gameplay
             target/vanilla-reload/${{ matrix.version }}/runtime-report
             target/vanilla-reload/${{ matrix.version }}/compute

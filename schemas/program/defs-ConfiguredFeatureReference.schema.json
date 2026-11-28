@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "How the referenced configured feature was supplied.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "properties": {
+        "typed": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "typed"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "raw": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "raw"
+      ],
+      "type": "object"
+    }
+  ]
+}

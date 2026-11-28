@@ -1,0 +1,59 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+struct Entry<K, V> { key: K, value: V }
+struct Node<T> { value: T, children: Vec<Node<T>> }
+struct Bag<T> { values: Vec<T> }
+impl<T> Bag<T> {
+    fn new() -> Self { return Self { values: [] }; }
+    fn again() -> Self { return Self::new(); }
+    fn len(&self) -> number { return self.values.len(); }
+    fn push(&mut self, value: T) -> bool { return self.values.push(value); }
+    fn first(&self, fallback: T) -> T { return self.values.get_or(0, fallback); }
+    fn copy(&self) -> Self { return self; }
+    fn choose<U>(&self, a: U, b: U) -> U { return match self.len() { 0 => a, _ => b }; }
+    fn empty<U>(&self) -> Vec<U> { return []; }
+}
+enum Mode { Ready = 3, Done = 8 }
+global state Data { entry: Entry<string, number> = Entry { key: "a", value: 2 }, bag: Bag<string> }
+global state Result { checks: number, failed: number, calls: number, event_value: number }
+event Changed(value: Entry<string, number>);
+#[on(Changed)]
+fn changed(value: Entry<string, number>) { Result.event_value += value.value; }
+fn check(value: bool) { Result.checks += 1; if !value { Result.failed += 1; } }
+fn identity<T>(value: T) -> T { return value; }
+fn recursive<T>(value: T, n: number) -> T { if n == 0 { return value; } return recursive(value, n - 1); }
+fn key<K, V>(entry: Entry<K, V>) -> K { return entry.key; }
+fn first<T>(values: Vec<T>, fallback: T) -> T { return values.get_or(0, fallback); }
+fn swap<T>(a: T, b: T) -> [T; 2] { return [b, a]; }
+fn next() -> number { Result.calls += 1; return Result.calls; }
+fn run() {
+    Result.checks = 0; Result.failed = 0; Result.calls = 0; Result.event_value = 0;
+    check(identity(7) == 7); check(identity("hé🌍") == "hé🌍"); check(identity(true));
+    check(identity(1.25) == 1.25); check(identity(Mode::Done) == Mode::Done);
+    check(recursive("saved", 4) == "saved");
+    let [a, b] = swap(next(), next()); check(a == 2); check(b == 1); check(Result.calls == 2);
+    let entry = Entry { key: "title", value: [3, 4] };
+    let saved = recursive(entry, 3); check(saved.key == "title"); check(saved.value[1] == 4);
+    check(key(saved) == "title");
+    let mut bag = Bag::<number>::new();
+    check(bag.len() == 0); check(bag.push(3)); check(bag.push(4)); check(bag.first(0) == 3);
+    let mut copied = bag.copy(); copied.push(5); check(copied.len() == 3); check(bag.len() == 2);
+    let mut text = Bag::<string>::again(); text.push("x"); check(text.first("empty") == "x");
+    check(text.choose("empty", "full") == "full"); check(bag.choose(false, true));
+    let values = text.empty::<number>(); check(values.len() == 0);
+    let context: Vec<string> = bag.empty(); check(context.len() == 0);
+    check(first([1, 2], 9) == 1); check(first::<string>([], "fallback") == "fallback");
+    let explicit = Entry::<number, string> { key: 2, value: "two" };
+    check(explicit.key == 2); check(explicit.value == "two");
+    Data.entry = Entry { key: "changed", value: 9 };
+    check(Data.entry.key == "changed"); check(Data.entry.value == 9);
+    emit Changed(Data.entry); check(Result.event_value == 9);
+    Data.bag = text; Data.bag.push("y"); check(Data.bag.len() == 2); check(text.len() == 1);
+    let roots: Vec<Node<number>> = [Node { value: 3, children: [Node { value: 5, children: [] }] }];
+    let tree = identity(roots); check(tree[0].value == 3); check(tree[0].children[0].value == 5);
+    let mut bags: Vec<Bag<number>> = [bag];
+    bags[0].push(7); check(bags[0].len() == 3); check(bag.len() == 2);
+    let Entry { key: renamed, value: [first_value, second_value] } = saved;
+    check(renamed == "title"); check(first_value + second_value == 7);
+    if Result.checks == 38 && Result.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    else { raw!("say __SAND_LANGUAGE_FAILED__"); }
+}

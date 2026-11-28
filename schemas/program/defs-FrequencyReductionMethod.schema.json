@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The frequency reduction curve for random-spread placement.\n\n# Context\nThe frequency reduction curve for random-spread placement. This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::FrequencyReductionMethod;\n```\nThe frequency reduction curve for random-spread placement.",
+  "oneOf": [
+    {
+      "const": "default",
+      "description": "Uses Minecraft's default frequency-reduction algorithm.\nUses Minecraft's default frequency-reduction algorithm.",
+      "type": "string"
+    },
+    {
+      "const": "legacy_type1",
+      "description": "Uses Minecraft's legacy type1 frequency-reduction algorithm.\nUses Minecraft's legacy type1 frequency-reduction algorithm.",
+      "type": "string"
+    },
+    {
+      "const": "legacy_type2",
+      "description": "Uses Minecraft's legacy type2 frequency-reduction algorithm.\nUses Minecraft's legacy type2 frequency-reduction algorithm.",
+      "type": "string"
+    },
+    {
+      "const": "legacy_type3",
+      "description": "Uses Minecraft's legacy type3 frequency-reduction algorithm.\nUses Minecraft's legacy type3 frequency-reduction algorithm.",
+      "type": "string"
+    }
+  ]
+}

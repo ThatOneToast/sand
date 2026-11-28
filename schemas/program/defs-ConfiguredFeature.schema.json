@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A configured feature definition (`data/<namespace>/worldgen/configured_feature/<id>.json`).\n\n# Context\nA configured feature definition (`data/<namespace>/worldgen/configured_feature/<id>.json`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::ConfiguredFeature;\n```\nA configured feature definition\n(`data/<namespace>/worldgen/configured_feature/<id>.json`).\n\n```\nuse sand_components::{BlockId, DatapackComponent, ResourceLocation};\nuse sand_components::worldgen::ConfiguredFeature;\nuse sand_components::worldgen::providers::{BlockState, BlockStateProvider};\n\nlet feature = ConfiguredFeature::simple_block(\n    ResourceLocation::new(\"example\", \"lone_fern\").unwrap(),\n    BlockStateProvider::simple(BlockState::new(BlockId::minecraft(\"fern\").unwrap())),\n);\nassert_eq!(feature.component_dir(), \"worldgen/configured_feature\");\nassert_eq!(feature.to_json()[\"type\"], \"minecraft:simple_block\");\n```",
+  "properties": {
+    "feature": {
+      "$ref": "defs-Feature.schema.json"
+    },
+    "location": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "location",
+    "feature"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,43 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+
+damage_type Thorn {
+    message_id: "scout_thorn",
+    exhaustion: 0.2,
+    effects: DamageEffects::Thorns,
+    scaling: DamageScaling::Never,
+    death_message_type: DeathMessageType::Default,
+}
+
+global state Report { checks: number, failed: number, caster: EntityRef }
+
+fn check(value: bool) {
+    Report.checks += 1;
+    if !value { Report.failed += 1; }
+}
+
+fn run() {
+    Report.checks = 0;
+    Report.failed = 0;
+    raw!("summon minecraft:marker 0 80 0 {Tags:[\"damage_probe\",\"thorn_source\"]}");
+    raw!("summon minecraft:pig 0 80 0 {NoAI:1b,Tags:[\"damage_probe\",\"thorn_hit\"]}");
+    raw!("summon minecraft:pig 1 80 0 {NoAI:1b,Tags:[\"damage_probe\",\"vanilla_hit\"]}");
+    raw!("summon minecraft:pig 2 80 0 {NoAI:1b,Tags:[\"damage_probe\",\"attributed_hit\"]}");
+
+    for caster in entities(tag = "thorn_source") { Report.caster = entity_ref(); }
+    for victim in entities(tag = "thorn_hit") {
+        damage(2.0, type = Thorn);
+        check(victim.health == 8.0);
+    }
+    for victim in entities(tag = "vanilla_hit") {
+        damage(1.0, type = DamageType::Generic);
+        check(victim.health == 9.0);
+    }
+    for victim in entities(tag = "attributed_hit") {
+        damage(3.0, by = Report.caster, type = Thorn);
+        check(victim.health == 7.0);
+    }
+
+    for entity in entities(tag = "damage_probe") { kill(); }
+    if Report.checks == 3 && Report.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    else { raw!("say __SAND_LANGUAGE_FAILED__"); }
+}

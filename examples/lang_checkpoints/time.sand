@@ -1,0 +1,41 @@
+//! Typed loaded-tick durations for waits and timers.
+
+/// A non-negative duration within the scoreboard's tick range.
+pub struct Duration {
+    ticks: number,
+}
+
+impl Duration {
+    /// Construct a duration from loaded ticks. Negative values become zero.
+    pub fn from_ticks(ticks: number) -> Self {
+        if ticks < 0 {
+            return Self { ticks: 0 };
+        }
+        return Self { ticks };
+    }
+
+    /// Convert whole seconds to ticks. Values outside the tick range become zero.
+    pub fn from_seconds(seconds: number) -> Self {
+        if seconds < 0 || seconds > 107374182 {
+            return Self { ticks: 0 };
+        }
+        return Self { ticks: seconds * 20 };
+    }
+
+    /// Number of loaded ticks, suitable for a timer or wait.
+    pub fn as_ticks(&self) -> number {
+        return self.ticks;
+    }
+
+    pub fn is_zero(&self) -> bool {
+        return self.ticks == 0;
+    }
+
+    /// Add durations, saturating at the largest representable tick count.
+    pub fn saturating_add(&self, other: Self) -> Self {
+        if self.ticks > 2147483647 - other.ticks {
+            return Self { ticks: 2147483647 };
+        }
+        return Self { ticks: self.ticks + other.ticks };
+    }
+}

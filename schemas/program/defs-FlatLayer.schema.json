@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A single horizontal layer in a [`Generator::Flat`] world, from the\nbottom of the column upward.\n\n\ud83c\udf0d World (datapack).",
+  "properties": {
+    "block": {
+      "description": "Block resource location, e.g. `\"minecraft:stone\"`.",
+      "type": "string"
+    },
+    "height": {
+      "description": "Number of blocks this layer occupies (must be `> 0`).",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "block",
+    "height"
+  ],
+  "type": "object"
+}

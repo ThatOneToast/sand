@@ -155,6 +155,13 @@ def main():
     parser.add_argument("username")
     parser.add_argument("run_seconds", nargs="?", type=float, default=30)
     parser.add_argument("on_join", nargs="?")
+    parser.add_argument("--expect-system-chat", action="append", default=[], metavar="TEXT",
+                        help="require one system chat packet containing every supplied UTF-8 token")
+    parser.add_argument("--expect-particles", nargs=6, type=float,
+                        metavar=("X", "Y", "Z", "SPREAD", "SPEED", "COUNT"),
+                        help="require a particle packet with these position and numeric options")
+    parser.add_argument("--expect-dialog-cycle", action="store_true",
+                        help="require a show-dialog packet followed by a clear-dialog packet")
     parser.add_argument("--auto-respawn", action="store_true")
     parser.add_argument("--control-dir", help="existing private directory for atomic JSON commands/status")
     args = parser.parse_args()
@@ -173,16 +180,22 @@ def main():
     conn = Conn(host, port)
     with closing(conn.sock):
         return run_session(conn, host, port, protocol_version, username, run_seconds, on_join,
-                           auto_respawn=args.auto_respawn, controls=controls)
+                           auto_respawn=args.auto_respawn, controls=controls,
+                           expected_system_chat=tuple(text.encode() for text in args.expect_system_chat),
+                           expected_particles=args.expect_particles,
+                           expect_dialog_cycle=args.expect_dialog_cycle)
 
 
-def run_session(conn, host, port, protocol_version, username, run_seconds, on_join=None, *, auto_respawn=False, controls=None):
+def run_session(conn, host, port, protocol_version, username, run_seconds, on_join=None, *,
+                auto_respawn=False, controls=None, expected_system_chat=(), expected_particles=None,
+                expect_dialog_cycle=False):
     profile = profile_for_protocol(protocol_version)
     packets = profile["packets"]
     login_in, login_out = packets["login"]["clientbound"], packets["login"]["serverbound"]
     config_out = packets["configuration"]["serverbound"]
     config_in = {packet_id: name for name, packet_id in packets["configuration"]["clientbound"].items()}
     play_in, play_out = packets["play"]["clientbound"], packets["play"]["serverbound"]
+    dialog_packets = [play_in["show_dialog"], play_in["clear_dialog"]] if expect_dialog_cycle else []
     payload = write_varint(protocol_version) + write_string(host) + struct.pack(">H", port) + write_varint(2)
     conn.send_packet(0x00, payload)
 
@@ -286,6 +299,25 @@ def run_session(conn, host, port, protocol_version, username, run_seconds, on_jo
             if pid == play_in["keep_alive"] and len(data) == 8:
                 conn.send_packet(play_out["keep_alive"], data)
                 print("[play] keep_alive echoed")
+            elif pid == play_in["system_chat"] and expected_system_chat:
+                if all(token in data for token in expected_system_chat):
+                    expected_system_chat = ()
+                    print("[play] observed the requested system chat component")
+            elif pid == play_in["level_particles"] and expected_particles is not None:
+                # ClientboundLevelParticlesPacket starts with two flags, then
+                # three coordinates, three deltas, speed, and integer count.
+                particle_header = struct.Struct(">??dddffffi")
+                if len(data) >= particle_header.size:
+                    _, _, x, y, z, dx, dy, dz, speed, count = particle_header.unpack_from(data)
+                    px, py, pz, spread, expected_speed, expected_count = expected_particles
+                    if (x, y, z, dx, dy, dz, speed, count) == (
+                            px, py, pz, spread, spread, spread, expected_speed, expected_count):
+                        expected_particles = None
+                        print("[play] observed the requested particle packet")
+            elif dialog_packets and pid == dialog_packets[0]:
+                dialog_packets.pop(0)
+                if not dialog_packets:
+                    print("[play] observed the requested dialog open and clear packets")
             elif pid == play_in["player_position"]:
                 # ClientboundPlayerPositionPacket starts with the teleport
                 # ID. Acknowledging it clears the server's changing-dimension
@@ -326,6 +358,15 @@ def run_session(conn, host, port, protocol_version, username, run_seconds, on_jo
                 print(f"[play] packet id=0x{pid:02x} len={len(data)}")
 
     print(f"final state={state} joined_play={joined}")
+    if expected_system_chat:
+        print(f"[play] no system chat packet contained {expected_system_chat!r}")
+        return False
+    if expected_particles is not None:
+        print(f"[play] no particle packet matched {expected_particles!r}")
+        return False
+    if dialog_packets:
+        print(f"[play] missing dialog packets {dialog_packets!r}")
+        return False
     return joined
 
 

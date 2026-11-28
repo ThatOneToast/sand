@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The visual/sound effect played when this damage type is dealt.",
+  "enum": [
+    "hurt",
+    "thorns",
+    "drowning",
+    "burning",
+    "poking",
+    "freezing"
+  ],
+  "type": "string"
+}

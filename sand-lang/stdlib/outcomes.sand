@@ -1,0 +1,13 @@
+//! Owned optional values and operation results.
+
+/// A value that may be absent.
+pub enum Option<T> {
+    None,
+    Some(T),
+}
+
+/// An operation's success value or failure reason.
+pub enum Result<T, E> {
+    Ok(T),
+    Err(E),
+}

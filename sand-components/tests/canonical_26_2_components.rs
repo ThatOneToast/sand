@@ -38,7 +38,8 @@ use sand_components::recipe::{
 };
 use sand_components::registry::{
     AdvancementId, BlockId, ConfiguredCarverId, ConfiguredFeatureId, DimensionId, EnchantmentId,
-    EntityTypeId, FunctionId, ItemId, LootTableId, PredicateId, RecipeId, SoundEventId,
+    EntityTypeId, FunctionId, ItemId, LootTableId, PlacedFeatureId, PredicateId, RecipeId,
+    SoundEventId,
 };
 use sand_components::tag::{Tag, TagEntry, TypedTag};
 use sand_components::worldgen::Biome;
@@ -478,15 +479,19 @@ fn canonical_26_2_recipe_smithing_transform() {
 /// Smithing trim recipe (no `result` field — trims are applied in-place).
 #[test]
 fn canonical_26_2_recipe_smithing_trim() {
-    let trim = SmithingTrimRecipe::new(id("smithing/sentry_trim"))
-        .template(Ingredient::item(
-            "minecraft:sentry_armor_trim_smithing_template",
-        ))
-        .base(Ingredient::item("minecraft:diamond_chestplate"))
-        .addition(Ingredient::item("minecraft:amethyst_shard"));
+    let trim = SmithingTrimRecipe::new(
+        id("smithing/sentry_trim"),
+        "minecraft:sentry".parse().unwrap(),
+    )
+    .template(Ingredient::item(
+        "minecraft:sentry_armor_trim_smithing_template",
+    ))
+    .base(Ingredient::item("minecraft:diamond_chestplate"))
+    .addition(Ingredient::item("minecraft:amethyst_shard"));
 
     let expected = serde_json::json!({
         "type": "minecraft:smithing_trim",
+        "pattern": "minecraft:sentry",
         "template": "minecraft:sentry_armor_trim_smithing_template",
         "base": "minecraft:diamond_chestplate",
         "addition": "minecraft:amethyst_shard"
@@ -937,24 +942,29 @@ fn canonical_26_2_worldgen_biome() {
     .downfall(0.0)
     .feature(
         GenerationStep::UndergroundOres,
-        ConfiguredFeatureId::minecraft("ore_iron").unwrap(),
+        PlacedFeatureId::minecraft("ore_iron_middle").unwrap(),
     );
 
     let mut expected_features: Vec<Vec<&str>> = vec![vec![]; 11];
-    expected_features[GenerationStep::UndergroundOres as usize] = vec!["minecraft:ore_iron"];
+    expected_features[GenerationStep::UndergroundOres as usize] = vec!["minecraft:ore_iron_middle"];
     let expected = serde_json::json!({
         "has_precipitation": false,
-        "attributes": {"minecraft:audio/ambient_sounds":{"loop":"minecraft:ambient.nether_wastes.loop","additions":[]}},
+        "attributes": {
+            "minecraft:audio/ambient_sounds": {
+                "loop": "minecraft:ambient.nether_wastes.loop",
+                "additions": [],
+            },
+            "minecraft:visual/fog_color": "#c0d8ff",
+            "minecraft:visual/sky_color": "#78a7ff",
+            "minecraft:visual/water_fog_color": "#050533",
+        },
         "temperature": 2.0,
         "temperature_modifier": "none",
         "downfall": 0.0,
         "effects": {
-            "fog_color": 0xC0D8FF,
-            "water_color": 0x3F76E4,
-            "water_fog_color": 0x050533,
-            "sky_color": 0x78A7FF,
-            "grass_color": 0x8A_B689,
-            "foliage_color": 0x71_A74D,
+            "water_color": "#3f76e4",
+            "grass_color": "#8ab689",
+            "foliage_color": "#71a74d",
         },
         "features": expected_features,
         "carvers": [],

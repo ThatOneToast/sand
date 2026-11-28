@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A vanilla condition that records one piece of player advancement progress.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "Have an item on a matching inventory change.",
+      "properties": {
+        "item": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "inventory_item",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "item"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Place a block of the given type.",
+      "properties": {
+        "block": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "place_block",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "block"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Receive player kill credit for an entity of the given type.",
+      "properties": {
+        "entity": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "kill_entity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "entity"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Finish consuming the selected item.",
+      "properties": {
+        "item": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "consume_item",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "item"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Complete a native interaction with a selected entity type.",
+      "properties": {
+        "entity": {
+          "type": "string"
+        },
+        "item": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "const": "interact_entity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "entity"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Tame an animal of the selected type.",
+      "properties": {
+        "entity": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "tame_entity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "entity"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Activate the selected totem item.",
+      "properties": {
+        "item": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "use_totem",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "item"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Change dimensions and arrive in the selected destination.",
+      "properties": {
+        "dimension": {
+          "description": "Destination dimension identity.",
+          "type": "string"
+        },
+        "kind": {
+          "const": "arrive_dimension",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "dimension"
+      ],
+      "type": "object"
+    }
+  ]
+}

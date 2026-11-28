@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "One operation on an online roster.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "Open a fresh generation.",
+      "properties": {
+        "action": {
+          "const": "open",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Close the current generation.",
+      "properties": {
+        "action": {
+          "const": "close",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Admit the executing player.",
+      "properties": {
+        "action": {
+          "const": "join",
+          "type": "string"
+        },
+        "role": {
+          "description": "Declared role encoding to commit.",
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "action",
+        "role"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Remove the executing player.",
+      "properties": {
+        "action": {
+          "const": "leave",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Visit matching current members under the roster's mutation lock.",
+      "properties": {
+        "action": {
+          "const": "each",
+          "type": "string"
+        },
+        "callback": {
+          "$ref": "defs-FunctionReference.schema.json",
+          "description": "Synchronous callback executed as and at each matching player."
+        },
+        "role": {
+          "description": "Optional role filter.",
+          "format": "int32",
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "action",
+        "callback"
+      ],
+      "type": "object"
+    }
+  ]
+}

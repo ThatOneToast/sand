@@ -11,7 +11,8 @@ use sand_components::{BlockId, ItemStack, effect::Ticks};
 /// Local display pose: translation, scale and rotation about the Y axis.
 /// Minecraft applies scale, then yaw, then translation. Values describe visual
 /// geometry only; display entities have no gameplay collision. Default is identity.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(default, deny_unknown_fields)]
 #[sand_macros::api(
 registry = sand_api_contract, path = "sand::systems::Transform", module = "sand::systems",
 summary = "A local display pose.", context = "Stores translation, scale and yaw for native display interpolation. This visual pose does not change entity position or gameplay collision.",

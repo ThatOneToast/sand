@@ -1,0 +1,1181 @@
+//! `sand lang` and `sand lsp`: the Sand language frontend.
+//!
+//! Sand source compiles through the same portable compiler as JSON programs,
+//! so `sand lang build` needs neither Cargo nor `sand.toml`.
+
+use anyhow::{Context, Result, bail};
+use clap::{Args, Subcommand};
+use colored::Colorize;
+use sand_lang::library::Library;
+use sand_lang::{Analysis, Diagnostic, DiskFiles, Severity};
+use std::io::Write;
+use std::path::{Path, PathBuf};
+
+#[derive(Args)]
+pub struct LangArgs {
+    #[command(subcommand)]
+    command: Command,
+}
+
+#[derive(Subcommand)]
+enum Command {
+    /// Run Sand-authored tests in a disposable Minecraft world
+    Test {
+        #[command(flatten)]
+        input: Input,
+        /// Discover tests without launching Minecraft
+        #[arg(long)]
+        list: bool,
+        /// Use a specific server JAR instead of the verified version cache
+        #[arg(long)]
+        jar: Option<PathBuf>,
+        /// Accept the Minecraft EULA for this test server
+        #[arg(long)]
+        accept_eula: bool,
+        /// Maximum seconds for startup, each test, and shutdown
+        #[arg(long, default_value_t = 120, value_parser = clap::value_parser!(u64).range(1..=3600))]
+        timeout: u64,
+    },
+    /// Vendor a bundled Sand library into an existing package
+    Add {
+        /// Library to install (collections, outcomes, spatial, or time)
+        library: Library,
+        #[command(flatten)]
+        input: Input,
+    },
+    /// Format every source file in a Sand package
+    Fmt {
+        #[command(flatten)]
+        input: Input,
+        /// Report unformatted files without modifying them
+        #[arg(long)]
+        check: bool,
+    },
+    /// Type-check a Sand language package without writing files
+    Check(Input),
+    /// Compile a Sand language package into a datapack directory
+    Build {
+        #[command(flatten)]
+        input: Input,
+        /// Output directory. Defaults to `dist/<namespace>` next to the root file.
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
+    /// Compile the package and launch a local Minecraft server to test it
+    Run {
+        #[command(flatten)]
+        input: Input,
+        /// JVM heap size, e.g. "4G" or "2048M"
+        #[arg(long, default_value = "4G")]
+        ram: String,
+        /// Set online-mode=false in server.properties (easier local testing)
+        #[arg(long)]
+        offline: bool,
+        /// Skip compiling; launch whatever is already in dist/
+        #[arg(long)]
+        no_build: bool,
+        /// How to present the Minecraft server's log
+        #[arg(long, value_enum, default_value = "classified")]
+        server_log: crate::console::OutputMode,
+    },
+    /// Print the portable program JSON the package lowers to
+    Emit(Input),
+    /// Print source locations for emitted commands and portable operations as JSON
+    SourceMap(Input),
+    /// Find the authored source of a generated Minecraft function line
+    SourceAt {
+        /// Generated function identity, including its namespace
+        function: sand::ResourceLocation,
+        /// One-based line number reported by Minecraft
+        line: std::num::NonZeroUsize,
+        #[command(flatten)]
+        input: Input,
+    },
+    /// Annotate a native Minecraft debug function trace with Sand source locations
+    Trace {
+        /// Trace file written by Minecraft's debug function command
+        trace: PathBuf,
+        #[command(flatten)]
+        input: Input,
+    },
+    /// Read a State's current values from a loopback Minecraft server
+    Inspect {
+        /// Namespaced State identity
+        state: sand::ResourceLocation,
+        /// Online player name or UUID of the one owned State to inspect
+        #[arg(long)]
+        owner: Option<String>,
+        /// The server's local RCON port. Reads the password from SAND_RCON_PASSWORD
+        #[arg(long, value_parser = clap::value_parser!(u16).range(1..))]
+        rcon_port: u16,
+        #[command(flatten)]
+        input: Input,
+    },
+    /// Read the pending queue or ownership ledger for compiled waits
+    InspectWaits {
+        /// Inspect only wait sites with this cancellation group
+        #[arg(long)]
+        group: Option<String>,
+        /// The server's local RCON port. Reads the password from SAND_RCON_PASSWORD
+        #[arg(long, value_parser = clap::value_parser!(u16).range(1..))]
+        rcon_port: u16,
+        #[command(flatten)]
+        input: Input,
+    },
+    /// List source-declared breakpoints and optionally read their live status
+    Breakpoints {
+        /// The server's local RCON port. Reads the password from SAND_RCON_PASSWORD
+        #[arg(long, value_parser = clap::value_parser!(u16).range(1..))]
+        rcon_port: Option<u16>,
+        #[command(flatten)]
+        input: Input,
+    },
+    /// Arm or release one named breakpoint on a loopback Minecraft server
+    Breakpoint {
+        /// Label printed by sand lang breakpoints
+        label: String,
+        /// Release the label and resume waiting invocations on loaded ticks
+        #[arg(long)]
+        resume: bool,
+        /// The server's local RCON port. Reads the password from SAND_RCON_PASSWORD
+        #[arg(long, value_parser = clap::value_parser!(u16).range(1..))]
+        rcon_port: u16,
+        #[command(flatten)]
+        input: Input,
+    },
+    /// Create a new Sand language project in a new directory
+    New {
+        /// Project directory (its name becomes the namespace)
+        path: PathBuf,
+        /// Namespace for generated resources; defaults to the directory name
+        #[arg(long)]
+        namespace: Option<String>,
+    },
+    /// Install Sand language support for the Zed editor
+    Zed {
+        /// Where to write the extension; defaults to ~/.sand/zed
+        #[arg(long)]
+        dir: Option<PathBuf>,
+    },
+}
+
+#[derive(Args)]
+struct Input {
+    /// Package root file, any file in the package, or a directory containing pack.sand
+    #[arg(default_value = ".")]
+    path: PathBuf,
+}
+
+/// Run a `sand lang` subcommand.
+pub fn run(args: LangArgs) -> Result<()> {
+    match args.command {
+        Command::Test {
+            input,
+            list,
+            jar,
+            accept_eula,
+            timeout,
+        } => {
+            let root = package_root(&input.path)?;
+            let analysis = sand_lang::analyze_tests(sand_lang::load(&root, &DiskFiles));
+            report(&analysis)?;
+            if list || analysis.tests.is_empty() {
+                for test in &analysis.tests {
+                    println!("{}", test.name);
+                }
+                println!("{} test(s)", analysis.tests.len());
+                return Ok(());
+            }
+            crate::lang_test::run(
+                &analysis,
+                jar,
+                accept_eula,
+                std::time::Duration::from_secs(timeout),
+            )
+        }
+        Command::Add { library, input } => {
+            let installed = install_library(&input.path, library)?;
+            println!("{} {}", "Added".green().bold(), installed.display());
+            let import = match library {
+                Library::Collections => "use collections::{Map, Set};",
+                Library::Outcomes => "use outcomes::{Option, Result};",
+                Library::Spatial => "use spatial::Position;",
+                Library::Time => "use time::Duration;",
+            };
+            println!("  Import with {import}");
+            Ok(())
+        }
+        Command::Fmt { input, check } => format_package(&input.path, check),
+        Command::Check(input) => {
+            let analysis = analyze(&input.path)?;
+            let diagnostics = report(&analysis)?;
+            println!(
+                "{} {} ({diagnostics})",
+                "Checked".green().bold(),
+                analysis.package.root.display()
+            );
+            Ok(())
+        }
+        Command::Build { input, output } => {
+            let analysis = analyze(&input.path)?;
+            report(&analysis)?;
+            build(&analysis, output)?;
+            Ok(())
+        }
+        Command::Run {
+            input,
+            ram,
+            offline,
+            no_build,
+            server_log,
+        } => run_project(
+            &input.path,
+            crate::run_cmd::RunArgs {
+                ram,
+                offline,
+                no_build,
+                server_log,
+                profile: "dev".into(),
+            },
+        ),
+        Command::Inspect {
+            state,
+            owner,
+            rcon_port,
+            input,
+        } => {
+            let analysis = analyze(&input.path)?;
+            report(&analysis)?;
+            inspect_state(&analysis, &state, owner.as_deref(), rcon_port)
+        }
+        Command::InspectWaits {
+            group,
+            rcon_port,
+            input,
+        } => {
+            let analysis = analyze(&input.path)?;
+            report(&analysis)?;
+            inspect_waits(&analysis, group.as_deref(), rcon_port)
+        }
+        Command::Breakpoints { rcon_port, input } => {
+            let analysis = analyze(&input.path)?;
+            report(&analysis)?;
+            let status = match rcon_port {
+                Some(port) if !analysis.breakpoints.is_empty() => {
+                    live_breakpoints(&analysis, port)?
+                }
+                _ => std::collections::BTreeMap::new(),
+            };
+            for (label, (file, span)) in &analysis.breakpoints {
+                let index = sand_lang::LineIndex::new(&analysis.package.files[file.0].text);
+                let location = mapped_location(
+                    &analysis,
+                    &MappedSpan {
+                        file: file.0,
+                        start: span.start,
+                    },
+                    &index,
+                );
+                if let Some(status) = status.get(label) {
+                    println!("{label}\t{location}\t{status}");
+                } else {
+                    println!("{label}\t{location}");
+                }
+            }
+            Ok(())
+        }
+        Command::Breakpoint {
+            label,
+            resume,
+            rcon_port,
+            input,
+        } => {
+            let analysis = analyze(&input.path)?;
+            report(&analysis)?;
+            let program = analysis.program.as_ref().context("no analyzed program")?;
+            let command =
+                sand::advanced::compiler::Compiler::breakpoint_control(program, &label, !resume)
+                    .map_err(compiler_inspection_error)?;
+            let response = local_console(rcon_port)?.query(&command)?;
+            if !response.starts_with("Set ") {
+                bail!("could not control breakpoint `{label}`: {response}");
+            }
+            if resume {
+                println!("Released breakpoint {label}");
+            } else {
+                println!("Armed breakpoint {label}");
+            }
+            Ok(())
+        }
+        Command::New { path, namespace } => {
+            let name = path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .context("project path needs a final directory name")?;
+            let namespace = namespace.unwrap_or_else(|| {
+                name.to_ascii_lowercase()
+                    .chars()
+                    .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+                    .collect()
+            });
+            let valid = namespace
+                .chars()
+                .next()
+                .is_some_and(|c| c.is_ascii_lowercase())
+                && namespace
+                    .bytes()
+                    .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_');
+            if !valid {
+                bail!(
+                    "`{namespace}` is not a valid namespace; pass --namespace with lowercase letters, digits, and `_`"
+                );
+            }
+            let minecraft = sand::advanced::compiler::Compiler::capabilities()["targets"]
+                .as_array()
+                .and_then(|targets| targets.last())
+                .and_then(|target| target.as_str())
+                .unwrap_or("26.2")
+                .to_string();
+            crate::lang_setup::new_project(&path, &namespace, &minecraft)?;
+            println!(
+                "{} {} (namespace `{namespace}`, Minecraft {minecraft})",
+                "Created".green().bold(),
+                path.display()
+            );
+            println!("  cd {} && sand lang build", path.display());
+            Ok(())
+        }
+        Command::Zed { dir } => {
+            let dir = match dir {
+                Some(dir) => dir,
+                None => crate::lang_setup::default_zed_dir()?,
+            };
+            let install = crate::lang_setup::install_zed(&dir)?;
+            let short = &install.revision[..install.revision.len().min(12)];
+            println!(
+                "{} Zed extension → {}",
+                "Wrote".green().bold(),
+                install.extension.display()
+            );
+            println!(
+                "      grammar → {} (commit {short})",
+                install.grammar.display()
+            );
+            println!();
+            println!("Finish in Zed (one time):");
+            println!("  1. Open the command palette (cmd-shift-p / ctrl-shift-p).");
+            println!("  2. Run `zed: install dev extension`.");
+            println!("  3. Choose {}", install.extension.display());
+            println!();
+            println!(
+                "Zed builds the extension with Rust (rustup) and starts `sand lsp` for .sand files."
+            );
+            println!(
+                "After upgrading Sand, run `sand lang zed` again and choose `Rebuild` on the Sand extension."
+            );
+            Ok(())
+        }
+        Command::SourceMap(input) => {
+            let analysis = analyze(&input.path)?;
+            report(&analysis)?;
+            let map = analysis
+                .source_map()
+                .map_err(|errors| report_compilation_errors(&analysis, errors))?;
+            println!("{}", serde_json::to_string_pretty(&map)?);
+            Ok(())
+        }
+        Command::SourceAt {
+            function,
+            line,
+            input,
+        } => {
+            let analysis = analyze(&input.path)?;
+            report(&analysis)?;
+            println!("{}", source_at(&analysis, &function, line.get())?);
+            Ok(())
+        }
+        Command::Trace { trace, input } => {
+            let analysis = analyze(&input.path)?;
+            report(&analysis)?;
+            let contents = std::fs::read_to_string(&trace)
+                .with_context(|| format!("read {}", trace.display()))?;
+            println!("{}", annotate_trace(&analysis, &contents)?);
+            Ok(())
+        }
+        Command::Emit(input) => {
+            let analysis = analyze(&input.path)?;
+            report(&analysis)?;
+            let program = analysis
+                .program
+                .as_ref()
+                .context("the package did not lower to a program")?;
+            println!("{}", serde_json::to_string_pretty(program)?);
+            Ok(())
+        }
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct MappedCommand {
+    lines: std::ops::RangeInclusive<usize>,
+    source: MappedSpan,
+}
+
+#[derive(serde::Deserialize, PartialEq, Eq)]
+struct MappedSpan {
+    file: usize,
+    start: usize,
+}
+
+fn command_map(
+    analysis: &Analysis,
+) -> Result<std::collections::BTreeMap<String, Vec<MappedCommand>>> {
+    let map = analysis
+        .source_map()
+        .map_err(|errors| report_compilation_errors(analysis, errors))?;
+    Ok(serde_json::from_value(map["commands"].clone())?)
+}
+
+fn function_resource(function: &sand::ResourceLocation) -> String {
+    format!(
+        "data/{}/function/{}.mcfunction",
+        function.namespace(),
+        function.path()
+    )
+}
+
+fn local_console(port: u16) -> Result<crate::dev::rcon::ConsoleSession> {
+    let secret =
+        std::env::var("SAND_RCON_PASSWORD").context("set SAND_RCON_PASSWORD for this server")?;
+    if secret.is_empty() {
+        bail!("SAND_RCON_PASSWORD is empty");
+    }
+    crate::dev::rcon::Rcon::console_connection(port, secret)
+}
+
+fn live_breakpoints(
+    analysis: &Analysis,
+    port: u16,
+) -> Result<std::collections::BTreeMap<String, &'static str>> {
+    let program = analysis.program.as_ref().context("no analyzed program")?;
+    let id = format!("{}:sand.breakpoints", program.pack.namespace).parse()?;
+    let commands = sand::advanced::compiler::Compiler::state_inspection(program, &id, None)
+        .map_err(compiler_inspection_error)?;
+    let mut rcon = local_console(port)?;
+    analysis
+        .breakpoints
+        .keys()
+        .map(|label| {
+            let command = commands
+                .get(label)
+                .with_context(|| format!("missing breakpoint `{label}`"))?;
+            let response = rcon
+                .query(command)
+                .with_context(|| format!("could not inspect `{label}`"))?;
+            let status = match response
+                .rsplit_once(" has ")
+                .and_then(|(_, value)| value.split_once(" ["))
+                .map(|(score, _)| score)
+            {
+                Some("0") => "disarmed",
+                Some("1") => "armed",
+                _ => bail!("could not read breakpoint `{label}`: {response}"),
+            };
+            Ok((label.clone(), status))
+        })
+        .collect()
+}
+
+fn inspect_waits(analysis: &Analysis, group: Option<&str>, port: u16) -> Result<()> {
+    let program = analysis.program.as_ref().context("no analyzed program")?;
+    let probes = sand::advanced::compiler::Compiler::wait_inspection(program)
+        .map_err(compiler_inspection_error)?;
+    let mut probes = probes
+        .iter()
+        .filter(|probe| group.is_none_or(|group| probe.group.as_deref() == Some(group)))
+        .peekable();
+    if probes.peek().is_none() {
+        println!("No matching wait sites");
+        return Ok(());
+    }
+    let mut rcon = local_console(port)?;
+    for probe in probes {
+        let source = probe
+            .origin
+            .clone()
+            .and_then(|origin| serde_json::from_value::<MappedSpan>(origin).ok())
+            .and_then(|span| {
+                let file = analysis.package.files.get(span.file)?;
+                let index = sand_lang::LineIndex::new(&file.text);
+                Some(mapped_location(analysis, &span, &index))
+            });
+        let group = probe.group.as_deref().unwrap_or("ungrouped");
+        match source {
+            Some(source) => println!("{} [{group}] {source}", probe.site),
+            None => println!("{} [{group}]", probe.site),
+        }
+        let result = rcon
+            .query(&probe.command)
+            .with_context(|| format!("could not inspect `{}`", probe.site))?;
+        println!("{result}");
+    }
+    Ok(())
+}
+
+fn compiler_inspection_error(errors: Vec<sand::advanced::compiler::Diagnostic>) -> anyhow::Error {
+    anyhow::anyhow!(
+        "{}",
+        errors
+            .into_iter()
+            .map(|error| error.message)
+            .collect::<Vec<_>>()
+            .join("\n")
+    )
+}
+
+fn inspect_state(
+    analysis: &Analysis,
+    id: &sand::ResourceLocation,
+    owner: Option<&str>,
+    port: u16,
+) -> Result<()> {
+    let program = analysis.program.as_ref().context("no analyzed program")?;
+    let state = program
+        .modules
+        .iter()
+        .flat_map(|module| &module.states)
+        .find(|state| &state.id == id)
+        .with_context(|| format!("unknown State `{id}`"))?;
+    match (state.scope.as_str(), owner) {
+        ("global", Some(_)) => bail!("global State `{id}` has no entity owner"),
+        ("player" | "entity", None) => bail!("State `{id}` requires --owner"),
+        _ => {}
+    }
+    let mut rcon = local_console(port)?;
+    let uuid = owner
+        .map(|name| resolve_inspection_owner(&mut rcon, name))
+        .transpose()?;
+    let commands = sand::advanced::compiler::Compiler::state_inspection(program, id, uuid)
+        .map_err(compiler_inspection_error)?;
+    println!("State {id} (expected revision {})", state.revision);
+    for (name, command) in commands {
+        let label = name.strip_prefix("__sand_data_").unwrap_or(&name);
+        let result = rcon
+            .query(&command)
+            .with_context(|| format!("could not read `{label}`"))?;
+        let result = if result.is_empty() {
+            "<no value>"
+        } else {
+            &result
+        };
+        println!("{label}\t{result}");
+    }
+    Ok(())
+}
+
+fn resolve_inspection_owner(
+    rcon: &mut crate::dev::rcon::ConsoleSession,
+    value: &str,
+) -> Result<[i32; 4]> {
+    if let Some(uuid) = parse_entity_uuid(value) {
+        return Ok(uuid);
+    }
+    if !(1..=16).contains(&value.len())
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+    {
+        bail!("--owner needs one player name or a hyphenated UUID");
+    }
+    let response = rcon.query(&format!("data get entity {value} UUID"))?;
+    parse_native_uuid(&response)
+        .with_context(|| format!("could not read the UUID of player `{value}`"))
+}
+
+fn parse_entity_uuid(value: &str) -> Option<[i32; 4]> {
+    if value.len() != 36
+        || !value.is_ascii()
+        || ![8, 13, 18, 23]
+            .into_iter()
+            .all(|i| value.as_bytes()[i] == b'-')
+    {
+        return None;
+    }
+    let hex = value.replace('-', "");
+    let mut parts = [0; 4];
+    for (index, part) in parts.iter_mut().enumerate() {
+        let start = index * 8;
+        *part = u32::from_str_radix(hex.get(start..start + 8)?, 16).ok()? as i32;
+    }
+    Some(parts)
+}
+
+fn parse_native_uuid(response: &str) -> Option<[i32; 4]> {
+    let array = response.rsplit_once("[I;")?.1.trim().strip_suffix(']')?;
+    let parts = array
+        .split(',')
+        .map(|part| part.trim().parse().ok())
+        .collect::<Option<Vec<_>>>()?;
+    parts.try_into().ok()
+}
+
+fn source_at(
+    analysis: &Analysis,
+    function: &sand::ResourceLocation,
+    line: usize,
+) -> Result<String> {
+    let map = command_map(analysis)?;
+    let resource = function_resource(function);
+    let ranges = map
+        .get(&resource)
+        .with_context(|| format!("no source-mapped commands for `{function}`"))?;
+    let span = mapped_command(ranges, line)
+        .with_context(|| format!("no authored source for `{function}` at generated line {line}"))?;
+    let index = sand_lang::LineIndex::new(&analysis.package.files[span.file].text);
+    let location = mapped_location(analysis, span, &index);
+    let source = index.line_text(index.chars(span.start).line as usize);
+    Ok(format!("{location}\n{source}"))
+}
+
+fn mapped_command(ranges: &[MappedCommand], line: usize) -> Option<&MappedSpan> {
+    ranges
+        .iter()
+        .filter(|entry| entry.lines.contains(&line))
+        .min_by_key(|entry| entry.lines.end() - entry.lines.start())
+        .map(|entry| &entry.source)
+}
+
+fn mapped_location(analysis: &Analysis, span: &MappedSpan, index: &sand_lang::LineIndex) -> String {
+    let file = &analysis.package.files[span.file];
+    let position = index.chars(span.start);
+    format!(
+        "{}:{}:{}",
+        file.path.display(),
+        position.line + 1,
+        position.col + 1
+    )
+}
+
+fn annotate_trace(analysis: &Analysis, trace: &str) -> Result<String> {
+    let map = command_map(analysis)?;
+    let pack = analysis
+        .compile()
+        .map_err(|errors| report_compilation_errors(analysis, errors))?;
+    let indices: Vec<_> = analysis
+        .package
+        .files
+        .iter()
+        .map(|file| sand_lang::LineIndex::new(&file.text))
+        .collect();
+    let mut commands = std::collections::BTreeMap::new();
+    let mut frames: Vec<(usize, Option<String>)> = Vec::new();
+    let mut output = String::new();
+    for original in trace.lines() {
+        if !output.is_empty() {
+            output.push('\n');
+        }
+        output.push_str(original);
+        let line = original.trim_start();
+        let indent = original.len() - line.len();
+        if let Some(frame) = line.strip_prefix("[F] ") {
+            frames.retain(|(level, _)| *level < indent);
+            let resource = frame
+                .split_once(" size=")
+                .and_then(|(id, _)| id.parse::<sand::ResourceLocation>().ok())
+                .map(|id| function_resource(&id));
+            frames.push((indent, resource));
+        } else if let Some(command) = line.strip_prefix("[C] ") {
+            frames.retain(|(level, _)| *level < indent);
+            let source = frames
+                .last()
+                .and_then(|(_, resource)| resource.as_ref())
+                .and_then(|resource| {
+                    let ranges = map.get(resource)?;
+                    let function = std::str::from_utf8(pack.resources.get(resource)?).ok()?;
+                    let index = commands
+                        .entry(resource.clone())
+                        .or_insert_with(|| trace_command_index(function, ranges));
+                    trace_command_source(command, index)
+                });
+            if let Some(span) = source {
+                output.push_str("    @ ");
+                output.push_str(&mapped_location(analysis, span, &indices[span.file]));
+            } else {
+                output.push_str("    @ unmapped");
+            }
+        }
+    }
+    Ok(output)
+}
+
+fn trace_command_index<'a>(
+    function: &'a str,
+    ranges: &'a [MappedCommand],
+) -> std::collections::BTreeMap<&'a str, Option<&'a MappedSpan>> {
+    let mut sources = std::collections::BTreeMap::new();
+    for (index, command) in function.lines().enumerate() {
+        let candidate = mapped_command(ranges, index + 1);
+        sources
+            .entry(command)
+            .and_modify(|source| {
+                if *source != candidate {
+                    *source = None;
+                }
+            })
+            .or_insert(candidate);
+    }
+    sources
+}
+
+fn trace_command_source<'a>(
+    command: &str,
+    index: &std::collections::BTreeMap<&str, Option<&'a MappedSpan>>,
+) -> Option<&'a MappedSpan> {
+    let result_free = command
+        .rsplit_once(" -> ")
+        .filter(|(_, result)| result.parse::<i32>().is_ok())
+        .map_or(command, |(bare, _)| bare);
+    match (index.get(command), index.get(result_free)) {
+        (Some(a), Some(b)) if a != b => None,
+        (Some(source), _) | (_, Some(source)) => *source,
+        _ => None,
+    }
+}
+
+/// Format all declared source files, or check their formatting without writes.
+///
+/// Every file is parsed and formatted before any file is changed. Semantic
+/// errors do not prevent formatting, but syntax and module-loading errors do.
+pub fn format_package(path: &Path, check: bool) -> Result<()> {
+    let analysis = analyze(path)?;
+    if !analysis.package.diagnostics.is_empty() {
+        for diagnostic in &analysis.package.diagnostics {
+            eprint!("{}", diagnostic.render(&analysis.package));
+        }
+        bail!("cannot format a package with syntax or module-loading errors");
+    }
+    let mut changed = Vec::new();
+    for file in &analysis.package.files {
+        let formatted = sand_lang::format::format(&file.text)
+            .map_err(|_| anyhow::anyhow!("cannot format {}: syntax errors", file.path.display()))?;
+        if formatted != file.text {
+            changed.push((file.path.clone(), formatted));
+        }
+    }
+    if check {
+        for (path, _) in &changed {
+            println!("Would format {}", path.display());
+        }
+        if !changed.is_empty() {
+            bail!("{} source file(s) need formatting", changed.len());
+        }
+    } else {
+        for (path, text) in &changed {
+            std::fs::write(path, text)
+                .with_context(|| format!("cannot write {}", path.display()))?;
+            println!("Formatted {}", path.display());
+        }
+    }
+    Ok(())
+}
+
+/// Compile a package and publish it; returns its namespace.
+fn build(analysis: &Analysis, output: Option<PathBuf>) -> Result<String> {
+    let pack = analysis
+        .compile()
+        .map_err(|errors| report_compilation_errors(analysis, errors))?;
+    let namespace = namespace_of(analysis);
+    let default_output = output.is_none();
+    let root = project_root(analysis);
+    let output = output.unwrap_or_else(|| root.join("dist").join(&namespace));
+    let published = crate::build::publication::publish_pack(&output, &pack.resources)?;
+    println!(
+        "{} {} for Minecraft {} → {} ({} written, {} unchanged, {} removed)",
+        "Built".green().bold(),
+        namespace,
+        pack.target,
+        output.display(),
+        published.summary.written,
+        published.summary.unchanged,
+        published.summary.removed,
+    );
+    // Keep a local test world current, so an edit only needs `/reload`.
+    let installed = root.join("dist/server/world/datapacks").join(&namespace);
+    if default_output && installed.exists() {
+        crate::run_cmd::sync_dir(&output, &installed)
+            .with_context(|| format!("failed to update {}", installed.display()))?;
+        println!(
+            "  {} the test world's copy; run {} in-game to load it",
+            "Updated".dimmed(),
+            "/reload".white()
+        );
+    }
+    Ok(namespace)
+}
+
+fn namespace_of(analysis: &Analysis) -> String {
+    analysis
+        .pack
+        .as_ref()
+        .map(|p| p.namespace.clone())
+        .unwrap_or_else(|| "pack".into())
+}
+
+fn project_root(analysis: &Analysis) -> PathBuf {
+    analysis
+        .package
+        .root
+        .parent()
+        .unwrap_or(Path::new("."))
+        .to_path_buf()
+}
+
+/// Compile a package (unless `--no-build`) and launch the local test server.
+/// Language projects need neither Cargo nor `sand.toml`.
+pub(crate) fn run_project(path: &Path, args: crate::run_cmd::RunArgs) -> Result<()> {
+    let analysis = analyze(path)?;
+    report(&analysis)?;
+    let namespace = if args.no_build {
+        namespace_of(&analysis)
+    } else {
+        build(&analysis, None)?
+    };
+    let minecraft = analysis
+        .program
+        .as_ref()
+        .map(|program| program.target.minecraft.to_string())
+        .context("the package did not produce a program")?;
+    let root = project_root(&analysis);
+    std::env::set_current_dir(&root).with_context(|| format!("cannot enter {}", root.display()))?;
+    crate::run_cmd::launch_built(&namespace, &minecraft, args)
+}
+
+pub fn run_lsp() -> Result<()> {
+    sand_lsp::run_stdio().map_err(|error| anyhow::anyhow!("language server failed: {error}"))
+}
+
+fn package_root(path: &Path) -> Result<PathBuf> {
+    let path =
+        std::fs::canonicalize(path).with_context(|| format!("cannot open {}", path.display()))?;
+    let root = if path.is_dir() {
+        let root = path.join(sand_lang::ROOT_FILE);
+        if !root.is_file() {
+            bail!(
+                "{} has no {}; pass the package root file explicitly",
+                path.display(),
+                sand_lang::ROOT_FILE
+            );
+        }
+        root
+    } else {
+        sand_lang::find_root(&path, &DiskFiles)
+    };
+    Ok(root)
+}
+
+fn analyze(path: &Path) -> Result<Analysis> {
+    Ok(sand_lang::analyze_path(&package_root(path)?, &DiskFiles))
+}
+
+fn imported_name(tree: &sand_lang::ast::UseTree, name: &str) -> bool {
+    if let Some(group) = &tree.group {
+        return group.iter().any(|tree| imported_name(tree, name));
+    }
+    tree.alias.as_ref().unwrap_or_else(|| tree.path.last()).name == name
+}
+
+/// Install a normal, editable source module without replacing existing code.
+fn install_library(path: &Path, library: Library) -> Result<PathBuf> {
+    use sand_lang::ast::ItemKind;
+    let root = package_root(path)?;
+    let parent = root
+        .parent()
+        .context("package root has no parent directory")?;
+    let original = std::fs::read_to_string(&root)?;
+    let (source, errors) = sand_lang::parser::parse(&original);
+    anyhow::ensure!(
+        errors.is_empty(),
+        "fix package-root syntax errors before adding a library"
+    );
+    let name = library.name();
+    let target = parent.join(format!("{name}.sand"));
+    anyhow::ensure!(
+        !target.exists() && !parent.join(name).exists(),
+        "{} already exists; no files were changed",
+        target.display()
+    );
+    let mut declared = false;
+    for item in &source.items {
+        if item.name().is_some_and(|item| item.name == name) {
+            match &item.kind {
+                ItemKind::Mod(module) if module.inline.is_none() => declared = true,
+                _ => bail!(
+                    "`{name}` is already declared in {}; no files were changed",
+                    root.display()
+                ),
+            }
+        }
+        if let ItemKind::Use(import) = &item.kind {
+            anyhow::ensure!(
+                !imported_name(&import.tree, name),
+                "`{name}` is already imported in {}; no files were changed",
+                root.display()
+            );
+        }
+    }
+    let mut contents = original.clone();
+    if !declared {
+        if !contents.ends_with('\n') {
+            contents.push('\n');
+        }
+        contents.push_str(&format!("\nmod {name};\n"));
+    }
+    let mut module = tempfile::NamedTempFile::new_in(parent)?;
+    module.write_all(library.source().as_bytes())?;
+    module
+        .persist_noclobber(&target)
+        .with_context(|| format!("install {}", target.display()))?;
+    let result = (|| -> Result<()> {
+        anyhow::ensure!(
+            std::fs::read_to_string(&root)? == original,
+            "package root changed during library installation; retry with the latest source"
+        );
+        if !declared {
+            let mut staged = tempfile::NamedTempFile::new_in(parent)?;
+            staged.write_all(contents.as_bytes())?;
+            staged
+                .as_file()
+                .set_permissions(std::fs::metadata(&root)?.permissions())?;
+            staged
+                .persist(&root)
+                .context("install library module declaration")?;
+        }
+        Ok(())
+    })();
+    if let Err(error) = result {
+        let _ = std::fs::remove_file(&target);
+        return Err(error);
+    }
+    Ok(target)
+}
+
+fn report_compilation_errors(analysis: &Analysis, errors: Vec<Diagnostic>) -> anyhow::Error {
+    for error in &errors {
+        eprint!("{}", error.render(&analysis.package));
+    }
+    anyhow::anyhow!("compilation failed with {} error(s)", errors.len())
+}
+
+/// Print diagnostics; fail when any is an error. Returns a summary.
+fn report(analysis: &Analysis) -> Result<String> {
+    let mut errors = 0;
+    let mut warnings = 0;
+    for diagnostic in &analysis.diagnostics {
+        match diagnostic.severity {
+            Severity::Error => errors += 1,
+            Severity::Warning => warnings += 1,
+        }
+        eprintln!("{}", diagnostic.render(&analysis.package));
+    }
+    if errors > 0 {
+        bail!("{errors} error(s), {warnings} warning(s)");
+    }
+    Ok(format!("{warnings} warning(s)"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wait_inspection_uses_the_generated_queues_and_ledgers_with_origins() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().join("pack.sand");
+        std::fs::write(
+            &root,
+            r#"
+#![pack(namespace = "debug")]
+fn server_work() {
+    wait(40, server = true, group = "clock");
+    raw!("say server resumed");
+}
+#[player]
+fn owned_work() {
+    wait(40, group = "jobs");
+    raw!("say owner resumed");
+}
+"#,
+        )
+        .unwrap();
+        let analysis = analyze(&root).unwrap();
+        let program = analysis.program.as_ref().expect("valid wait fixture");
+        let pack = analysis.compile().expect("compiled wait fixture");
+        let probes = sand::advanced::compiler::Compiler::wait_inspection(program).unwrap();
+        assert_eq!(probes.len(), 2);
+        for probe in probes {
+            let origin: MappedSpan = serde_json::from_value(probe.origin.unwrap()).unwrap();
+            let text = &analysis.package.files[origin.file].text;
+            assert!(text[origin.start..].starts_with("wait"), "{}", probe.site);
+            let address = probe.command.strip_prefix("data get storage ").unwrap();
+            match probe.group.as_deref() {
+                Some("clock") => assert!(address.contains("debug:__sand_server_waits sites.")),
+                Some("jobs") => assert!(address.ends_with("/task_ledger active")),
+                other => panic!("unexpected wait group {other:?}"),
+            }
+            assert!(
+                pack.resources
+                    .values()
+                    .filter_map(|bytes| std::str::from_utf8(bytes).ok())
+                    .any(|text| text.contains(address))
+            );
+        }
+    }
+
+    #[test]
+    fn inspection_owner_parses_native_and_hyphenated_uuids() {
+        let uuid = [0, -1, i32::MIN, i32::MAX];
+        assert_eq!(
+            parse_entity_uuid("00000000-ffff-ffff-8000-00007fffffff"),
+            Some(uuid)
+        );
+        assert_eq!(
+            parse_native_uuid(
+                "Tester has the following entity data: [I; 0, -1, -2147483648, 2147483647]"
+            ),
+            Some(uuid)
+        );
+        assert_eq!(
+            parse_entity_uuid("00000000-ffff-ffff-8000-00007ffffff-"),
+            None
+        );
+        assert_eq!(
+            parse_native_uuid("[I; 0, -1, -2147483648, 2147483647, 0]"),
+            None
+        );
+    }
+
+    #[test]
+    fn source_at_resolves_generated_branch_lines() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("pack.sand");
+        std::fs::write(
+            &root,
+            r#"
+#![pack(namespace = "probe", minecraft = "26.2")]
+global state Report { value: number }
+fn run(flag: bool) {
+    if flag { Report.value = 17; }
+}
+"#,
+        )
+        .unwrap();
+        let analysis = analyze(&root).unwrap();
+        let map = analysis.source_map().unwrap();
+        let (path, entries) = map["commands"]
+            .as_object()
+            .unwrap()
+            .iter()
+            .find(|(path, _)| path.contains("/__sand_program/"))
+            .unwrap();
+        let id = format!(
+            "probe:{}",
+            path.strip_prefix("data/probe/function/")
+                .unwrap()
+                .strip_suffix(".mcfunction")
+                .unwrap()
+        )
+        .parse()
+        .unwrap();
+        let line = entries[0]["lines"]["start"].as_u64().unwrap() as usize;
+        let source = source_at(&analysis, &id, line).unwrap();
+        assert!(source.contains("Report.value = 17"), "{source}");
+        assert!(source_at(&analysis, &id, usize::MAX).is_err());
+        let pack = analysis.compile().unwrap();
+        let emitted = std::str::from_utf8(&pack.resources[path]).unwrap();
+        let command = emitted.lines().nth(line - 1).unwrap();
+        let trace = format!(
+            "    [F] probe:run size=1\n        [F] {id} size=1\n            [C] {command} -> 1\n        [C] say unrelated"
+        );
+        let annotated = annotate_trace(&analysis, &trace).unwrap();
+        assert!(
+            annotated.contains(&format!(
+                "{command} -> 1    @ {}",
+                analysis.package.files[0].path.display()
+            )),
+            "{annotated}"
+        );
+        assert!(annotated.ends_with("say unrelated    @ unmapped"));
+    }
+
+    #[test]
+    fn building_updates_an_existing_test_world_only_when_there_is_one() {
+        let dir = tempfile::tempdir().unwrap();
+        // Publishing refuses symlinked paths, such as macOS's `/var`.
+        let base = std::fs::canonicalize(dir.path()).unwrap();
+        let project = base.join("arena");
+        crate::lang_setup::new_project(&project, "arena", "26.2").unwrap();
+        let analysis = analyze(&project).unwrap();
+        assert_eq!(build(&analysis, None).unwrap(), "arena");
+        let installed = project.join("dist/server/world/datapacks/arena");
+        assert!(!installed.exists(), "no test world exists yet");
+
+        std::fs::create_dir_all(&installed).unwrap();
+        build(&analysis, None).unwrap();
+        assert!(
+            installed.join("pack.mcmeta").is_file(),
+            "reload picks up the rebuilt pack"
+        );
+
+        // An explicit output is a separate destination, not the project's pack.
+        std::fs::remove_dir_all(&installed).unwrap();
+        std::fs::create_dir_all(&installed).unwrap();
+        build(&analysis, Some(base.join("elsewhere"))).unwrap();
+        assert!(!installed.join("pack.mcmeta").exists());
+    }
+}
+
+#[cfg(test)]
+mod library_tests {
+    use super::*;
+
+    #[test]
+    fn installing_collections_adds_a_normal_module_and_compiles_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("pack.sand");
+        std::fs::write(&root, "#![pack(namespace = \"maps\", minecraft = \"26.2\")]\nuse collections::{Map, Set};\nfn run() { let mut map = Map::<string, number>::new(); map.insert(\"a\", 1); let set = Set::<number>::new(); }\n").unwrap();
+        let library = install_library(dir.path(), Library::Collections).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&library).unwrap(),
+            Library::Collections.source()
+        );
+        let source = std::fs::read_to_string(&root).unwrap();
+        assert_eq!(source.matches("mod collections;").count(), 1);
+        let analysis = analyze(dir.path()).unwrap();
+        assert!(!analysis.has_errors(), "{:?}", analysis.diagnostics);
+        analysis.compile().unwrap();
+        assert!(install_library(dir.path(), Library::Collections).is_err());
+        assert_eq!(std::fs::read_to_string(&root).unwrap(), source);
+    }
+
+    #[test]
+    fn installation_preserves_existing_source_and_accepts_a_missing_declared_module() {
+        for source in [
+            "#![pack(namespace = \"maps\")] struct collections { x: number }",
+            "#![pack(namespace = \"maps\")] use other as collections;",
+            "#![pack(namespace = \"maps\")] mod collections {}",
+        ] {
+            let dir = tempfile::tempdir().unwrap();
+            let root = dir.path().join("pack.sand");
+            std::fs::write(&root, source).unwrap();
+            assert!(install_library(dir.path(), Library::Collections).is_err());
+            assert_eq!(std::fs::read_to_string(&root).unwrap(), source);
+            assert!(!dir.path().join("collections.sand").exists());
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("pack.sand");
+        let source = "#![pack(namespace = \"maps\")] mod collections;\n";
+        std::fs::write(&root, source).unwrap();
+        install_library(&root, Library::Collections).unwrap();
+        assert_eq!(std::fs::read_to_string(root).unwrap(), source);
+    }
+}

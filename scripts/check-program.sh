@@ -4,6 +4,14 @@ program_repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$program_repo_root"
 cargo build -p sand-cli --bin sand
 program_binary="$program_repo_root/target/debug/sand"
+program_examples="$(mktemp -d)"
+program_examples="$(cd -- "$program_examples" && pwd -P)"
+trap 'rm -rf "$program_examples"' EXIT
+for program_source in "$program_repo_root"/examples/*/pack.sand; do
+    program_example_dir="$(dirname "$program_source")"
+    program_example_name="$(basename "$program_example_dir")"
+    "$program_binary" lang build "$program_example_dir" --output "$program_examples/$program_example_name"
+done
 program_python="$program_repo_root/target/program-python/bin/python"
 if [[ ! -x "$program_python" ]]; then
     python3 -m venv "$program_repo_root/target/program-python"

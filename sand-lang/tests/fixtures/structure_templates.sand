@@ -1,0 +1,21 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+
+structure_template Pedestal {
+    source: "structures/pedestal.nbt",
+}
+
+fn run() {
+    fill_blocks(Block::Air, pos(0, 80, 0), pos(7, 80, 7));
+
+    place_template(Pedestal, pos(4, 80, 1));
+    place_template(Pedestal, offset(0, 0, 4));
+
+    if block_is(Block::PolishedAndesite, pos(4, 80, 1))
+        && block_is(Block::SeaLantern, pos(5, 80, 1))
+        && block_is(Block::PolishedAndesite, pos(0, 80, 4))
+        && block_is(Block::SeaLantern, pos(1, 80, 4)) {
+        raw!("say __SAND_LANGUAGE_OK__");
+    } else {
+        raw!("say __SAND_LANGUAGE_FAILED__");
+    }
+}

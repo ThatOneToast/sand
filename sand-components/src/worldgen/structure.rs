@@ -7,6 +7,8 @@
 
 use std::collections::BTreeMap;
 
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::component::DatapackComponent;
@@ -51,7 +53,10 @@ const TYPED_FIELDS: &[&str] = &[
 ///
 /// This is vanilla's shared `GenerationStep.Decoration` enum: the same
 /// ordered steps also bucket a biome's per-step `features` list-of-lists.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
 pub enum GenerationStep {
     #[doc = "Places content during Minecraft's raw generation generation step."]
     RawGeneration,
@@ -142,7 +147,8 @@ impl GenerationStep {
     variants(BeardBox = "Applies Minecraft's beard box terrain adaptation.", BeardThin = "Applies Minecraft's beard thin terrain adaptation.", Bury = "Applies Minecraft's bury terrain adaptation.", Encapsulate = "Applies Minecraft's encapsulate terrain adaptation.", None = "Applies Minecraft's none terrain adaptation."),
 )]
 /// How terrain is modified around a generated structure.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum TerrainAdaptation {
     #[doc = "Applies Minecraft's none terrain adaptation."]
     None,
@@ -197,7 +203,10 @@ impl TerrainAdaptation {
     variants(Ambient = "Targets Minecraft's ambient mob category.", Axolotls = "Targets Minecraft's axolotls mob category.", Creature = "Targets Minecraft's creature mob category.", Misc = "Targets Minecraft's misc mob category.", Monster = "Targets Minecraft's monster mob category.", UndergroundWaterCreature = "Targets Minecraft's underground water creature mob category.", WaterAmbient = "Targets Minecraft's water ambient mob category.", WaterCreature = "Targets Minecraft's water creature mob category."),
 )]
 /// A vanilla mob category used as a spawn-override key.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
 pub enum MobCategory {
     #[doc = "Targets Minecraft's monster mob category."]
     Monster,
@@ -306,8 +315,10 @@ impl SpawnBoundingBox {
     example = "use sand::component::SpawnEntry;",
 )]
 /// One weighted mob-spawn entry for a biome or [`SpawnOverride`].
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SpawnEntry {
+    #[schemars(with = "String")]
     entity_type: EntityTypeId,
     weight: u32,
     min_count: u32,
@@ -340,6 +351,22 @@ impl SpawnEntry {
             min_count,
             max_count,
         }
+    }
+
+    /// The entity admitted by this weighted entry.
+    #[sand_macros::api(
+        registry = sand_api_contract, path = "sand::component::SpawnEntry::entity_type",
+        aliases = ["sand::prelude::SpawnEntry::entity_type"], module = "sand::component",
+        summary = "Read the entity type in one weighted spawn entry.",
+        context = "Inspect the entry before validating it against the target’s entity registry.",
+        minecraft = "Returns the typed registry identity emitted as the spawn entry’s type.",
+        use_when = ["Checking or comparing the entity in a biome or structure spawn table"],
+        avoid_when = ["Changing the entity; create a new SpawnEntry"],
+        returns = "The entity type in this entry.",
+        example = "use sand::component::SpawnEntry;",
+    )]
+    pub fn entity_type(&self) -> &EntityTypeId {
+        &self.entity_type
     }
 
     pub(crate) fn to_json(&self) -> Value {
@@ -547,12 +574,26 @@ impl SpawnOverride {
     variant_fields(Entries = ["An explicit list of biome IDs."], Tag = ["A biome tag reference, emitted as `#namespace:path`."]),
 )]
 /// The biome constraint of a structure: a biome tag or an explicit list.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(
+    tag = "kind",
+    content = "value",
+    rename_all = "snake_case",
+    deny_unknown_fields
+)]
 pub enum BiomeSelector {
     /// A biome tag reference, emitted as `#namespace:path`.
-    Tag(#[doc = "A biome tag reference, emitted as `#namespace:path`."] TagId<BiomeId>),
+    Tag(
+        #[doc = "A biome tag reference, emitted as `#namespace:path`."]
+        #[schemars(with = "String")]
+        TagId<BiomeId>,
+    ),
     /// An explicit list of biome IDs.
-    Entries(#[doc = "An explicit list of biome IDs."] Vec<BiomeId>),
+    Entries(
+        #[doc = "An explicit list of biome IDs."]
+        #[schemars(with = "Vec<String>")]
+        Vec<BiomeId>,
+    ),
 }
 
 impl BiomeSelector {
@@ -1152,14 +1193,12 @@ impl DatapackComponent for Structure {
                 Value::String(adaptation.as_str().to_string()),
             );
         }
-        if !self.spawn_overrides.is_empty() {
-            let overrides: Map<String, Value> = self
-                .spawn_overrides
-                .iter()
-                .map(|(category, spawns)| (category.as_str().to_string(), spawns.to_json()))
-                .collect();
-            map.insert("spawn_overrides".into(), Value::Object(overrides));
-        }
+        let overrides: Map<String, Value> = self
+            .spawn_overrides
+            .iter()
+            .map(|(category, spawns)| (category.as_str().to_string(), spawns.to_json()))
+            .collect();
+        map.insert("spawn_overrides".into(), Value::Object(overrides));
         if let Some(jigsaw) = &self.jigsaw {
             jigsaw.write_into(&mut map);
         }
@@ -1205,6 +1244,7 @@ mod tests {
                 "type": "minecraft:jigsaw",
                 "biomes": "#minecraft:has_structure/village_plains",
                 "step": "surface_structures",
+                "spawn_overrides": {},
                 "start_pool": "minecraft:village/plains/town_centers",
                 "size": 6,
                 "start_height": { "absolute": 0 },

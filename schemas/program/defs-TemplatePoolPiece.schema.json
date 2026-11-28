@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A weighted NBT template within a native jigsaw pool.",
+  "properties": {
+    "processors": {
+      "description": "Optional custom block processor list.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "template": {
+      "description": "Resource ID of the saved NBT template.",
+      "type": "string"
+    },
+    "terrain_matching": {
+      "default": false,
+      "description": "Adjust the piece to the surrounding terrain.",
+      "type": "boolean"
+    },
+    "weight": {
+      "description": "Positive selection weight.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "template",
+    "weight"
+  ],
+  "type": "object"
+}

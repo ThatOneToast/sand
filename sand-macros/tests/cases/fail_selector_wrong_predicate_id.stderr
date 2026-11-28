@@ -16,7 +16,7 @@ help: the following other types implement trait `RegistryReference<K>`
  ::: $WORKSPACE/sand-components/src/predicate/mod.rs
   |
   |   impl sand_commands::resource::RegistryReference<sand_commands::resource::Predicate> for Predicate {
-  |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Predicate`
+  |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `sand::prelude::Predicate`
 note: required by a bound in `sand::prelude::Target::<K, A>::predicate`
  --> $WORKSPACE/sand-commands/src/selector.rs
   |

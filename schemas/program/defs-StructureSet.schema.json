@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A structure set definition (`data/<namespace>/worldgen/structure_set/<id>.json`).\n\n# Context\nA structure set definition (`data/<namespace>/worldgen/structure_set/<id>.json`). This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.\n\n# Minecraft behavior\nThe value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::StructureSet;\n```\nA structure set definition (`data/<namespace>/worldgen/structure_set/<id>.json`).\n\n```\nuse sand_components::{DatapackComponent, ResourceLocation, StructureId};\nuse sand_components::worldgen::structure_set::{StructureEntry, StructurePlacement, StructureSet};\n\nlet set = StructureSet::new(\n    ResourceLocation::new(\"example\", \"villages\").unwrap(),\n    [StructureEntry::new(StructureId::minecraft(\"village_plains\").unwrap(), 1)],\n    StructurePlacement::random_spread(34, 8, 10387312),\n);\nset.validate().unwrap();\nassert_eq!(set.component_dir(), \"worldgen/structure_set\");\nassert_eq!(set.to_json()[\"placement\"][\"type\"], \"minecraft:random_spread\");\n```",
+  "properties": {
+    "exclusion_zone": {
+      "anyOf": [
+        {
+          "$ref": "defs-ExclusionZone.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "id": {
+      "type": "string"
+    },
+    "placement": {
+      "$ref": "defs-StructurePlacement.schema.json"
+    },
+    "raw_fields": {
+      "additionalProperties": {
+        "$ref": "defs-RawJson.schema.json"
+      },
+      "type": "object"
+    },
+    "structures": {
+      "items": {
+        "$ref": "defs-StructureEntry.schema.json"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "structures",
+    "placement"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A typed SNBT compound preserving declaration order.\n\n# Context\nA typed SNBT compound preserving declaration order. This API models a typed NBT value, path, target, or data command. Raw SNBT entry points are explicit escape hatches rather than the normal representation.\n\n# Minecraft behavior\nOperations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.\n\n# Use when\n- Reading or mutating structured Minecraft NBT through typed paths and values\n\n# Avoid when\n- A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT\n\n# Example\n```rust,ignore\nuse sand::data::NbtCompound;\n```\nA typed SNBT compound preserving declaration order.",
+  "properties": {
+    "entries": {
+      "items": {
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "type": "string"
+          },
+          {
+            "$ref": "defs-NbtValue.schema.json"
+          }
+        ],
+        "type": "array"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "entries"
+  ],
+  "type": "object"
+}

@@ -6,7 +6,7 @@ use crate::ir::{Cmd, ConditionIr, ExecuteOp};
 #[doc(hidden)]
 pub use sand_commands::Selector;
 use sand_commands::{TargetArgument, Vec3};
-use sand_components::ResourceLocation;
+use sand_components::{EntityTypeId, ResourceLocation};
 
 /// Check that native configuration retained the declaration's identity and
 /// exact component composition before exposing it to the existing compiler.
@@ -49,55 +49,67 @@ pub(crate) fn summon<K: SummonableEntityKind>(
     id: &ResourceLocation,
     position: Vec3,
 ) -> Vec<String> {
-    vec![
-        Cmd::Execute {
-            operations: vec![
-                ExecuteOp::Positioned(position),
-                ExecuteOp::Summon(K::entity_type().to_string()),
-            ],
-            run: Box::new(lifecycle(id, "initialize")),
-        }
-        .render(),
-    ]
+    vec![summon_entity(id, &K::entity_type(), position).render()]
+}
+
+pub(crate) fn summon_entity(id: &ResourceLocation, entity: &EntityTypeId, position: Vec3) -> Cmd {
+    Cmd::Execute {
+        operations: vec![
+            ExecuteOp::Positioned(position),
+            ExecuteOp::Summon(entity.to_string()),
+        ],
+        run: Box::new(lifecycle(id, "initialize")),
+    }
 }
 
 /// Attach the declaration to a statically proven current entity kind.
 pub(crate) fn attach<K: KnownEntityKind>(id: &ResourceLocation) -> Vec<String> {
-    vec![
-        Cmd::Execute {
-            operations: vec![
-                ExecuteOp::If(ConditionIr::Entity(
-                    Selector::self_().entity_type(K::entity_type()),
-                )),
-                ExecuteOp::Unless(ConditionIr::Entity(
-                    Selector::self_().tag(initialized_tag(&id.to_string())),
-                )),
-            ],
-            run: Box::new(lifecycle(id, "initialize")),
-        }
-        .render(),
-    ]
+    vec![attach_entity(id, &K::entity_type()).render()]
+}
+
+pub(crate) fn attach_entity(id: &ResourceLocation, entity: &EntityTypeId) -> Cmd {
+    Cmd::Execute {
+        operations: vec![
+            ExecuteOp::If(ConditionIr::Entity(
+                Selector::self_().entity_type(entity.clone()),
+            )),
+            ExecuteOp::Unless(ConditionIr::Entity(
+                Selector::self_().tag(initialized_tag(&id.to_string())),
+            )),
+        ],
+        run: Box::new(lifecycle(id, "initialize")),
+    }
 }
 
 /// Run canonical cleanup, including shared-component ownership guards.
 pub(crate) fn detach<K: KnownEntityKind>(id: &ResourceLocation) -> Vec<String> {
-    vec![
-        Cmd::Execute {
-            operations: vec![ExecuteOp::If(ConditionIr::Entity(selection::<K>(
-                id,
-                Selector::self_(),
-            )))],
-            run: Box::new(lifecycle(id, "cleanup")),
-        }
-        .render(),
-    ]
+    vec![detach_entity(id, &K::entity_type()).render()]
+}
+
+pub(crate) fn detach_entity(id: &ResourceLocation, entity: &EntityTypeId) -> Cmd {
+    Cmd::Execute {
+        operations: vec![ExecuteOp::If(ConditionIr::Entity(select_entity(
+            id,
+            entity,
+            Selector::self_(),
+        )))],
+        run: Box::new(lifecycle(id, "cleanup")),
+    }
 }
 
 /// Select the existing archetype membership without introducing a new query
 /// representation. State query lowering adds component presence constraints.
 pub fn selection<K: KnownEntityKind>(id: &ResourceLocation, selector: Selector) -> Selector {
+    select_entity(id, &K::entity_type(), selector)
+}
+
+pub(crate) fn select_entity(
+    id: &ResourceLocation,
+    entity: &EntityTypeId,
+    selector: Selector,
+) -> Selector {
     selector
-        .entity_type(K::entity_type())
+        .entity_type(entity.clone())
         .tag(initialized_tag(&id.to_string()))
 }
 

@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Climate, visual settings, and natural spawn rules for a native custom biome.",
+  "properties": {
+    "downfall": {
+      "description": "Humidity from zero to one. Defaults to 0.5.",
+      "format": "float",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "features": {
+      "additionalProperties": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "description": "Placed features in declaration order within a native decoration step.",
+      "type": "object"
+    },
+    "fog_color": {
+      "description": "Fog color, as an RGB integer.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "foliage_color": {
+      "description": "Optional foliage color override, as an RGB integer.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "grass_color": {
+      "description": "Optional grass color override, as an RGB integer.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "id": {
+      "description": "Identity used in world generators and biome conditions.",
+      "type": "string"
+    },
+    "precipitation": {
+      "description": "Whether the biome has rain or snow. Defaults to true.",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "sky_color": {
+      "description": "Sky color, as an RGB integer.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "spawn_costs": {
+      "additionalProperties": {
+        "$ref": "defs-SpawnCost.schema.json"
+      },
+      "description": "Optional population-density budget and charge for each entity.",
+      "type": "object"
+    },
+    "spawners": {
+      "additionalProperties": {
+        "items": {
+          "$ref": "defs-SpawnEntry.schema.json"
+        },
+        "type": "array"
+      },
+      "description": "Natural spawn entries in authored order within each vanilla category.",
+      "type": "object"
+    },
+    "temperature": {
+      "description": "Climate temperature. Defaults to 0.5.",
+      "format": "float",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "water_color": {
+      "description": "Water surface color, as an RGB integer.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "water_fog_color": {
+      "description": "Underwater fog color, as an RGB integer.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "type": "object"
+}

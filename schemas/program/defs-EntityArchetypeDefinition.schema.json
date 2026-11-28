@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A typed entity with reusable State components and lifecycle callbacks.",
+  "properties": {
+    "adopt_every": {
+      "description": "Cadence for automatic adoption of loaded matching entities.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "cleanup": {
+      "anyOf": [
+        {
+          "$ref": "defs-FunctionReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Runs as the entity before releasing its State."
+    },
+    "components": {
+      "description": "Reusable entity State components in attachment order.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "entity": {
+      "description": "Native entity kind.",
+      "type": "string"
+    },
+    "id": {
+      "description": "Archetype identity.",
+      "type": "string"
+    },
+    "initialize": {
+      "anyOf": [
+        {
+          "$ref": "defs-FunctionReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Runs as the entity after attaching its State."
+    }
+  },
+  "required": [
+    "id",
+    "entity"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,57 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+mod collections;
+use collections::{Map, Set};
+struct Point { x: number, label: string, values: [number; 2] }
+global state Result { checks: number, failed: number, calls: number }
+global state Boundary { full: Map<number, number> }
+global state Snapshot { points: Vec<Point> }
+fn change_index() -> number { Snapshot.points[0].x = 99; return 0; }
+fn check(value: bool) { Result.checks += 1; if !value { Result.failed += 1; } }
+fn fallback() -> number { Result.calls += 1; return 99; }
+fn run() {
+    Result.checks = 0; Result.failed = 0; Result.calls = 0;
+    let mut map = Map::<string, number>::new();
+    check(map.is_empty()); check(map.len() == 0); check(!map.contains_key("missing"));
+    check(map.insert("one", 1)); check(map.insert("two", 2)); check(map.len() == 2);
+    check(map.insert("one", 3)); check(map.len() == 2); check(map.get_or("one", 0) == 3);
+    check(map.get_or("missing", fallback()) == 99); check(Result.calls == 1);
+    check(map.get_or("one", fallback()) == 3); check(Result.calls == 2);
+    check(map.keys() == ["one", "two"]); check(map.values() == [3, 2]);
+    let mut entries = map.entries(); entries[0].value = 90;
+    check(map.get_or("one", 0) == 3);
+    let mut copy = map; copy.insert("one", 8); check(map.get_or("one", 0) == 3);
+    check(map.remove_or("one", 0) == 3); check(map.keys() == ["two"]);
+    check(map.remove_or("missing", 7) == 7); check(!map.remove("missing")); check(map.remove("two")); check(map.is_empty());
+    map.insert("$(not_a_macro) \" é🌍", 9); check(map.get_or("$(not_a_macro) \" é🌍", 0) == 9);
+    map.clear(); check(map.len() == 0);
+    let first = Point { x: 1, label: "p", values: [2, 3] };
+    let second = Point { x: 2, label: "p", values: [2, 3] };
+    Snapshot.points = [first];
+    check(Snapshot.points[change_index()].x == 1); check(Snapshot.points[0].x == 99);
+    let missing = 9; check(Snapshot.points[missing].x == 0);
+    check(first == first); check(first != second);
+    let mut points = Set::<Point>::new();
+    check(points.insert(first)); check(!points.insert(first)); check(points.insert(second)); check(points.len() == 2);
+    check(points.contains(first)); check(points.remove(first)); check(!points.contains(first));
+    check(points.values()[0] == second);
+    let mut arrays = Set::<[number; 2]>::new();
+    check(arrays.insert([1, 2])); check(!arrays.insert([1, 2])); check(arrays.contains([1, 2])); check(arrays.remove([1, 2]));
+    let mut records = Map::<Point, Vec<string>>::new();
+    check(records.insert(first, ["a", "b"])); check(records.get_or(first, []) == ["a", "b"]);
+    let mut values = records.get_or(first, []); values[0] = "changed";
+    check(records.get_or(first, []) == ["a", "b"]); check(!records.contains_key(second));
+    let empty: [number; 0] = []; check(empty == []);
+    Boundary.full = collections::test_support::full_map();
+    if Result.checks == 47 && Result.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    else { raw!("say __SAND_LANGUAGE_FAILED__"); }
+}
+fn check_capacity() {
+    check(Boundary.full.len() == 1024); check(!Boundary.full.insert(1024, 3));
+    if Result.checks == 49 && Result.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    else { raw!("say __SAND_LANGUAGE_FAILED__"); }
+}
+fn check_update() {
+    check(Boundary.full.insert(0, -7)); check(Boundary.full.get_or(0, 0) == -7); check(Boundary.full.len() == 1024);
+    if Result.checks == 52 && Result.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    else { raw!("say __SAND_LANGUAGE_FAILED__"); }
+}

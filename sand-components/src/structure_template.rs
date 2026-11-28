@@ -1,3 +1,5 @@
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::component::DatapackComponent;
@@ -20,9 +22,13 @@ use crate::resource_location::ResourceLocation;
 /// Structure templates are binary NBT assets. Sand treats them as copy-backed
 /// datapack components and writes them under
 /// `data/<namespace>/structure/<path>.nbt`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct StructureTemplate {
+    #[serde(rename = "id")]
+    #[schemars(with = "String")]
     location: ResourceLocation,
+    #[serde(rename = "source")]
     source_path: String,
 }
 
@@ -80,6 +86,27 @@ impl DatapackComponent for StructureTemplate {
 
     fn to_json(&self) -> Value {
         Value::Null
+    }
+
+    fn validate(&self) -> crate::error::Result<()> {
+        if !self.source_path.ends_with(".nbt")
+            || self.source_path.contains(['\0', '\\', ':'])
+            || self
+                .source_path
+                .split('/')
+                .any(|component| component.is_empty() || component == "..")
+        {
+            return Err(crate::validation::error(
+                &self.location,
+                "structure",
+                "source",
+                &format!(
+                    "unsafe structure template source path '{}'; expected a project-root-relative .nbt file",
+                    self.source_path
+                ),
+            ));
+        }
+        Ok(())
     }
 
     fn component_dir(&self) -> &'static str {

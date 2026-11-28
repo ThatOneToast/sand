@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A control action for a player's named session.",
+  "oneOf": [
+    {
+      "const": "start",
+      "description": "Start or replace this player's instance while retaining progress.",
+      "type": "string"
+    },
+    {
+      "const": "restart",
+      "description": "Reset progress and start a fresh instance.",
+      "type": "string"
+    },
+    {
+      "const": "reset",
+      "description": "Cancel the current instance and reset progress.",
+      "type": "string"
+    },
+    {
+      "const": "cancel",
+      "description": "Cancel the current instance and retain progress.",
+      "type": "string"
+    }
+  ]
+}

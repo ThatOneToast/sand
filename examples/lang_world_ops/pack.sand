@@ -1,0 +1,66 @@
+#![pack(namespace = "checkpoint_rooms", minecraft = "26.2", description = "Repeatable checkpoint rooms")]
+biome WorkshopClimate {
+    precipitation: false,
+    temperature: 1.1,
+    downfall: 0.0,
+    sky_color: "#e6b88a",
+    water_color: "#4b8fa3",
+    spawners: {
+        creature: [{ entity: Entity::Rabbit, weight: 12, min_count: 1, max_count: 3 }],
+    },
+}
+
+dimension Workshop {
+    biome: WorkshopClimate,
+    layers: [
+        { block: Block::Bedrock, height: 1 },
+        { block: Block::Sandstone, height: 2 },
+    ],
+}
+
+structure_template CheckpointMarker {
+    source: "structures/checkpoint_marker.nbt",
+}
+
+/// Call near the test area in the Overworld, Nether, or Workshop.
+pub fn place() {
+    if dimension_is(Dimension::Overworld) || dimension_is(Dimension::TheNether) || dimension_is(Workshop) {
+        // Place the saved marker and copy it four blocks away.
+        place_template(CheckpointMarker, offset(0, 0, 2));
+        clone_blocks(offset(0, 0, 2), offset(0, 2, 2), offset(4, 0, 2), masked = true);
+    }
+}
+/// Inspect the portal dimension from the caller's current world.
+pub fn inspect_nether() {
+    in_dimension(Dimension::TheNether, report_dimension);
+}
+fn report_dimension() {
+    if dimension_is(Dimension::TheNether) {
+        broadcast!("The Nether checkpoint dimension is available.");
+    }
+}
+/// Inspect the pack's flat workshop from the caller's current world.
+pub fn inspect_workshop() {
+    in_dimension(Workshop, report_workshop);
+}
+fn report_workshop() {
+    if dimension_is(Workshop) {
+        broadcast!("The sandstone workshop is available.");
+    }
+}
+
+/// Call while standing one block south of a barrel.
+pub fn count_barrel_stacks() {
+    let stacks = block_data_number(offset(0, 0, -1), "Items");
+    broadcast!("The barrel contains ${stacks} occupied slots.");
+}
+
+/// Place two stocked barrels ahead of the caller.
+pub fn stock_supply_barrels() {
+    set_block(Block::Barrel, offset(0, 0, 2));
+    set_block(Block::Barrel, offset(1, 0, 2));
+    set_block_data(offset(0, 0, 2), "Items", [
+        Nbt { Slot: false, id: "minecraft:bread", count: 8 },
+    ]);
+    copy_block_data(offset(0, 0, 2), "Items", offset(1, 0, 2), "Items");
+}

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Native jigsaw pool of weighted structure templates.",
+  "properties": {
+    "fallback": {
+      "description": "Pool to try when the original pieces cannot be placed.",
+      "type": "string"
+    },
+    "id": {
+      "description": "Identity of the generated template pool.",
+      "type": "string"
+    },
+    "pieces": {
+      "description": "Ordered weighted choices of saved pieces.",
+      "items": {
+        "$ref": "defs-TemplatePoolPiece.schema.json"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "fallback",
+    "pieces"
+  ],
+  "type": "object"
+}

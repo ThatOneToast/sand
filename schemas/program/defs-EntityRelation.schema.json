@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A vanilla entity relationship reachable via `execute on <relation>`.\n\n# Context\nA vanilla entity relationship reachable via `execute on <relation>`. This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.\n\n# Minecraft behavior\nSand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.\n\n# Use when\n- Defining or using typed entity behavior in a Sand datapack\n\n# Avoid when\n- Inspecting generated objectives, functions, or compiler lowering plans\n\n# Example\n```rust,ignore\nuse sand::entity::Relation;\n```\nA vanilla entity relationship reachable via `execute on <relation>`.",
+  "oneOf": [
+    {
+      "const": "owner",
+      "description": "The entity that owns this entity (e.g. a tamed wolf's owner).\nThe entity that owns this entity (e.g. a tamed wolf's owner).",
+      "type": "string"
+    },
+    {
+      "const": "leasher",
+      "description": "The entity leashing this entity.\nThe entity leashing this entity.",
+      "type": "string"
+    },
+    {
+      "const": "target",
+      "description": "This entity's current attack/follow target (mobs only).\nThis entity's current attack/follow target (mobs only).",
+      "type": "string"
+    },
+    {
+      "const": "vehicle",
+      "description": "The vehicle this entity is riding.\nThe vehicle this entity is riding.",
+      "type": "string"
+    },
+    {
+      "const": "controller",
+      "description": "The entity steering this entity's vehicle (e.g. a boat's rower).\nThe entity steering this entity's vehicle (e.g. a boat's rower).",
+      "type": "string"
+    },
+    {
+      "const": "attacker",
+      "description": "The entity that last damaged this entity.\nThe entity that last damaged this entity.",
+      "type": "string"
+    },
+    {
+      "const": "origin",
+      "description": "The entity that fired/summoned this entity (e.g. a projectile's shooter).\nThe entity that fired/summoned this entity (e.g. a projectile's shooter).",
+      "type": "string"
+    },
+    {
+      "const": "passengers",
+      "description": "The entities riding this entity. Many-cardinality.\nThe entities riding this entity. Many-cardinality.",
+      "type": "string"
+    }
+  ]
+}

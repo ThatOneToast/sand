@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A State field read as `value / scale`.",
+  "properties": {
+    "scale": {
+      "default": 1.0,
+      "description": "Divisor; a score of 25 with scale 10 means 2.5.",
+      "format": "double",
+      "type": "number"
+    },
+    "score": {
+      "$ref": "defs-FieldReference.schema.json",
+      "description": "The State field."
+    }
+  },
+  "required": [
+    "score"
+  ],
+  "type": "object"
+}

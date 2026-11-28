@@ -104,6 +104,7 @@ and explicitly named raw escape hatches remain available for advanced edges.
 | Interactions and inventory | Player menus, object-bound conversations, journals, quantity-aware payments and guarded transfers | [Interaction hub](examples/interaction_hub/) |
 | Presentation | Block/item/text scenes, transforms, lifetime-owned HUDs, particles and sounds | [Gameplay guide](book/src/23d-owned-gameplay.md) |
 | Datapack resources | Typed recipes, advancements, loot, predicates, item modifiers, tags, dialogs, enchantments and worldgen builders | [Trailforge](examples/book_project/), [Examples index](examples/README.md) |
+| Rust-free authoring | The Sand language: Rust-syntax `.sand` files that compile through the same backend, with a language server (`sand lsp`) | [Sand language guide](book/src/language.md), [Encounters](examples/lang_encounters/) |
 | Companion resource packs | Separate client-asset packaging, version metadata and deterministic archives | [Resource-pack guide](book/src/17a-companion-resource-packs.md) |
 
 The [capability matrix](docs/architecture/capability-matrix.md) records the

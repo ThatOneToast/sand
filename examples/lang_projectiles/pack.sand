@@ -1,0 +1,23 @@
+#![pack(namespace = "scout_sparks", minecraft = "26.2", description = "Player-owned training sparks")]
+
+projectile Spark {
+    ticks: 24,
+    speed: 1.5,
+    radius: 0.75,
+    target: Entity::Zombie,
+    damage: 6,
+    hit: impact,
+}
+
+fn impact() {
+    spawn_particle(Particle::Flame, count = 8);
+    actionbar!("Spark impact");
+}
+
+pub fn cast() {
+    launch_projectile(Spark);
+}
+
+pub fn cancel() {
+    cancel_projectile(Spark);
+}

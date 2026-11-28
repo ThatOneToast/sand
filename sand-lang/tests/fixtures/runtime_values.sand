@@ -1,0 +1,579 @@
+#![pack(namespace = "runtime_values", minecraft = "26.2")]
+
+item MacroBread { base: Item::Bread, name: "$(not_a_binding)" }
+item LocalizedPaper { base: Item::Paper, name: Text::translate("item.minecraft.paper") }
+item Handbook {
+    base: Item::WrittenBook,
+    book: {
+        title: "Probe handbook",
+        author: "Sand",
+        pages: [
+            Text::page("{aqua}Go to the recipe notes", 2),
+            Text::translate("item.minecraft.written_book"),
+        ],
+    },
+}
+recipe GuardTrim {
+    smithing_trim: Item::SentryArmorTrimSmithingTemplate,
+    base: Item::DiamondChestplate,
+    addition: Item::AmethystShard,
+    trim_pattern: "minecraft:sentry",
+}
+dialog Welcome {
+    title: "{gold}Field notice",
+    body: ["A native notice from Sand", Text::translate("item.minecraft.written_book")],
+    button: "Continue",
+}
+advancement ReadAndWrite {
+    criteria: {
+        collect_paper: { inventory_item: Item::Paper },
+        collect_book: { inventory_item: Item::WrittenBook },
+    },
+    experience: 1,
+}
+advancement FirstFind {
+    display: {
+        icon: Item::Paper,
+        title: "{gold}First find",
+        description: "Collect paper or amethyst.",
+        background: "minecraft:gui/advancements/backgrounds/adventure",
+    },
+    criteria: {
+        collect_paper: { inventory_item: Item::Paper },
+        collect_amethyst: { inventory_item: Item::AmethystShard },
+    },
+    require_any: true,
+}
+advancement HuntPig {
+    criteria: { kill: { kill_entity: Entity::Pig } },
+}
+inventory_transfer MoveRations {
+    from: 0,
+    to: 1,
+    amount: 2,
+    success: transfer_accepted,
+    rejected: transfer_denied,
+}
+
+menu FieldMenu {
+    title: "Field supplies",
+    ticks: 200,
+    page_size: 1,
+    while_open: Ledger.menu_open,
+    choices: [
+        { label: "Choose bread", next: "confirm" },
+        { label: "Choose compass", action: choose_compass },
+    ],
+    views: [{
+        name: "confirm",
+        title: "Confirm bread",
+        choices: [
+            { label: "Take bread", action: choose_bread, when: Ledger.menu_allowed },
+            { label: "Back", next: "main" },
+        ],
+    }],
+}
+
+progression ProbeTrack {
+    progress: Ledger.quest_stage,
+    objectives: [
+        { when: Ledger.quest_ready, reward: quest_first },
+        { reward: quest_optional },
+        { reward: quest_complete },
+    ],
+    branches: [{ from: 0, to: 2, when: Ledger.quest_skip }],
+}
+
+session ProbeSession { progression: ProbeTrack, ticks: 50, every: 4 }
+
+projectile ProbeBolt {
+    ticks: 18,
+    speed: 2.0,
+    radius: 0.75,
+    target: Entity::Pig,
+    damage: 20,
+    hit: bolt_impact,
+}
+
+combat ProbeCombat {
+    health: Ledger.combat_health,
+    max: 20,
+    shield: Ledger.combat_shield,
+    resistance: 0.25,
+    immunity: { timer: Ledger.combat_immunity, ticks: 4 },
+    critical: { when: Ledger.combat_critical, multiplier: 2 },
+    hit: scored_hit,
+    defeat: scored_defeat,
+    healed: scored_heal,
+}
+
+ability ProbeSpell {
+    ticks: 18,
+    projectile: ProbeBolt,
+    cost: { balance: Ledger.mana, amount: 2 },
+    cooldown: { timer: Ledger.spell_timer, ticks: 8 },
+    when: Ledger.spell_ready,
+    start: spell_started,
+}
+
+hud FieldStatus {
+    ticks: 200,
+    every: 2,
+    actionbar: "{aqua}Field status active",
+    bossbar: { title: "Field progress", value: Ledger.hud_progress, max: 100 },
+}
+
+global state Origin { x: float, spread: float }
+item SceneCompass { base: Item::Compass, glint: true }
+
+scene ProbeScene {
+    ticks: 9,
+    follow: true,
+    parts: [
+        { name: "box", block: Block::GoldBlock },
+        { name: "label", text: "Probe Label", pose: { translation: [0, 0.5, 0] } },
+        { name: "icon", item: SceneCompass },
+    ],
+    keyframes: [
+        { part: "box", at: 2, duration: 3, pose: { translation: [0, 2.5, 0] } },
+    ],
+}
+
+job ProbeJob {
+    ticks: 20,
+    count: 5,
+    per_tick: 2,
+    capacity: 2,
+    step: job_step,
+    complete: job_complete,
+}
+
+player state Ledger {
+    job_trace: number,
+    job_completed: number,
+    requested: number,
+    label: string = "new",
+    recent: Vec<string>,
+    completion_order: number,
+    transfers_accepted: number,
+    transfers_denied: number,
+    hud_progress: number,
+    menu_selection: number,
+    menu_open: bool = true,
+    menu_allowed: bool,
+    bolt_hits: number,
+    bolt_blocks: number,
+    quest_stage: number,
+    quest_awards: number,
+    quest_ready: bool,
+    quest_skip: bool,
+    mana: number,
+    spell_timer: timer,
+    spell_ready: bool,
+    casts: number,
+    latest_charge: number,
+    combat_health: number = 20,
+    combat_shield: number,
+    combat_immunity: timer,
+    combat_critical: bool,
+    combat_hits: number,
+    combat_defeats: number,
+    combat_heals: number,
+}
+impl Ledger {
+    fn give(&mut self, count: number) { self.requested += count; give_item(Item::Bread, count); }
+}
+
+#[load]
+fn setup() { raw!("scoreboard objectives add numeric_probe dummy"); }
+
+fn particle_speed() -> float {
+    Origin.spread = 0.75;
+    return 0.5;
+}
+fn show_particles() {
+    Origin.spread = 0.25;
+    let count = 7;
+    spawn_particle(Particle::Heart, spread = Origin.spread, speed = particle_speed(), count = count);
+    let invalid = -1;
+    spawn_particle(Particle::Heart, count = invalid);
+}
+
+fn show_notice() {
+    show_dialog(Welcome);
+    clear_dialog();
+}
+
+fn show_localized() {
+    let label = Ledger.label;
+    chat!(Text::translate("chat.type.text", "{player}", Text::translate("chat.type.text", label, "Native text")));
+    chat!(Text::hover(Text::copy("{aqua}Journal code", "SAND-JOURNAL-PROBE"), "Native text"));
+    give_item(LocalizedPaper);
+}
+
+fn read_advancement_progress() {
+    raw!("scoreboard players set @s numeric_probe 0");
+    if advancement_done(ReadAndWrite) {
+        raw!("scoreboard players set @s numeric_probe 2");
+    } else if advancement_done(ReadAndWrite, criterion = "collect_paper") {
+        raw!("scoreboard players set @s numeric_probe 1");
+    }
+}
+
+#[on(advancement = ReadAndWrite)]
+fn note_completion() {
+    if advancement_done(ReadAndWrite) {
+        Ledger.completion_order = Ledger.completion_order * 10 + 1;
+    }
+}
+
+#[on(advancement = ReadAndWrite)]
+fn note_reward() {
+    Ledger.completion_order = Ledger.completion_order * 10 + 2;
+}
+
+fn read_advancement_handlers() {
+    if Ledger.completion_order == 12 {
+        raw!("scoreboard players set @s numeric_probe 12");
+    } else if Ledger.completion_order == 0 {
+        raw!("scoreboard players set @s numeric_probe 0");
+    } else {
+        raw!("scoreboard players set @s numeric_probe -1");
+    }
+}
+
+fn give_handbook() {
+    give_item(Handbook);
+}
+
+fn reward(count: number) {
+    Ledger.give(count);
+}
+fn experience(count: number) { add_experience(points = count); }
+fn inspect_inventory() {
+    let all_bread = inventory_count(Item::Bread);
+    let custom_bread = inventory_count(MacroBread);
+    let absent = inventory_count(Item::Emerald);
+    if all_bread == 9 && custom_bread == 2 && absent == 0 {
+        raw!("scoreboard players set @s numeric_probe 9");
+    } else if all_bread == 3 && custom_bread == 0 && absent == 0 {
+        raw!("scoreboard players set @s numeric_probe 3");
+    } else {
+        raw!("scoreboard players set @s numeric_probe -1");
+    }
+}
+
+fn begin_scene() { show_scene(ProbeScene); }
+fn end_scene() { cancel_scene(ProbeScene); }
+
+fn job_step(index: number) {
+    Ledger.job_trace = Ledger.job_trace * 10 + index + 1;
+}
+fn job_complete() { Ledger.job_completed += 1; }
+fn begin_job() {
+    Ledger.job_trace = 0;
+    Ledger.job_completed = 0;
+    start_job(ProbeJob);
+}
+fn enqueue_job() { start_job(ProbeJob); }
+fn end_job() { cancel_job(ProbeJob); }
+fn report_job() {
+    if Ledger.job_completed == 1 {
+        raw!("scoreboard players set @s job_complete_probe 1");
+    } else {
+        raw!("scoreboard players set @s job_complete_probe 0");
+    }
+    let trace = Ledger.job_trace;
+    if trace == 12 { raw!("scoreboard players set @s numeric_probe 12"); }
+    else if trace == 1234 { raw!("scoreboard players set @s numeric_probe 1234"); }
+    else if trace == 12345 { raw!("scoreboard players set @s numeric_probe 12345"); }
+    else { raw!("scoreboard players set @s numeric_probe -1"); }
+}
+
+fn scored_hit() { Ledger.combat_hits += 1; }
+fn scored_defeat() { Ledger.combat_defeats += 1; }
+fn scored_heal() { Ledger.combat_heals += 1; }
+fn custom_hit(amount: number) { combat_damage(ProbeCombat, amount); }
+
+fn prepare_combat_a() {
+    Ledger.combat_shield = 5;
+    Ledger.combat_critical = true;
+    custom_hit(8);
+    custom_hit(8);
+}
+fn prepare_combat_b() {
+    Ledger.combat_shield = 2;
+    custom_hit(8);
+}
+fn heal_custom_health() { combat_heal(ProbeCombat, 5); }
+fn reach_max_health() { combat_heal(ProbeCombat, 99); }
+fn finish_custom_combat() {
+    custom_hit(30);
+    combat_heal(ProbeCombat, 99);
+}
+fn report_custom_health() {
+    if Ledger.combat_shield == 0 && Ledger.combat_hits == 1 && Ledger.combat_defeats == 0 {
+        if Ledger.combat_health == 13 && Ledger.combat_immunity == 4 && Ledger.combat_heals == 0 {
+            raw!("scoreboard players set @s numeric_probe 13");
+        } else if Ledger.combat_health == 16 && Ledger.combat_immunity == 4 && Ledger.combat_heals == 0 {
+            raw!("scoreboard players set @s numeric_probe 16");
+        } else if Ledger.combat_health == 18 && Ledger.combat_immunity == 4 && Ledger.combat_heals == 1 {
+            raw!("scoreboard players set @s numeric_probe 18");
+        } else if Ledger.combat_health == 20 && Ledger.combat_heals == 1 {
+            raw!("scoreboard players set @s numeric_probe 20");
+        }
+    } else if Ledger.combat_health == 0 && Ledger.combat_hits == 2 && Ledger.combat_defeats == 1 && Ledger.combat_heals == 1 {
+        raw!("scoreboard players set @s numeric_probe 0");
+    }
+}
+
+fn spell_started() {
+    Ledger.casts += 1;
+    Ledger.latest_charge = Ledger.mana;
+    activate_ability(ProbeSpell);
+}
+fn prepare_spell_a() {
+    Ledger.mana = 8;
+    activate_ability(ProbeSpell);
+    diagnose_ability(ProbeSpell);
+    if Ledger.mana == 8 && Ledger.casts == 0 && Ledger.spell_timer == 0 {
+        raw!("scoreboard players set #spell_guard numeric_probe 1");
+    }
+    Ledger.spell_ready = true;
+    activate_ability(ProbeSpell);
+    activate_ability(ProbeSpell);
+}
+fn prepare_spell_b() {
+    Ledger.mana = 1;
+    Ledger.spell_ready = true;
+    activate_ability(ProbeSpell);
+    diagnose_ability(ProbeSpell);
+    if Ledger.mana == 1 && Ledger.casts == 0 && Ledger.spell_timer == 0 {
+        raw!("scoreboard players set #spell_cost numeric_probe 1");
+    }
+    Ledger.mana = 6;
+    activate_ability(ProbeSpell);
+}
+fn activate_spell() { activate_ability(ProbeSpell); }
+fn stop_spell() { cancel_ability(ProbeSpell); }
+fn report_spell() {
+    if Ledger.mana == Ledger.latest_charge && Ledger.spell_timer == 8 {
+        if Ledger.casts == 1 && Ledger.mana == 6 {
+            raw!("scoreboard players set @s numeric_probe 16");
+        } else if Ledger.casts == 1 && Ledger.mana == 4 {
+            raw!("scoreboard players set @s numeric_probe 14");
+        } else if Ledger.casts == 2 && Ledger.mana == 4 {
+            raw!("scoreboard players set @s numeric_probe 24");
+        }
+    } else if Ledger.casts == 1 && Ledger.mana == 4 && Ledger.spell_timer == 0 {
+        raw!("scoreboard players set @s numeric_probe 4");
+    } else {
+        raw!("scoreboard players set @s numeric_probe -1");
+    }
+}
+
+fn quest_first() {
+    Ledger.quest_awards += 1;
+    advance_progression(ProbeTrack);
+    raw!("say __SAND_QUEST_FIRST__");
+}
+fn quest_optional() { Ledger.quest_awards += 10; }
+fn quest_complete() {
+    Ledger.quest_awards += 100;
+    raw!("say __SAND_QUEST_COMPLETE__");
+}
+fn prepare_quest_a() {
+    advance_progression(ProbeTrack);
+    if Ledger.quest_stage == 0 { raw!("scoreboard players set #quest_guard numeric_probe 1"); }
+    Ledger.quest_ready = true;
+    Ledger.quest_skip = true;
+    advance_progression(ProbeTrack);
+    if Ledger.quest_stage == 2 && Ledger.quest_awards == 1 {
+        raw!("scoreboard players set #quest_start_a numeric_probe 1");
+    }
+    start_session(ProbeSession);
+}
+fn prepare_quest_b() {
+    Ledger.quest_ready = true;
+    start_session(ProbeSession);
+    cancel_session(ProbeSession);
+}
+fn start_quest() { start_session(ProbeSession); }
+fn restart_quest() { restart_session(ProbeSession); }
+fn cancel_quest() { cancel_session(ProbeSession); }
+fn reset_quest() { reset_session(ProbeSession); }
+fn report_quest() {
+    if progression_completed(ProbeTrack) {
+        if Ledger.quest_awards == 101 { raw!("scoreboard players set @s numeric_probe 101"); }
+        else if Ledger.quest_awards == 111 { raw!("scoreboard players set @s numeric_probe 111"); }
+        else { raw!("scoreboard players set @s numeric_probe -1"); }
+    } else if Ledger.quest_stage == 0 {
+        raw!("scoreboard players set @s numeric_probe 0");
+    } else if Ledger.quest_stage == 1 && Ledger.quest_awards == 112 {
+        raw!("scoreboard players set @s numeric_probe 1");
+    } else {
+        raw!("scoreboard players set @s numeric_probe -1");
+    }
+}
+
+fn launch_bolt() { launch_projectile(ProbeBolt); }
+fn cancel_bolt() { cancel_projectile(ProbeBolt); }
+fn bolt_impact() {
+    Ledger.bolt_hits += 1;
+    if block_is(Block::Stone, offset(0, 0, 0)) { Ledger.bolt_blocks += 1; }
+    raw!("say __SAND_BOLT_IMPACT__");
+}
+fn report_bolt() {
+    if Ledger.bolt_hits == 2 && Ledger.bolt_blocks == 1 {
+        raw!("scoreboard players set @s numeric_probe 21");
+    } else if Ledger.bolt_hits == 0 && Ledger.bolt_blocks == 0 {
+        raw!("scoreboard players set @s numeric_probe 0");
+    } else {
+        raw!("scoreboard players set @s numeric_probe -1");
+    }
+}
+
+fn open_field_menu() { open_menu(FieldMenu); }
+fn close_field_menu() { close_menu(FieldMenu); }
+fn allow_bread() { Ledger.menu_allowed = true; }
+fn invalidate_field_menu() { Ledger.menu_open = false; }
+fn choose_bread() { Ledger.menu_selection += 1; }
+fn choose_compass() { Ledger.menu_selection += 10; }
+fn report_menu() {
+    if Ledger.menu_selection == 0 {
+        raw!("scoreboard players set @s numeric_probe 0");
+    } else if Ledger.menu_selection == 10 {
+        raw!("scoreboard players set @s numeric_probe 10");
+    } else if Ledger.menu_selection == 11 {
+        raw!("scoreboard players set @s numeric_probe 11");
+    } else {
+        raw!("scoreboard players set @s numeric_probe -1");
+    }
+}
+
+fn begin_status() {
+    Ledger.hud_progress = 25;
+    start_hud(FieldStatus);
+}
+
+fn update_status() { Ledger.hud_progress = 75; }
+
+fn end_status() { cancel_hud(FieldStatus); }
+
+fn move_rations() { transfer_inventory(MoveRations); }
+
+fn transfer_accepted() { Ledger.transfers_accepted += 1; }
+fn transfer_denied() { Ledger.transfers_denied += 1; }
+
+fn report_transfers() {
+    if Ledger.transfers_accepted == 2 && Ledger.transfers_denied == 1 {
+        raw!("scoreboard players set @s numeric_probe 21");
+    } else if Ledger.transfers_accepted == 0 && Ledger.transfers_denied == 0 {
+        raw!("scoreboard players set @s numeric_probe 0");
+    } else {
+        raw!("scoreboard players set @s numeric_probe -1");
+    }
+}
+
+fn remove_rations(quantity: number) {
+    clear_item(MacroBread, quantity);
+}
+
+fn remove_inventory_sample() {
+    remove_rations(-1);
+    remove_rations(0);
+    if inventory_count(MacroBread) == 2 {
+        let quantity = inventory_count(MacroBread) - 1;
+        remove_rations(quantity);
+        if inventory_count(MacroBread) == 1 && inventory_count(Item::Bread) == 8 {
+            raw!("scoreboard players set #safe_clear numeric_probe 1");
+        }
+    }
+}
+
+fn player_a() {
+    Ledger.label = "A 🌍 $(uuid)";
+    Ledger.recent = ["A"]; Ledger.recent.push("🌍");
+    chat!("{gold}{Ledger.label}");
+    experience(5);
+    reward(7);
+    reward(0);
+    reward(-1);
+    reward(6401);
+    if Ledger.requested == 6407 { raw!("scoreboard players set #impl_a numeric_probe 1"); }
+    let volume = 0.75;
+    let pitch = 0.5;
+    play_sound(Sound::EntityPlayerLevelup, pitch = pitch, volume = volume);
+    let extra = 2;
+    give_item(MacroBread, extra);
+    let x = 10.25;
+    teleport(x, 70.0, 20.5);
+    Player.max_health = 30.0;
+    if Player.x == 10.25 && Player.max_health == 30.0 {
+        raw!("scoreboard players set #property numeric_probe 1");
+    }
+}
+fn player_b() { Ledger.label = "B"; Ledger.recent = ["B"]; reward(3); experience(3); if Ledger.requested == 3 { raw!("scoreboard players set #impl_b numeric_probe 1"); } }
+fn next_y() -> float { Origin.x = 9.0; return 70.0; }
+fn select(a: bool, b: bool) -> bool { return a && b; }
+fn mob() {
+    for pig in entities(type = Entity::Pig, tag = "numeric_probe", limit = 1) {
+        let before = pig.health;
+        let nbt_before = entity_data_number("Health");
+        let hit = 2.5;
+        damage(hit);
+        if nbt_before == 10 && entity_data_number("Health") == 7
+            && entity_data_number("Pos") == 3 && entity_data_number("SandMissing") == 0 {
+            raw!("scoreboard players set #entity_nbt numeric_probe 1");
+        }
+        let invalid = -1.0;
+        damage(invalid);
+        Origin.x = 2.0;
+        teleport(x = Origin.x, y = next_y(), z = -3.0);
+        if select(pig.health == before - hit, pig.x == 2.0 && pig.z == -3.0) {
+            raw!("scoreboard players set #mob numeric_probe 1");
+        }
+    }
+}
+
+
+global state References { first: EntityRef, second: EntityRef, victim: EntityRef }
+entity state Ownership { owner: EntityRef }
+fn store_first() { References.first = entity_ref(); }
+fn store_second() { References.second = entity_ref(); }
+fn check_reference() {
+    if entity_ref() == References.first { raw!("scoreboard players set #stable numeric_probe 1"); }
+}
+fn resolve_references() {
+    for actor in resolve_player(References.first) { give_item(Item::Emerald, 2); }
+    for actor in resolve_player(References.second) { give_item(Item::Emerald, 3); }
+    let empty: EntityRef;
+    for actor in resolve_entity(empty) { raw!("scoreboard players set #empty numeric_probe 1"); }
+}
+fn attributed_hit() {
+    for victim in entities(type = Entity::Pig, tag = "reference_victim", limit = 1) {
+        attach_state(Ownership);
+        Ownership.owner = References.first;
+        References.victim = entity_ref();
+        damage(20.0, by = Ownership.owner);
+    }
+}
+fn check_dead_reference() {
+    let mut count = 0;
+    for victim in resolve_entity(References.victim) { count += 1; }
+    if count == 0 { raw!("say __SAND_REFERENCE_DEAD_OK__"); }
+}
+
+fn check_player_text_a() {
+    if Ledger.label == "A 🌍 $(uuid)" { raw!("scoreboard players set #text_a numeric_probe 1"); }
+}
+fn check_player_text_b() {
+    if Ledger.label == "B" { raw!("scoreboard players set #text_b numeric_probe 1"); }
+}
+
+fn check_player_vector_a() {
+    if Ledger.recent == ["A", "🌍"] { raw!("scoreboard players set #vec_a numeric_probe 1"); }
+}
+fn check_player_vector_b() {
+    if Ledger.recent == ["B"] { raw!("scoreboard players set #vec_b numeric_probe 1"); }
+}

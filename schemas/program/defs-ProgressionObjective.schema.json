@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One optional eligibility flag and committed reward.",
+  "properties": {
+    "reward": {
+      "anyOf": [
+        {
+          "$ref": "defs-FunctionReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional committed reward, executed as the advancing player."
+    },
+    "when": {
+      "anyOf": [
+        {
+          "$ref": "defs-FieldReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional score that must equal one to advance at this objective."
+    }
+  },
+  "type": "object"
+}

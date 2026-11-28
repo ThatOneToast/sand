@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A checked NBT path in the block entity at a position.",
+  "properties": {
+    "at": {
+      "$ref": "defs-BlockPosition.schema.json",
+      "description": "Absolute or relative block position."
+    },
+    "path": {
+      "description": "The NBT path, validated before emission.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "at",
+    "path"
+  ],
+  "type": "object"
+}

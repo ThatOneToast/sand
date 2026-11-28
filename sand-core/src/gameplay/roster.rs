@@ -1,5 +1,6 @@
 //! Explicit bounded online membership over canonical player State.
 use super::{identity, runtime};
+use crate::compiler::program::{FieldReference, RosterDefinition, State};
 use crate::{
     IntoCommands,
     condition::Condition,
@@ -13,6 +14,7 @@ use crate::{
 };
 use sand_commands::{CommandError, CommandResult, ExecuteOp, ObjectiveName, Selector};
 use sand_components::ResourceLocation;
+use std::collections::BTreeMap;
 
 /// One explicitly registered arena's bounded online roster.
 ///
@@ -126,32 +128,11 @@ impl<T: EntityEnumValue> Roster<T> {
         action: impl FnOnce(EntityContext<PlayerKind>) -> R,
     ) -> Actions {
         let predicate = role.map_or_else(|| self.contains(), |role| self.is(role));
-        let callback = predicate.guard_actions(
-            false,
-            &[],
-            runtime::isolated(action(EntityContext::default()).into_commands()),
-        );
-        let mut body = format!(
-            "execute if function {} run return 0",
-            identity::resource(&self.id, "roster_locked")
+        RosterPlan::visit(
+            &self.id,
+            predicate,
+            action(EntityContext::default()).into_commands(),
         )
-        .into_commands();
-        body.extend([
-            identity::call(&self.id, "roster_lock"),
-            Cmd::Execute {
-                operations: vec![
-                    ExecuteOp::As(Selector::all_players()),
-                    ExecuteOp::At(Selector::self_()),
-                ],
-                run: Box::new(Cmd::AnonymousFunction {
-                    prefix: "sand/roster/member".into(),
-                    body: callback,
-                }),
-            }
-            .into_commands(),
-            identity::call(&self.id, "roster_unlock"),
-        ]);
-        runtime::isolated(body)
     }
 
     fn schemas(&self) -> CommandResult<Vec<&'static StateDescriptor<'static>>> {
@@ -206,10 +187,123 @@ impl<T: EntityEnumValue> Roster<T> {
     }
 
     fn build(&self, part: &str) -> CommandResult<Actions> {
-        let schemas = self.schemas()?;
+        let plan = RosterPlan {
+            id: self.id.clone(),
+            member: ObjectiveName::try_dynamic(self.member.objective())?,
+            role: ObjectiveName::try_dynamic(self.role.objective())?,
+            capacity: self.capacity,
+            roles: T::ENCODINGS.iter().map(|role| role.score).collect(),
+            schemas: self
+                .schemas()?
+                .iter()
+                .map(|schema| {
+                    (
+                        ObjectiveName::logical(schema.presence_objective),
+                        schema.version as i32,
+                    )
+                })
+                .collect(),
+        };
+        plan.build(part)
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct RosterPlan {
+    id: ResourceLocation,
+    member: ObjectiveName,
+    role: ObjectiveName,
+    capacity: u32,
+    roles: Vec<i32>,
+    schemas: Vec<(ObjectiveName, i32)>,
+}
+
+impl RosterPlan {
+    pub(crate) fn portable(
+        definition: &RosterDefinition,
+        states: &BTreeMap<String, State>,
+    ) -> Self {
+        let member = &definition.member;
+        let role = &definition.role;
+        let objective = |field: &FieldReference| {
+            ObjectiveName::logical(format!("{}.{}", field.state, field.field))
+        };
+        let schemas = [member, role]
+            .into_iter()
+            .map(|field| {
+                (
+                    ObjectiveName::logical(format!("{}.presence", field.state)),
+                    states[&field.state.to_string()].revision as i32,
+                )
+            })
+            .collect();
+        Self {
+            id: definition.id.clone(),
+            member: objective(member),
+            role: objective(role),
+            capacity: definition.capacity,
+            roles: definition.roles.clone(),
+            schemas,
+        }
+    }
+
+    pub(crate) fn registration(self) -> DatapackRegistration {
+        let id = self.id.clone();
+        let roles = self.roles.clone();
+        registration(&id, roles, true, move |part| self.build(part))
+    }
+
+    pub(crate) fn query(id: &ResourceLocation, role: Option<i32>, any_member: bool) -> String {
+        let suffix = match (any_member, role) {
+            (false, None) => "roster_contains".into(),
+            (false, Some(role)) => format!("roster_is_{role}"),
+            (true, None) => "roster_any".into(),
+            (true, Some(role)) => format!("roster_any_{role}"),
+        };
+        identity::resource(id, &suffix).to_string()
+    }
+
+    pub(crate) fn call(id: &ResourceLocation, part: &str) -> Actions {
+        identity::call(id, &format!("roster_{part}"))
+    }
+
+    pub(crate) fn each(id: &ResourceLocation, role: Option<i32>, actions: Actions) -> Actions {
+        Self::visit(
+            id,
+            Condition::function_internal(Self::query(id, role, false)),
+            actions,
+        )
+    }
+
+    fn visit(id: &ResourceLocation, predicate: Condition, actions: Actions) -> Actions {
+        let callback = predicate.guard_actions(false, &[], runtime::isolated(actions));
+        let mut body = format!(
+            "execute if function {} run return 0",
+            identity::resource(id, "roster_locked")
+        )
+        .into_commands();
+        body.extend([
+            identity::call(id, "roster_lock"),
+            Cmd::Execute {
+                operations: vec![
+                    ExecuteOp::As(Selector::all_players()),
+                    ExecuteOp::At(Selector::self_()),
+                ],
+                run: Box::new(Cmd::AnonymousFunction {
+                    prefix: "sand/roster/member".into(),
+                    body: callback,
+                }),
+            }
+            .into_commands(),
+            identity::call(id, "roster_unlock"),
+        ]);
+        runtime::isolated(body)
+    }
+
+    fn build(&self, part: &str) -> CommandResult<Actions> {
         let namespace = identity::pack_namespace()?;
         let id = crate::function::resolve_export_location(&self.id)?;
-        let domain = self.member.objective();
+        let domain = &self.member;
         let runtime_score = ObjectiveName::logical(format!("sand roster {id}"));
         let sequence = ObjectiveName::logical(format!("sand roster {namespace} sequence"));
         let lock = ObjectiveName::logical(format!("sand roster {namespace} {domain} lock"));
@@ -222,14 +316,12 @@ impl<T: EntityEnumValue> Roster<T> {
             seen.clone(),
         ])?;
         let f = |suffix: &str| identity::resource(&self.id, &format!("roster_{suffix}"));
-        let member = self.member.objective();
+        let member = &self.member;
         let mut ready =
             "execute unless entity @s[type=minecraft:player] run return 0".into_commands();
-        for schema in schemas {
+        for (presence, revision) in &self.schemas {
             ready.extend([format!(
-                "execute unless score @s {} matches {} run return 0",
-                ObjectiveName::logical(schema.presence_objective),
-                schema.version
+                "execute unless score @s {presence} matches {revision} run return 0"
             )]);
         }
         match part {
@@ -253,11 +345,10 @@ return 0"
             "unlock" => return Ok(format!("scoreboard players set #busy {lock} 0").into_commands()),
             "contains" => {
                 ready.extend([format!("execute unless score #generation {runtime_score} matches 1.. run return 0"), format!("execute unless score @s {member} = #generation {runtime_score} run return 0"), format!("execute unless score @s {leave} = @s {seen} run return 0")]);
-                for role in T::ENCODINGS {
+                for role in &self.roles {
                     ready.extend([format!(
                         "execute if score @s {} matches {} run return 1",
-                        self.role.objective(),
-                        role.score
+                        self.role, role
                     )]);
                 }
                 ready.extend(["return 0"]);
@@ -265,9 +356,18 @@ return 0"
             }
             _ => {}
         }
+        if let Some(role) = part.strip_prefix("is_") {
+            return Ok(format!(
+                "execute if function {} if score @s {} matches {role} run return 1
+return 0",
+                f("contains"),
+                self.role
+            )
+            .into_commands());
+        }
         if part == "any" || part.starts_with("any_") {
             let filter = part.strip_prefix("any_").map_or_else(String::new, |role| {
-                format!(" if score @s {} matches {role}", self.role.objective())
+                format!(" if score @s {} matches {role}", self.role)
             });
             return Ok(format!(
                 "execute as @a if function {}{filter} run return 1\nreturn 0",
@@ -296,7 +396,7 @@ return 0"
                     "execute unless score @s {member} = #generation {runtime_score} run return 0"
                 ),
             ]);
-            actions.extend([self.member.bind_to("@s", false).set(0)]);
+            actions.extend([format!("scoreboard players set @s {member} 0")]);
         } else if let Some(role) = part.strip_prefix("join_") {
             let role: i32 = role.parse().expect("registered role encoding");
             actions.extend([format!("execute unless score #generation {runtime_score} matches 1.. run return 0"), format!("scoreboard players set #count {runtime_score} 0"), format!("execute as @a if function {} run scoreboard players add #count {runtime_score} 1", f("contains")), format!("execute unless function {} if score #count {runtime_score} matches {}.. run return 0", f("contains"), self.capacity)]);
@@ -304,7 +404,7 @@ return 0"
             // validated above. Retain the canonical Score setter for membership.
             actions.extend([
                 format!("scoreboard players operation @s {member} = #generation {runtime_score}"),
-                format!("scoreboard players set @s {} {role}", self.role.objective()),
+                format!("scoreboard players set @s {} {role}", self.role),
                 format!("scoreboard players add @s {leave} 0"),
                 format!("scoreboard players operation @s {seen} = @s {leave}"),
             ]);
@@ -312,29 +412,46 @@ return 0"
         Ok(actions)
     }
 }
+
 impl<T: EntityEnumValue> IntoDatapack for Roster<T> {
     fn into_datapack(self) -> DatapackRegistration {
-        let mut registration = DatapackRegistration::new().lifecycle(LifecycleContribution::load(
-            format!("function {}", identity::resource(&self.id, "roster_load")),
-        ));
-        let parts = [
-            "load", "open", "close", "leave", "contains", "locked", "lock", "unlock", "any",
-        ]
-        .into_iter()
-        .map(str::to_owned)
-        .chain(
-            T::ENCODINGS
-                .iter()
-                .flat_map(|r| [format!("join_{}", r.score), format!("any_{}", r.score)]),
-        );
-        for part in parts {
-            let definition = self.clone();
-            registration = registration.component(runtime::Function::new(
-                &self.id,
-                &format!("roster_{part}"),
-                move || definition.build(&part),
-            ));
-        }
-        registration
+        let id = self.id.clone();
+        registration(
+            &id,
+            T::ENCODINGS.iter().map(|role| role.score),
+            false,
+            move |part| self.build(part),
+        )
     }
+}
+
+fn registration(
+    id: &ResourceLocation,
+    roles: impl IntoIterator<Item = i32>,
+    role_queries: bool,
+    build: impl Fn(&str) -> CommandResult<Actions> + Clone + Send + Sync + 'static,
+) -> DatapackRegistration {
+    let mut registration = DatapackRegistration::new().lifecycle(LifecycleContribution::load(
+        format!("function {}", identity::resource(id, "roster_load")),
+    ));
+    let parts = [
+        "load", "open", "close", "leave", "contains", "locked", "lock", "unlock", "any",
+    ]
+    .into_iter()
+    .map(str::to_owned)
+    .chain(roles.into_iter().flat_map(|score| {
+        let extra = role_queries.then(|| format!("is_{score}"));
+        [format!("join_{score}"), format!("any_{score}")]
+            .into_iter()
+            .chain(extra)
+    }));
+    for part in parts {
+        let build = build.clone();
+        registration = registration.component(runtime::Function::new(
+            id,
+            &format!("roster_{part}"),
+            move || build(&part),
+        ));
+    }
+    registration
 }

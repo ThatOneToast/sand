@@ -1,0 +1,33 @@
+//! A per-player journal of mined ores and discoveries.
+#![pack(namespace = "ore_journal", minecraft = "26.2")]
+mod collections;
+use collections:: {
+    Map,
+    Set
+};
+player state Journal {
+    counts: Map<string, number>,
+    discoveries: Set<string>
+}
+fn record(ore: string) {
+    let total = Journal.counts.get_or(ore, 0) + 1;
+    if Journal.counts.insert(ore, total) && Journal.discoveries.insert(ore) {
+        chat!("{gold}Discovered {ore}!");
+    }
+}
+#[on(mine_block = Block::IronOre)]
+fn iron() {
+    record("iron");
+}
+#[on(mine_block = Block::GoldOre)]
+fn gold() {
+    record("gold");
+}
+#[on(use_item = Item::CarrotOnAStick)]
+fn show() {
+    let found = Journal.discoveries.len();
+    chat!("{gold}Ore journal: {found} discoveries");
+    for entry in Journal.counts.entries() {
+        chat!("{entry.key}: {entry.value}");
+    }
+}

@@ -1,0 +1,72 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+
+struct Note { text: string, counts: [number; 2] }
+global state Report { checks: number, failed: number, order: number }
+
+fn check(value: bool) {
+    Report.checks += 1;
+    if !value { Report.failed += 1; }
+}
+
+fn recurse(n: number) -> number {
+    if n == 0 { return 0; }
+    return {
+        let current = n;
+        let smaller = recurse(n - 1);
+        current + smaller
+    };
+}
+
+fn combine(first: number, second: number) -> number { return first * 10 + second; }
+
+fn run() {
+    Report.checks = 0;
+    Report.failed = 0;
+    Report.order = 0;
+    let text = "outer";
+    let note = {
+        let [first, second] = [3, 5];
+        let prefix = { let text = "inner"; text + " note" };
+        Note { text: prefix, counts: [first, second] }
+    };
+    check(note.text == "inner note");
+    check(note.counts[1] == 5);
+    check(text == "outer");
+    check(recurse(4) == 10);
+
+    let chosen = match false {
+        true => { Report.order = -1; "unused" },
+        false => {
+            let title = note.text;
+            Report.order = 1;
+            title + " selected"
+        },
+    };
+    check(chosen == "inner note selected");
+    check(Report.order == 1);
+
+    let total = {
+        let mut sum = 0;
+        for i in 0..5 {
+            if i == 1 { continue; }
+            if i == 4 { break; }
+            sum += i;
+        }
+        sum
+    };
+    check(total == 5);
+    let combined = combine(
+        { Report.order = Report.order * 10 + 2; 7 },
+        { Report.order = Report.order * 10 + 3; 4 },
+    );
+    check(combined == 74);
+    check(Report.order == 123);
+    let boolean = { let label = note.text; label == "inner note" };
+    check(boolean);
+
+    if Report.checks == 10 && Report.failed == 0 {
+        raw!("say __SAND_LANGUAGE_OK__");
+    } else {
+        raw!("say __SAND_LANGUAGE_FAILED__");
+    }
+}

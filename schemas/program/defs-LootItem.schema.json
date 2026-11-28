@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One choice in a loot table.",
+  "properties": {
+    "count": {
+      "default": 1,
+      "description": "Stack size produced.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "item": {
+      "description": "Vanilla item identity.",
+      "type": "string"
+    },
+    "weight": {
+      "default": 1,
+      "description": "Relative chance.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "item"
+  ],
+  "type": "object"
+}

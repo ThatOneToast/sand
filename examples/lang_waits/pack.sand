@@ -1,0 +1,37 @@
+#![pack(namespace = "bread_orders", minecraft = "26.2", description = "Bread baked to order")]
+
+player state Bakery { batches: number }
+
+#[on(first_join)]
+fn issue_ticket() {
+    give_item(Item::CarrotOnAStick);
+    chat!("Use your bakery ticket to order fresh bread.");
+}
+
+#[on(use_item = Item::CarrotOnAStick)]
+fn order() {
+    Bakery.batches += 1;
+    let batch = Bakery.batches;
+    let quantity = bake(batch);
+    give_item(Item::Bread, count = quantity);
+    chat!("Batch {batch} is ready. Here are your {quantity} loaves.");
+}
+
+fn bake(batch: number) -> number {
+    let quantity = 3;
+    actionbar!("Batch {batch} is in the oven.");
+    let baking_ticks = quantity * 12;
+    if batch % 3 == 0 {
+        actionbar!("Batch {batch} is getting an extra-crisp crust.");
+        wait(baking_ticks + 12, group = "bakery");
+    } else {
+        wait(baking_ticks, group = "bakery");
+    }
+    return quantity;
+}
+
+#[player]
+pub fn cancel_order() {
+    cancel_waits(group = "bakery");
+    actionbar!("Your pending bakery orders were cancelled.");
+}

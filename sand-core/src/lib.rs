@@ -385,6 +385,7 @@ pub use sand_components::{
     PigVariant,
     PigVariantId,
     PlacedFeature,
+    PlacedFeatureId,
     PlacementModifier,
     // Structure/template pool
     PoolElement,
@@ -616,6 +617,21 @@ impl sand_commands::resource::RegistryReference<sand_commands::resource::SoundEv
     ) -> sand_commands::resource::RegistryId<sand_commands::resource::SoundEvent> {
         sand_commands::resource::RegistryId::new(self.resource_location())
             .expect("generated vanilla sound-event IDs are valid resource locations")
+    }
+}
+
+impl sand_commands::resource::sealed::Sealed<sand_commands::resource::ParticleType>
+    for generated::ParticleType
+{
+}
+impl sand_commands::resource::RegistryReference<sand_commands::resource::ParticleType>
+    for generated::ParticleType
+{
+    fn registry_id(
+        &self,
+    ) -> sand_commands::resource::RegistryId<sand_commands::resource::ParticleType> {
+        sand_commands::resource::RegistryId::new(self.resource_location())
+            .expect("generated vanilla particle IDs are valid resource locations")
     }
 }
 

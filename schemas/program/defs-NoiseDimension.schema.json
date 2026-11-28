@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A native noise dimension with a typed biome source.",
+  "properties": {
+    "biome_source": {
+      "$ref": "defs-BiomeSource.schema.json",
+      "description": "Biome placement across the generated terrain."
+    },
+    "dimension_type": {
+      "description": "Existing dimension type.",
+      "type": "string"
+    },
+    "id": {
+      "description": "Identity of the generated native dimension.",
+      "type": "string"
+    },
+    "noise_settings": {
+      "description": "The noise settings used to shape terrain.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "dimension_type",
+    "noise_settings",
+    "biome_source"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,14 @@
+{
+  "name": "tree-sitter-sand",
+  "version": "0.1.0",
+  "description": "Tree-sitter grammar for the Sand datapack language",
+  "license": "MIT",
+  "main": "bindings/node",
+  "tree-sitter": [
+    {
+      "scope": "source.sand",
+      "file-types": ["sand"],
+      "highlights": "queries/highlights.scm"
+    }
+  ]
+}

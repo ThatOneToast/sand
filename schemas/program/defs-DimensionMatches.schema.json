@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A test of the current execution dimension.",
+  "properties": {
+    "dimension": {
+      "description": "Namespaced dimension compared with the current execution level.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "dimension"
+  ],
+  "type": "object"
+}

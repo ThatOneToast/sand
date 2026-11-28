@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A block position: absolute, or relative to the executor.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "World coordinates.",
+      "properties": {
+        "kind": {
+          "const": "absolute",
+          "type": "string"
+        },
+        "x": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "y": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "z": {
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "x",
+        "y",
+        "z"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Offset from the executor.",
+      "properties": {
+        "kind": {
+          "const": "relative",
+          "type": "string"
+        },
+        "x": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "y": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "z": {
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "x",
+        "y",
+        "z"
+      ],
+      "type": "object"
+    }
+  ]
+}

@@ -42,18 +42,23 @@ const MAX_FILL_LAYER_HEIGHT: u32 = 4064;
     variant_fields(BlockMatch(block = "`block` provides the block identifier when `minecraft:block_match` — replaces exactly one block."), TagMatch(tag = "`tag` provides the tag identifier when `minecraft:tag_match` — replaces any block in a block tag.")),
 )]
 /// A block-matching rule test used by ore-like feature configs.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum RuleTest {
     /// `minecraft:always_true` — replaces any block.
     AlwaysTrue,
     /// `minecraft:block_match` — replaces exactly one block.
     BlockMatch {
         #[doc = "`block` provides the block identifier when `minecraft:block_match` — replaces exactly one block."]
+        #[schemars(with = "String")]
         block: BlockId,
     },
     /// `minecraft:tag_match` — replaces any block in a block tag.
     TagMatch {
         #[doc = "`tag` provides the tag identifier when `minecraft:tag_match` — replaces any block in a block tag."]
+        #[schemars(with = "String")]
         tag: TagId<BlockId>,
     },
 }
@@ -87,7 +92,10 @@ impl RuleTest {
     example = "use sand::component::OreTarget;",
 )]
 /// One replaceable-target entry of an ore feature config.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
 pub struct OreTarget {
     target: RuleTest,
     state: BlockState,
@@ -114,10 +122,10 @@ impl OreTarget {
         Self { target, state }
     }
 
-    fn to_json(&self) -> Value {
+    fn to_json(&self, modern: bool) -> Value {
         serde_json::json!({
             "target": self.target.to_json(),
-            "state": self.state.to_json(),
+            "state": self.state.to_feature_json(modern),
         })
     }
 }
@@ -135,10 +143,12 @@ impl OreTarget {
     example = "use sand::component::OreConfig;",
 )]
 /// Config for the `minecraft:ore` feature type.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct OreConfig {
     size: u32,
     targets: Vec<OreTarget>,
+    #[serde(default)]
     discard_chance_on_air_exposure: f32,
 }
 
@@ -188,8 +198,12 @@ impl OreConfig {
         self
     }
 
-    fn to_json(&self) -> Value {
-        let targets: Vec<Value> = self.targets.iter().map(OreTarget::to_json).collect();
+    fn to_json(&self, modern: bool) -> Value {
+        let targets: Vec<Value> = self
+            .targets
+            .iter()
+            .map(|target| target.to_json(modern))
+            .collect();
         serde_json::json!({
             "size": self.size,
             "discard_chance_on_air_exposure": self.discard_chance_on_air_exposure,
@@ -232,7 +246,8 @@ impl OreConfig {
 }
 
 /// The typed feature type and its config.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 enum Feature {
     NoOp,
     SimpleBlock {
@@ -244,6 +259,7 @@ enum Feature {
     },
     Ore(OreConfig),
     Raw {
+        #[schemars(with = "String")]
         feature_type: ResourceLocation,
         config: RawJson,
     },
@@ -260,17 +276,17 @@ impl Feature {
         }
     }
 
-    fn config_json(&self) -> Value {
+    fn config_json(&self, modern: bool) -> Value {
         match self {
             Self::NoOp => serde_json::json!({}),
             Self::SimpleBlock { to_place } => serde_json::json!({
-                "to_place": to_place.to_json(),
+                "to_place": to_place.to_feature_json(modern),
             }),
             Self::FillLayer { state, height } => serde_json::json!({
-                "state": state.to_json(),
+                "state": state.to_feature_json(modern),
                 "height": height,
             }),
-            Self::Ore(config) => config.to_json(),
+            Self::Ore(config) => config.to_json(modern),
             Self::Raw { config, .. } => config.as_value().clone(),
         }
     }
@@ -303,8 +319,10 @@ impl Feature {
 /// assert_eq!(feature.component_dir(), "worldgen/configured_feature");
 /// assert_eq!(feature.to_json()["type"], "minecraft:simple_block");
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ConfiguredFeature {
+    #[schemars(with = "String")]
     location: ResourceLocation,
     feature: Feature,
 }
@@ -482,7 +500,7 @@ impl DatapackComponent for ConfiguredFeature {
     fn to_json(&self) -> Value {
         serde_json::json!({
             "type": self.feature.feature_type(),
-            "config": self.feature.config_json(),
+            "config": self.feature.config_json(false),
         })
     }
 
@@ -524,24 +542,27 @@ impl DatapackComponent for ConfiguredFeature {
         caps: Option<&sand_version::VersionCaps>,
     ) -> SandResult<crate::component::ComponentContent> {
         self.validate()?;
-        let mut value = self.to_json();
-        if caps.is_some_and(|caps| caps.is_at_least(26, 3, 0)) {
-            let map = value
-                .as_object_mut()
-                .expect("feature serialization is an object");
-            let config = map.remove("config").expect("feature config");
-            for (key, value) in config.as_object().expect("validated feature config") {
-                if key == "type" {
-                    return Err(validation::error(
-                        &self.location,
-                        KIND,
-                        "config.type",
-                        "configuration cannot override the feature type",
-                    ));
-                }
-                map.insert(key.clone(), value.clone());
+        let value = if caps.is_some_and(|caps| caps.is_at_least(26, 3, 0)) {
+            let config = self.feature.config_json(true);
+            let mut map = config
+                .as_object()
+                .expect("validated feature config")
+                .clone();
+            if map
+                .insert("type".into(), Value::String(self.feature.feature_type()))
+                .is_some()
+            {
+                return Err(validation::error(
+                    &self.location,
+                    KIND,
+                    "config.type",
+                    "configuration cannot override the feature type",
+                ));
             }
-        }
+            Value::Object(map)
+        } else {
+            self.to_json()
+        };
         Ok(crate::component::ComponentContent::Json(value))
     }
 

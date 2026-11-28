@@ -1639,7 +1639,10 @@ impl ConsumableProperties {
 /// Equipment slot for the `equippable` item component.
 ///
 /// Specifies which equipment slot an item can be equipped into.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
 pub enum EquipmentSlot {
     /// Head armor slot.
     Head,

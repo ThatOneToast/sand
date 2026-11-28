@@ -21,6 +21,10 @@ mod dev;
 #[doc(hidden)]
 pub mod join_cmd;
 #[doc(hidden)]
+pub mod lang_cmd;
+mod lang_setup;
+mod lang_test;
+#[doc(hidden)]
 pub mod output;
 #[doc(hidden)]
 pub mod pack_format;

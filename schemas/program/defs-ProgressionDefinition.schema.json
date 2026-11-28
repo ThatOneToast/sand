@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "An ordered player track backed by a canonical State number.",
+  "properties": {
+    "branches": {
+      "description": "Optional forward successors in declaration order.",
+      "items": {
+        "$ref": "defs-ProgressionBranch.schema.json"
+      },
+      "type": "array"
+    },
+    "id": {
+      "description": "Identity used to advance, reset or test this track.",
+      "type": "string"
+    },
+    "objectives": {
+      "description": "Objectives in their persisted order.",
+      "items": {
+        "$ref": "defs-ProgressionObjective.schema.json"
+      },
+      "type": "array"
+    },
+    "progress": {
+      "$ref": "defs-FieldReference.schema.json",
+      "description": "The player's durable, non-ticking score initialized to zero."
+    }
+  },
+  "required": [
+    "id",
+    "progress",
+    "objectives"
+  ],
+  "type": "object"
+}

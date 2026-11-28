@@ -1,0 +1,19 @@
+#![pack(namespace = "world_probe", minecraft = "26.2")]
+
+structure_template Pedestal { source: "structures/pedestal.nbt" }
+template_pool Pieces {
+    pieces: [{ template: Pedestal, weight: 3 }],
+}
+biome Alpine {}
+jigsaw_structure Waystation {
+    start_pool: Pieces,
+    biomes: [Alpine],
+    size: 1,
+    surface: true,
+    terrain_adaptation: beard_thin,
+}
+structure_set Waystations {
+    structures: [{ structure: Waystation }],
+    random_spread: { spacing: 5, separation: 2, salt: 431785 },
+}
+dimension Hills { biome: Alpine, noise_settings: "minecraft:overworld" }

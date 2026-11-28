@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A handler for a player event.",
+  "properties": {
+    "event": {
+      "$ref": "defs-PlayerEvent.schema.json",
+      "description": "Observed occurrence."
+    },
+    "function": {
+      "$ref": "defs-FunctionReference.schema.json",
+      "description": "Handler, run as the player."
+    },
+    "when": {
+      "description": "Optional native predicate evaluated at the observed player's position.",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "event",
+    "function"
+  ],
+  "type": "object"
+}

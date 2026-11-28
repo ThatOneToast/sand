@@ -1,0 +1,47 @@
+//! Rewards granted by the world clock.
+
+use crate::Hero;
+
+/// Restore some energy to the current player.
+pub fn grant() {
+    Hero.energy += 25;
+    play_sound(Sound::EntityExperienceOrbPickup);
+    let sparks = Hero.energy / 10;
+    spawn_particle(Particle::HappyVillager, count = sparks, spread = 0.25);
+    if advancement_done(RaidSupply) {
+        actionbar!("{green}Raid supplies ready");
+    }
+    if Hero.phase == crate::Phase::Resting {
+        Hero.phase = crate::Phase::Idle;
+    }
+}
+
+/// An amethyst Sentry trim for any trimmable armor.
+recipe GuardTrim {
+    smithing_trim: Item::SentryArmorTrimSmithingTemplate,
+    base: "#minecraft:trimmable_armor",
+    addition: Item::AmethystShard,
+    trim_pattern: "minecraft:sentry",
+}
+
+/// Recognize a supply find or a successful hunt.
+advancement RaidSupply {
+    display: {
+        icon: Item::AmethystShard,
+        title: "{light_purple}Ready for the raid",
+        description: "Find amethyst or defeat a zombie.",
+        background: "minecraft:gui/advancements/backgrounds/adventure",
+    },
+    criteria: {
+        collect_shard: { inventory_item: Item::AmethystShard },
+        defeat_zombie: { kill_entity: Entity::Zombie },
+    },
+    require_any: true,
+    experience: 5,
+}
+
+#[on(advancement = RaidSupply)]
+fn celebrate_supplies() {
+    let supplies = inventory_count(Item::AmethystShard);
+    chat!("{light_purple}Raid supply milestone unlocked. Amethyst shards: {supplies}");
+}

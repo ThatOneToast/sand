@@ -632,7 +632,10 @@ pub enum CloneMaskMode {
     variants(Force = "Force-clone even if blocks overlap.", Move = "Move blocks (clone then clear source).", Normal = "Normal cloning (default)."),
 )]
 /// Clone mode for the `clone` command.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(
+    Debug, Clone, Copy, Default, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
 pub enum CloneMode {
     /// Normal cloning (default).
     #[default]

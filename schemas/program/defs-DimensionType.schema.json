@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A Minecraft dimension type definition. The constructor uses overworld-like defaults, producing a complete valid shape without requiring raw JSON:.\n\n# Context\nA Minecraft dimension type definition. The constructor uses overworld-like defaults, producing a complete valid shape without requiring raw JSON:\n\n# Minecraft behavior\nThe constructor uses overworld-like defaults, producing a complete valid shape without requiring raw JSON:\n\n# Use when\n- Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component\n\n# Avoid when\n- Injecting unchecked JSON when the typed schema can represent the resource\n\n# Example\n```rust,ignore\nuse sand::component::DimensionType;\n```\nA Minecraft dimension type definition.\n\nThe constructor uses overworld-like defaults, producing a complete valid\nshape without requiring raw JSON:\n\n```\nuse sand_components::{DatapackComponent, DimensionType, ResourceLocation};\n\nlet ty = DimensionType::new(\n    ResourceLocation::new(\"example\", \"bright_overworld\").unwrap(),\n);\nassert_eq!(ty.component_dir(), \"dimension_type\");\nassert_eq!(ty.to_json()[\"effects\"], \"minecraft:overworld\");\n```",
+  "properties": {
+    "ambient_light": {
+      "format": "float",
+      "type": "number"
+    },
+    "bed_works": {
+      "type": "boolean"
+    },
+    "coordinate_scale": {
+      "format": "double",
+      "type": "number"
+    },
+    "effects": {
+      "type": "string"
+    },
+    "fixed_time": {
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "has_ceiling": {
+      "type": "boolean"
+    },
+    "has_ender_dragon_fight": {
+      "type": "boolean"
+    },
+    "has_raids": {
+      "type": "boolean"
+    },
+    "has_skylight": {
+      "type": "boolean"
+    },
+    "height": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "id": {
+      "type": "string"
+    },
+    "infiniburn": {
+      "type": "string"
+    },
+    "logical_height": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "min_y": {
+      "format": "int32",
+      "type": "integer"
+    },
+    "monster_spawn_block_light_limit": {
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "monster_spawn_light_level": {
+      "$ref": "defs-MonsterSpawnLightLevel.schema.json"
+    },
+    "natural": {
+      "type": "boolean"
+    },
+    "piglin_safe": {
+      "type": "boolean"
+    },
+    "raw_fields": {
+      "additionalProperties": {
+        "$ref": "defs-RawJson.schema.json"
+      },
+      "type": "object"
+    },
+    "respawn_anchor_works": {
+      "type": "boolean"
+    },
+    "ultrawarm": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "id",
+    "has_skylight",
+    "has_ceiling",
+    "ultrawarm",
+    "natural",
+    "coordinate_scale",
+    "bed_works",
+    "respawn_anchor_works",
+    "min_y",
+    "height",
+    "logical_height",
+    "infiniburn",
+    "effects",
+    "ambient_light",
+    "piglin_safe",
+    "has_raids",
+    "has_ender_dragon_fight",
+    "monster_spawn_light_level",
+    "monster_spawn_block_light_limit"
+  ],
+  "type": "object"
+}

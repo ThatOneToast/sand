@@ -1,0 +1,25 @@
+use crate::position::Position;
+pub player state Hero {
+    #[clamp(0..=100)]
+    energy: number = 100,
+    cooldown: timer,
+    previous: Position,
+}
+impl Hero {
+    pub fn ready(&self) -> bool {
+        return self.energy >= 15 && !timer_running(Self.cooldown);
+    }
+    pub fn blink(&mut self, distance: float, seconds: number) {
+        if !Self.ready() {
+            actionbar!("{gray}Not ready.");
+            return;
+        }
+        self.previous = Position::capture();
+        self.previous.east(distance).apply();
+        self.energy -= 15;
+        start_timer(Self.cooldown, seconds = seconds);
+    }
+    pub fn restore(&mut self) {
+        self.energy = 100;
+    }
+}

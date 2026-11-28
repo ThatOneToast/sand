@@ -754,12 +754,16 @@ mod tests {
     #[test]
     fn smithing_trim_recipe_json_output() {
         use sand_core::{Ingredient, SmithingTrimRecipe};
-        let recipe = SmithingTrimRecipe::new("hello_world:armor_trim".parse().unwrap())
-            .template(Ingredient::tag("minecraft:trim_templates"))
-            .base(Ingredient::tag("minecraft:trimmable_armor"))
-            .addition(Ingredient::tag("minecraft:trim_materials"));
+        let recipe = SmithingTrimRecipe::new(
+            "hello_world:armor_trim".parse().unwrap(),
+            "minecraft:sentry".parse().unwrap(),
+        )
+        .template(Ingredient::tag("minecraft:trim_templates"))
+        .base(Ingredient::tag("minecraft:trimmable_armor"))
+        .addition(Ingredient::tag("minecraft:trim_materials"));
         let json = recipe.to_json();
         assert_eq!(json["type"].as_str().unwrap(), "minecraft:smithing_trim");
+        assert_eq!(json["pattern"], "minecraft:sentry");
         assert_eq!(
             json["template"].as_str().unwrap(),
             "#minecraft:trim_templates"

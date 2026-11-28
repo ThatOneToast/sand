@@ -1,7 +1,7 @@
 # Sand Examples
 
 The `.rs` files in this directory are copyable reference snippets. The project
-subdirectories below are standalone crates that build against this checkout.
+subdirectories below contain standalone Rust crates or Sand language packages.
 
 ## Complete projects
 
@@ -18,6 +18,13 @@ subdirectories below are standalone crates that build against this checkout.
 | [rpg_entity](rpg_entity/) | Typed entity archetypes and deterministic export coverage. |
 | [participant_audit](participant_audit/) | Live event participants, equipment snapshots, and multiplayer regressions. |
 | [portable_counter](portable_counter/) | Rust frontend for the portable-program acceptance counter. |
+| [lang_encounters](lang_encounters/) | The same kind of gameplay written in the Sand language (`.sand`), built with `sand lang build`. |
+| [lang_methods](lang_methods/) | Struct values and methods, player State methods, teleportation and runtime cooldowns in Sand source. |
+| [lang_reference_combat](lang_reference_combat/) | Borrowed methods, persistent attackers, delayed marks, entity State, recipes and vanilla kill credit in Sand source. |
+| [lang_collections](lang_collections/) | Saved quest arrays, indexed mutable methods, array iteration and reward history in Sand source. |
+| [lang_runtime_text](lang_runtime_text/) | Saved personal journal with runtime strings, scalar formatting and styled interpolation. |
+| [lang_vectors](lang_vectors/) | Per-player exploration log with growable vectors of records and saved coordinates. |
+| [lang_checkpoints](lang_checkpoints/) | Save a player-owned position and return to it using a typed cooldown. |
 | [arcane_pack](arcane_pack/) | Advanced integration fixture with primitive scoreboard/storage controls and golden tests. |
 
 Start with `book_project` for the guided tutorial and `cooperative_arena` for a
@@ -55,10 +62,11 @@ For a new project, follow [installing and creating a datapack](../book/src/01-in
 
 ## Testing
 
-`scripts/check-examples.sh` discovers every standalone project under `examples/`,
+`scripts/check-examples.sh` discovers every standalone Rust project under `examples/`,
 runs its tests, and builds a server-ready datapack through the Sand CLI. Both
 `scripts/check.sh` and the Rust CI workflow invoke it, so a new example project
-receives the same coverage automatically.
+receives the same coverage automatically. Sand language example packages are
+compiled by `sand-lang` integration tests; native language probes also run in CI.
 
 The unified-State real-server audit runs in the 26.2 lane of the vanilla workflow.
 Run it locally with Minecraft 26.2 and Java 25:

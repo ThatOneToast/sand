@@ -98,6 +98,10 @@ fn valid_reports(dir: &Path, sha1: &str) -> Result<bool> {
 }
 
 fn run_generator(working_dir: &Path, jar_path: &Path) -> Result<()> {
+    run_data_generator(working_dir, jar_path, "--reports")
+}
+
+pub(crate) fn run_data_generator(working_dir: &Path, jar_path: &Path, mode: &str) -> Result<()> {
     // Probe for java on PATH first so we can give a clear error.
     let java = which_java()?;
 
@@ -105,7 +109,7 @@ fn run_generator(working_dir: &Path, jar_path: &Path) -> Result<()> {
         .arg("-DbundlerMainClass=net.minecraft.data.Main")
         .arg("-jar")
         .arg(jar_path)
-        .arg("--reports")
+        .arg(mode)
         .current_dir(working_dir)
         .output()
         .map_err(|e| {

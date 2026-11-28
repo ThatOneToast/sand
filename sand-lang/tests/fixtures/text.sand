@@ -1,0 +1,100 @@
+#![pack(namespace = "language_probe", minecraft = "26.2")]
+const GREETING: string = "Hello" + ", ";
+enum Phase { Waiting = 3, Active = 8 }
+struct Card { title: string, count: number }
+impl Card {
+    fn append(&mut self, suffix: string) -> string { self.title += suffix; self.count += 1; return self.title; }
+    fn nest(&mut self, n: number) { self.title += "x"; if n > 0 { self.nest(n - 1); } self.title += "y"; }
+}
+global state Data { name: string = "initial", cards: [Card; 2], last: string }
+entity state Note { text: string = "fresh" }
+global state Result { checks: number, failed: number, order: number, events: number }
+event NoteMade(text: string);
+#[on(NoteMade)]
+fn first_note(mut text: string) { text += "!"; Data.last = text; }
+#[on(NoteMade)]
+fn second_note(text: string) { Result.events = text.len(); }
+fn check(actual: bool) { Result.checks += 1; if !actual { Result.failed += 1; } }
+fn join(a: string, b: string) -> string { return a + b; }
+fn recursive(value: string, n: number) -> string {
+    if n == 0 { return value; }
+    let before = value + "!";
+    let inner = recursive(value + "x", n - 1);
+    return before + inner;
+}
+fn start() -> number { Result.order = Result.order * 10 + 1; return 0; }
+fn end() -> number { Result.order = Result.order * 10 + 2; return 2; }
+fn next() -> string { Result.order += 1; return "x"; }
+fn run() {
+    Result.checks = 0; Result.failed = 0; Result.order = 0;
+    Data.name = "first";
+    let mut copy = Data.name;
+    copy += " second";
+    check(copy == "first second"); check(Data.name == "first");
+    Data.name = join(GREETING, "world 🌍");
+    check(Data.name == "Hello, world 🌍"); check(Data.name != "hello");
+    let controls = "line\n\t\r\u{0000}end";
+    check(controls == "line\n\t\r\u{0000}end");
+    let literal = "$(uuid)\"\\ command";
+    check(literal == "$(uuid)\"\\ command");
+    let empty: string;
+    check(empty == "");
+    check(recursive("a", 2) == "a!ax!axx");
+    Data.cards = [Card { title: "one", count: 0 }, Card { title: "two", count: 0 }];
+    let i = 1;
+    let result = Data.cards[i].append("!");
+    check(result == "two!"); check(Data.cards[0].title == "one");
+    check(Data.cards[i].title == "two!"); check(Data.cards[i].count == 1);
+    let bad = 9;
+    check(Data.cards[bad].title == "");
+    let skipped = Data.cards[bad].append(next());
+    check(skipped == ""); check(Result.order == 1);
+    let mut names = ["a", "b"];
+    names[i] += "c";
+    check(names[1] == "bc"); check(names.contains("bc"));
+    let mut all = "";
+    for name in names { all += name; }
+    check(all == "abc");
+    let text = "é🌍e\u{0301}";
+    check(text.len() == 4); check(!text.is_empty()); check("".is_empty());
+    check(text[1] == "🌍"); check(text[3] == "\u{0301}"); check(text[bad] == "");
+    let negative = -1;
+    check(text[negative] == "");
+    check(text.slice(1, 3) == "🌍e"); check(text.slice(-8, 2) == "é🌍");
+    check(text.slice(2, 99) == "e\u{0301}"); check(text.slice(3, 1) == "");
+    check(text.starts_with("é🌍")); check(text.ends_with("e\u{0301}"));
+    check(!text.starts_with("é🌍x")); check(!text.ends_with("é🌍e\u{0301}x"));
+    check(text.contains("🌍e")); check(!text.contains("🌍x")); check(text.contains(""));
+    check("".contains("")); check(!"".contains("x")); check("aaaab".contains("aab"));
+    check(0.to_string() == "0"); check(1234567890.to_string() == "1234567890");
+    check((-2147483648).to_string() == "-2147483648");
+    check(2147483647.to_string() == "2147483647"); check((-120).to_string() == "-120");
+    check(true.to_string() == "true"); check(false.to_string() == "false");
+    check(1.5.to_string() == "1.500"); check((-0.001).to_string() == "-0.001");
+    check(0.0.to_string() == "0.000"); check((-12.03).to_string() == "-12.030");
+    check(Phase::Active.to_string() == "Active");
+    let unknown = 4; check((unknown as Phase).to_string() == "4");
+    check((-2147483.648).to_string() == "-2147483.648");
+    check(2147483.647.to_string() == "2147483.647");
+    let mut nested = Card { title: "n", count: 0 };
+    nested.nest(2); check(nested.title == "nxxxyyy");
+    let event_text = "event";
+    emit NoteMade(event_text);
+    check(Data.last == "event!"); check(Result.events == 5); check(event_text == "event");
+    summon(Entity::Pig, tag = "text_probe");
+    for actor in entities(type = Entity::Pig, tag = "text_probe", limit = 1) {
+        attach_state(Note); check(Note.text == "fresh");
+        Note.text = "owned"; attach_state(Note); check(Note.text == "owned");
+        detach_state(Note); attach_state(Note); check(Note.text == "fresh");
+        Note.text = "$(uuid) 🌍"; check(Note.text == "$(uuid) 🌍");
+        detach_state(Note); kill();
+    }
+    Result.order = 0;
+    check(text.slice(end = end(), start = start()) == "é🌍"); check(Result.order == 21);
+    Result.order = 0;
+    check(next().len() == 1); check(Result.order == 1);
+    broadcast!(GREETING + "world");
+    broadcast!("{gold}{Data.name} {copy}");
+    if Result.checks == 66 && Result.failed == 0 { raw!("say __SAND_LANGUAGE_OK__"); }
+    else { raw!("say __SAND_LANGUAGE_FAILED__"); }
+}

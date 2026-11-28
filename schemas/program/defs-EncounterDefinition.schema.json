@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A player-owned bounded priority encounter.",
+  "properties": {
+    "attacks": {
+      "description": "Child attacks in descending priority order.",
+      "items": {
+        "$ref": "defs-EncounterAttack.schema.json"
+      },
+      "type": "array"
+    },
+    "id": {
+      "description": "Registered encounter identity.",
+      "type": "string"
+    },
+    "stop": {
+      "anyOf": [
+        {
+          "$ref": "defs-FunctionReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional cleanup callback, invoked for a resolvable owner."
+    },
+    "ticks": {
+      "description": "Maximum active duration in loaded ticks.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "when": {
+      "anyOf": [
+        {
+          "$ref": "defs-FieldReference.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional State guard checked on each controller tick."
+    }
+  },
+  "required": [
+    "id",
+    "ticks",
+    "attacks"
+  ],
+  "type": "object"
+}

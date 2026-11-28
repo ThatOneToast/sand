@@ -73,6 +73,11 @@ impl<K: EntityKind> Projectile<K> {
             hit: Arc::new(|_| Actions::default()),
         }
     }
+    pub(crate) fn with_lifetime(mut self, lifetime: Lifetime<K>) -> Self {
+        self.lifetime = lifetime;
+        self
+    }
+
     /// Set speed in blocks per tick, finite and in (0, 16].
     #[sand_macros::api(
     registry = sand_api_contract,
@@ -221,6 +226,7 @@ impl<K: EntityKind> TaskContext<K> {
             scope: self.scope.clone(),
             kind: K::LABEL,
             field: "target",
+            position_at_target: true,
             body: Actions::default(),
             child: None,
             damage: Some((amount.into(), kind)),
@@ -251,6 +257,7 @@ impl<K: EntityKind> TaskContext<K> {
             scope: self.scope.clone(),
             kind: "entity",
             field: "target",
+            position_at_target: true,
             body: body(EntityContext::default()).into_commands(),
             child: None,
             damage: None,

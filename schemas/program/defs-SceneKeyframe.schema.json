@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A positive interpolation interval and its target pose.",
+  "properties": {
+    "at": {
+      "description": "Positive start tick, relative to instance creation.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "duration": {
+      "description": "Positive interpolation length.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "part": {
+      "description": "Existing part name within this scene.",
+      "type": "string"
+    },
+    "pose": {
+      "$ref": "defs-Transform.schema.json",
+      "description": "Complete target pose."
+    }
+  },
+  "required": [
+    "part",
+    "at",
+    "duration",
+    "pose"
+  ],
+  "type": "object"
+}

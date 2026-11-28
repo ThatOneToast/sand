@@ -1,0 +1,232 @@
+//! Sand field station. Start in a disposable 26.2 world as an operator.
+//! Build with `sand lang build examples/lang_field_station --output ./field-station-pack`.
+//! /function field_station:start opens the tour. /function field_station:survey starts a timed survey.
+//! /function field_station:range shows a beacon and runs combat. /function field_station:stop cancels your work.
+//! Read top to bottom, or search for "Values", "Resources", "Systems", "Entry points", or "Tests".
+#![pack(namespace = "field_station", minecraft = "26.2", description = "A guided Sand language tour")]
+
+// Values, State, and reusable logic
+enum Phase { Idle, Surveying, Done }
+struct Sample<T> { label: string, values: [T; 2] }
+
+trait Labelled { fn title(&self) -> string; }
+impl<T> Labelled for Sample<T> {
+    fn title(&self) -> string { return self.label; }
+}
+impl Sample<number> {
+    fn add_bonus(&mut self, bonus: number) { self.values[1] += bonus; }
+}
+
+player state Scout {
+    phase: Phase,
+    samples: Vec<Sample<number>>,
+    progress: number,
+    trail_stage: number,
+    mana: number = 8,
+    health: number = 20,
+    cooldown: timer,
+    immunity: timer,
+    target: EntityRef,
+}
+global state Station { surveys: number }
+entity state Marker { priority: number }
+
+event SampleTaken(points: number);
+
+fn label_of<T: Labelled>(value: T) -> string { return value.title(); }
+fn formatter(prefix: string) -> fn(number) -> string {
+    return move |n: number| -> string { return prefix + n.to_string(); };
+}
+
+fn summarize(sample: Sample<number>) -> number {
+    let Sample { label: _, values: [base, bonus] } = sample;
+    return match base {
+        0 => 0,
+        _ if bonus > 0 => { let total = base + bonus; total },
+        _ => base,
+    };
+}
+
+impl Scout {
+    fn record(&mut self, sample: Sample<number>) {
+        self.samples.push(sample);
+    }
+}
+
+// Resources Minecraft loads
+item Badge { base: Item::Compass, name: "{gold}Survey badge", glint: true }
+tag Rations: Item { values: [Item::Bread, Item::Carrot] }
+recipe BadgeRecipe { shapeless: [Item::Compass, Item::AmethystShard], result: Badge }
+predicate AtHome { dimension: Dimension::Overworld }
+loot FieldSupplies {
+    pools: [
+        { when: AtHome, items: [Item::Bread] },
+        { chance: 0.25, items: [{ item: Item::Torch, count: 3 }] },
+    ],
+}
+advancement Equipped {
+    criteria: { compass: { inventory_item: Item::Compass } },
+    experience: 2,
+}
+dialog FieldNotes {
+    title: "{gold}Field notes",
+    body: ["Survey to collect samples. The range demonstrates typed combat."],
+}
+biome SurveyClimate {
+    precipitation: false, temperature: 0.9, downfall: 0.0, sky_color: "#83b4ec",
+}
+dimension TrainingGround {
+    biome: SurveyClimate,
+    layers: [{ block: Block::Bedrock, height: 1 }, { block: Block::GrassBlock, height: 2 }],
+}
+
+// Systems with per-player ownership
+menu Tour {
+    title: "{gold}Field station",
+    ticks: 200,
+    page_size: 2,
+    choices: [
+        { label: "Read field notes", action: notes },
+        { label: "Start a survey", action: survey },
+        { label: "Try the range", action: range },
+    ],
+}
+hud SurveyHud {
+    ticks: 100,
+    every: 5,
+    bossbar: { title: "Survey progress", value: Scout.progress, max: 9 },
+}
+job SurveyJob { ticks: 100, count: 3, per_tick: 1, step: take_sample, complete: finish_survey }
+
+flow SurveyFlow on Scout.phase {
+    Surveying -> Done if Scout.progress >= 9;
+    enter Done { actionbar!("{green}Survey complete"); }
+}
+
+progression Trail {
+    progress: Scout.trail_stage,
+    objectives: [{ reward: give_supplies }],
+}
+session TrailRun { progression: Trail, ticks: 60, every: 10 }
+
+combat Training {
+    health: Scout.health, max: 20, resistance: 0.25,
+    immunity: { timer: Scout.immunity, ticks: 10 },
+    hit: show_health,
+}
+projectile Spark { ticks: 20, speed: 1.5, target: Entity::Zombie, damage: 4, hit: impact }
+ability CastSpark {
+    ticks: 20, projectile: Spark,
+    cost: { balance: Scout.mana, amount: 2 },
+    cooldown: { timer: Scout.cooldown, ticks: 20 },
+}
+scene Beacon {
+    ticks: 40,
+    parts: [{ name: "signal", block: Block::GoldBlock }],
+    keyframes: [{ part: "signal", at: 5, duration: 10, pose: { translation: [0, 2, 0] } }],
+}
+
+// Events, callbacks, and entry points
+#[on(advancement = Equipped)]
+fn equipped() { actionbar!("{aqua}Compass milestone unlocked"); }
+
+#[on(SampleTaken)]
+fn add_progress(points: number) { Scout.progress += points; }
+
+fn take_sample(index: number) {
+    let mut sample = Sample { label: "Plot " + index.to_string(), values: [2, 0] };
+    sample.add_bonus(1);
+    let heading = label_of(sample);
+    Scout.record(sample);
+    chat!("{gray}{heading}");
+    emit SampleTaken(summarize(sample));
+}
+
+fn finish_survey() {
+    Station.surveys += 1;
+    let render = formatter("Survey score: ");
+    let score = render(Scout.progress);
+    chat!(score);
+    let count = Scout.samples.len();
+    wait(count + 5);
+    chat!("Stored {count} samples and completed {Station.surveys} station surveys.");
+}
+
+fn give_supplies() { give_loot(FieldSupplies); }
+fn show_health() { actionbar!("Training health: {Scout.health}"); }
+fn impact() { spawn_particle(Particle::Flame, count = 6); }
+fn notes() { show_dialog(FieldNotes); }
+
+pub fn start() {
+    give_item(Badge);
+    open_menu(Tour);
+    chat!(Text::hover(
+        Text::suggest("{aqua}Open the tour again", "/function field_station:start"),
+        "Puts the function command in chat.",
+    ));
+}
+
+pub fn survey() {
+    if Scout.phase == Phase::Surveying { return; }
+    Scout.phase = Phase::Surveying;
+    Scout.progress = 0;
+    Scout.samples = [];
+    start_hud(SurveyHud);
+    start_job(SurveyJob);
+}
+
+/// Use this after a survey to run a separate one-step reward session.
+pub fn reward_session() {
+    reset_progression(Trail);
+    start_session(TrailRun);
+}
+
+pub fn range() {
+    show_scene(Beacon);
+    combat_damage(Training, 4);
+    activate_ability(CastSpark);
+}
+
+/// Replace the tracked marker in the current dimension.
+pub fn mark() {
+    clear_marker();
+    summon(Entity::ArmorStand, tag = "field_station_new_marker");
+    let mut retained: EntityRef;
+    for marker in entities(type = Entity::ArmorStand, tag = "field_station_new_marker", distance = ..=4, sort = Sort::Nearest, limit = 1) {
+        remove_tag("field_station_new_marker");
+        add_tag("field_station_marker");
+        attach_state(Marker);
+        Marker.priority = 1;
+        retained = entity_ref();
+    }
+    Scout.target = retained;
+}
+
+fn clear_marker() {
+    let retained = Scout.target;
+    for marker in resolve_entity(retained) { kill(); }
+    let empty: EntityRef;
+    Scout.target = empty;
+}
+
+pub fn stop() {
+    close_menu(Tour);
+    cancel_job(SurveyJob);
+    cancel_hud(SurveyHud);
+    cancel_waits();
+    cancel_ability(CastSpark);
+    cancel_session(TrailRun);
+    cancel_scene(Beacon);
+    clear_marker();
+    Scout.phase = Phase::Idle;
+}
+
+// Tests run in a disposable vanilla server through sand lang test.
+#[test]
+fn sample_values() -> bool {
+    let mut sample = Sample { label: "Plot 🌍", values: [2, 0] };
+    sample.add_bonus(1);
+    assert!(label_of(sample).len() == 6);
+    assert!(summarize(sample) == 3);
+    return true;
+}

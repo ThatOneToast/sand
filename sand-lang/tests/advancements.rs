@@ -2,6 +2,41 @@ mod support;
 
 use support::*;
 
+#[test]
+fn consumption_and_arrival_use_native_filtered_advancement_triggers() {
+    let analysis = analyze_one(
+        r#"
+#![pack(namespace = "travel", minecraft = "26.2")]
+dimension Camp { noise_settings: "minecraft:overworld", biome: Biome::Plains }
+advancement Journey {
+    criteria: {
+        meal: { consume_item: Item::Bread },
+        arrival: { arrive_dimension: Camp },
+    },
+}
+"#,
+    );
+    let pack = compile(&analysis);
+    let json: serde_json::Value =
+        serde_json::from_slice(&pack.resources["data/travel/advancement/journey.json"]).unwrap();
+    assert_eq!(
+        json["criteria"]["meal"]["trigger"],
+        "minecraft:consume_item"
+    );
+    assert_eq!(
+        json["criteria"]["meal"]["conditions"]["item"]["items"],
+        serde_json::json!(["minecraft:bread"])
+    );
+    assert_eq!(
+        json["criteria"]["arrival"]["trigger"],
+        "minecraft:changed_dimension"
+    );
+    assert_eq!(
+        json["criteria"]["arrival"]["conditions"]["to"],
+        "travel:camp"
+    );
+}
+
 const MILESTONE: &str = r#"
 advancement Scout {
     display: {

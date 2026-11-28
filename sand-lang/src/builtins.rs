@@ -2725,7 +2725,7 @@ pub const DATA_FIELDS: &[DataFieldDoc] = &[
         "criteria",
         FieldKind::AdvancementCriteria,
         true,
-        "Named criteria using `inventory_item`, `place_block`, or `kill_entity`.",
+        "Named criteria using `inventory_item`, `consume_item`, `place_block`, `kill_entity`, or `arrive_dimension`.",
         "{ ${1:collect}: { inventory_item: Item::${2:Diamond} } }",
     ),
     f(

@@ -1325,6 +1325,17 @@ fn advancement_component(
                     .map_err(|err| err.to_string())?;
                 AdvancementTrigger::inventory_changed(vec![item])
             }
+            AdvancementCriterion::ConsumeItem { item } => {
+                let item = item
+                    .parse::<sand_components::ItemId>()
+                    .map_err(|err| err.to_string())?;
+                AdvancementTrigger::ConsumeItem {
+                    item: Some(sand_components::ItemPredicate::id(item)),
+                }
+            }
+            AdvancementCriterion::ArriveDimension { dimension } => {
+                AdvancementTrigger::changed_dimension(None, Some(dimension.clone()))
+            }
             AdvancementCriterion::PlaceBlock { block } => {
                 let block = block
                     .parse::<sand_components::BlockId>()

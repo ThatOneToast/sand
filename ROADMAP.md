@@ -329,6 +329,8 @@ This checklist tracks the requested expansion; unchecked entries are not shipped
 - [x] Runtime particle count, spread and speed with atomic range checks.
 - [x] Native advancement resources with named inventory, placement and kill criteria,
   all/any requirements, visible presentation and experience rewards.
+- [x] Native advancement criteria for consuming a specific item and arriving
+  in a specific dimension.
 - [x] Player-scoped advancement completion and named criterion queries.
 - [x] Ordered completion handlers using the authored advancement's native reward
   function.

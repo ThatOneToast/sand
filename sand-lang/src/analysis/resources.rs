@@ -2759,6 +2759,14 @@ impl Cx {
                 "inventory_item" => self
                     .data_item_ref(module, file, &trigger.value, false)
                     .map(|item| pc::AdvancementCriterion::InventoryItem { item }),
+                "consume_item" => self
+                    .data_item_ref(module, file, &trigger.value, false)
+                    .map(|item| pc::AdvancementCriterion::ConsumeItem { item }),
+                "arrive_dimension" => self
+                    .data_expr(file, &trigger.value, "a dimension")
+                    .and_then(|expr| self.vanilla_value(module, file, expr, "Dimension"))
+                    .and_then(|id| id.parse().ok())
+                    .map(|dimension| pc::AdvancementCriterion::ArriveDimension { dimension }),
                 "place_block" => self
                     .data_expr(file, &trigger.value, "a Block value")
                     .and_then(|expr| self.vanilla_value(module, file, expr, "Block"))
@@ -2772,7 +2780,7 @@ impl Cx {
                         "advancement",
                         file,
                         trigger.key.span,
-                        "use `inventory_item`, `place_block`, or `kill_entity`",
+                        "use `inventory_item`, `consume_item`, `place_block`, `kill_entity`, or `arrive_dimension`",
                     );
                     None
                 }

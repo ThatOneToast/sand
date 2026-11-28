@@ -55,6 +55,43 @@
         "entity"
       ],
       "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Finish consuming the selected item.",
+      "properties": {
+        "item": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "consume_item",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "item"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Change dimensions and arrive in the selected destination.",
+      "properties": {
+        "dimension": {
+          "description": "Destination dimension identity.",
+          "type": "string"
+        },
+        "kind": {
+          "const": "arrive_dimension",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "dimension"
+      ],
+      "type": "object"
     }
   ]
 }

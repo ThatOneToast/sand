@@ -542,11 +542,11 @@ pub struct AdvancementDisplay {
  registry = sand_api_contract, path = "sand::advanced::compiler::AdvancementCriterion", module = "sand::advanced::compiler",
  summary = "A vanilla condition that records one piece of player advancement progress.",
  context = "Give each condition a stable name in its Advancement. The game tracks each player's completion and persists criterion progress.",
- minecraft = "Uses inventory_changed, placed_block, or player_killed_entity.",
+ minecraft = "Uses native inventory, consumption, placement, kill, and dimension-change triggers.",
  use_when = ["Composing native advancement criteria"],
  avoid_when = ["Executing an arbitrary script as a criterion"],
- variants(InventoryItem = "Acquire an item.", PlaceBlock = "Place the selected block.", KillEntity = "Kill an entity of the selected type."),
- variant_fields(InventoryItem(item = "Vanilla item identity."), PlaceBlock(block = "Vanilla block identity."), KillEntity(entity = "Vanilla entity type identity.")),
+ variants(InventoryItem = "Acquire an item.", PlaceBlock = "Place the selected block.", KillEntity = "Kill an entity of the selected type.", ConsumeItem = "Consume the selected item.", ArriveDimension = "Enter the selected dimension."),
+ variant_fields(InventoryItem(item = "Vanilla item identity."), PlaceBlock(block = "Vanilla block identity."), KillEntity(entity = "Vanilla entity type identity."), ConsumeItem(item = "Vanilla item identity."), ArriveDimension(dimension = "Destination dimension identity.")),
  example = "use sand::advanced::compiler::AdvancementCriterion;",
 )]
 pub enum AdvancementCriterion {
@@ -556,6 +556,14 @@ pub enum AdvancementCriterion {
     PlaceBlock { block: String },
     /// Receive player kill credit for an entity of the given type.
     KillEntity { entity: String },
+    /// Finish consuming the selected item.
+    ConsumeItem { item: String },
+    /// Change dimensions and arrive in the selected destination.
+    ArriveDimension {
+        /// Destination dimension identity.
+        #[schemars(with = "String")]
+        dimension: sand_components::DimensionId,
+    },
 }
 
 /// A native notice dialog with static rich text and a dismiss button.

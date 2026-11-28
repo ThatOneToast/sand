@@ -1605,7 +1605,10 @@ pub(super) fn validate(
                     );
                 }
                 let (id, registry, field) = match criterion {
-                    AdvancementCriterion::InventoryItem { item } => {
+                    // DimensionId validates the identity and may reference a world supplied by another pack.
+                    AdvancementCriterion::ArriveDimension { .. } => continue,
+                    AdvancementCriterion::InventoryItem { item }
+                    | AdvancementCriterion::ConsumeItem { item } => {
                         (item, "minecraft:item", "item")
                     }
                     AdvancementCriterion::PlaceBlock { block } => {
